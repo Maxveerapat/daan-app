@@ -133,6 +133,13 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   floating header pills + tab bar, inset sheets sized to content. Content cards stay on solid surfaces.
   Respects prefers-reduced-transparency. Wrapping rules: 2-column chip grid, `text-wrap: balance/pretty`,
   phrases wrapped in `.nw` so lines only break between phrases.
+- **UI now modelled on JodNai (jodnai.com), owner's reference** — replaces the Liquid Glass pass:
+  navy MapLibre palette, dark pill map pins (status dot + short type name), ONE persistent bottom
+  panel (`#panel`, mini/peek/full heights, drag the grabber) with three views: nearby list (`pv-near`,
+  merges the old Map + List tabs), report detail (`pv-detail`, opened by tapping a pin or row —
+  replaces Leaflet popups), route options (`pv-route`). Tab bar lives inside the panel:
+  แถวนี้ · เส้นทาง · รายงาน (report opens the stepper sheet). Solid dark surfaces, blue primary CTA,
+  outlined secondary, green info boxes; glass only on map-floating controls. Font: Google Sans (has Thai).
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

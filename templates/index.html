@@ -73,6 +73,34 @@
     border: 1px solid var(--hair); border-radius: 14px;
     padding: 10px 12px; font-size: 11.5px; line-height: 1.9; color: var(--text);
   }
+  .legend { top: calc(var(--topbar) + 58px); }
+  .dia { display: inline-block; width: 9px; height: 9px; margin-right: 7px; background: #FFD60A; transform: rotate(45deg); border-radius: 2px; }
+  .catbar {
+    position: absolute; top: calc(var(--topbar) + 10px); left: 14px; right: 14px; z-index: 1000; display: flex; gap: 6px;
+  }
+  .catbar button, .feed-cat button, .seg button {
+    flex: 1; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 6px; border-radius: 999px;
+    border: 1px solid var(--hair); background: var(--glass); color: var(--muted);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .catbar button.on, .feed-cat button.on, .seg button.on { background: var(--text); color: var(--bg); border-color: transparent; }
+  .feed-cat { display: flex; gap: 6px; margin: 0 0 12px; }
+  .seg { display: flex; gap: 6px; margin: 10px 0 4px; }
+  .seg button { background: var(--surface-2); }
+  /* incident pin: yellow road-warning diamond */
+  .hz-wrap { background: none; border: none; }
+  .hz {
+    width: 20px; height: 20px; margin: 2px; transform: rotate(45deg); border-radius: 4px;
+    background: #FFD60A; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .hz span { transform: rotate(-45deg); color: #1C1C1E; font-weight: 800; font-size: 12px; line-height: 1; }
+  .hz.stale { background: #8E8E93; }
+  .hz.big { width: 26px; height: 26px; margin: -1px; border-width: 3px; }
+  .cat-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; }
+  .cat-tag.cp { background: rgba(255,69,58,.16); color: #FF6961; }
+  .cat-tag.inc { background: rgba(255,214,10,.16); color: #FFD60A; }
+  .cpcount.inc-some { background: rgba(255,214,10,.16); color: #FFD60A; }
   .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
 
   /* feed */
@@ -351,10 +379,12 @@
 <main>
   <div class="tab active" id="tab-map">
     <div id="map"></div>
+    <div class="catbar" id="catbar"></div>
     <div class="legend">
       <div><span class="dot" style="background:var(--fresh)"></span><span data-i18n="legFresh"></span></div>
       <div><span class="dot" style="background:var(--aging)"></span><span data-i18n="legAging"></span></div>
       <div><span class="dot" style="background:var(--stale)"></span><span data-i18n="legStale"></span></div>
+      <div><span class="dia"></span><span data-i18n="legIncident"></span></div>
     </div>
   </div>
 
@@ -416,6 +446,7 @@
         <div id="crosshair">📍</div>
       </div>
       <div class="sheet-form">
+        <div class="seg" id="catSeg"></div>
         <label data-i18n="typeLabel"></label>
         <div class="chips" id="typeChips"></div>
         <label data-i18n="placeLabel"></label>
@@ -442,14 +473,16 @@ const I18N = {
     title: "ด่าน — แจ้งเตือนด่านตรวจ",
     locating: "กำลังหาตำแหน่ง…", locReal: "ตำแหน่งปัจจุบัน", locDemo: "อนุสาวรีย์ชัยฯ (ตัวอย่าง)",
     legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.",
-    tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงานด่าน",
+    tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
+    legIncident: "เหตุบนถนน", c_all: "ทั้งหมด", c_checkpoint: "ด่านตรวจ", c_incident: "เหตุบนถนน",
+    incN: n => `เหตุ ${n} จุด`, tagCheckpoint: "ด่าน", tagIncident: "เหตุบนถนน", detected: x => `ตรวจพบ: ${x} ✓`,
     destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "เช็คเส้นทาง",
     routeHint: "จากตำแหน่งปัจจุบัน · หรือแตะบนแผนที่เพื่อปักหมุดปลายทาง",
-    sheetTitle: "รายงานด่านตรงนี้", sheetHint: "ถ่ายรูปด่านสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เจอด่าน",
+    sheetTitle: "รายงานตรงนี้", sheetHint: "ถ่ายรูปสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เกิดเหตุ",
     retake: "ถ่ายใหม่", passengerNote: "ให้ผู้โดยสารถ่าย — ห้ามใช้มือถือขณะขับรถ",
     camErr: "เปิดกล้องไม่ได้ — อนุญาตให้เบราว์เซอร์ใช้กล้อง แล้วลองอีกครั้ง",
     needPhoto: "ถ่ายรูปด่านก่อนส่ง", needGps: "ต้องเปิดตำแหน่ง (GPS) เพื่อรายงาน", verifying: "กำลังส่ง…",
-    checking: "กำลังตรวจรูป…", photoOk: "✓ ดูเหมือนด่าน", photoBad: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นตำรวจ/กรวย/ป้ายด่าน",
+    checking: "กำลังตรวจรูป…", photoOk: "✓ รูปตรงกับประเภทที่เลือก", photoBad: "รูปไม่ตรงกับประเภทที่เลือก — ถ่ายใหม่ หรือเปลี่ยนประเภท",
     tooFar: "หมุดอยู่ไกลจากตำแหน่งของคุณเกิน 500 ม.", rateLimited: "รายงานถี่เกินไป ลองใหม่ภายหลัง",
     photoRejected: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นด่านชัด ๆ", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
     closeRoute: "ปิดเส้นทาง", f_all: "ทั้งหมด", f_toll: "ขึ้นทางด่วน", f_noToll: "ไม่ขึ้นทางด่วน",
@@ -481,13 +514,15 @@ const I18N = {
     locating: "Locating…", locReal: "Current location", locDemo: "Victory Monument (demo)",
     legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs",
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
+    legIncident: "Road incident", c_all: "All", c_checkpoint: "Checkpoints", c_incident: "Incidents",
+    incN: n => `${n} incident${n === 1 ? "" : "s"}`, tagCheckpoint: "Checkpoint", tagIncident: "Incident", detected: x => `Detected: ${x} ✓`,
     destPh: "Where to? e.g. Siam Paragon", routeBtn: "Check",
     routeHint: "From your location · or tap the map to drop a pin",
-    sheetTitle: "Report a checkpoint here", sheetHint: "Take a live photo, then move the map so the pin sits on the checkpoint",
+    sheetTitle: "Report here", sheetHint: "Take a live photo, then move the map so the pin sits on the spot",
     retake: "Retake", passengerNote: "Passengers only — don't use your phone while driving",
     camErr: "Can't open the camera — allow camera access in your browser and try again",
     needPhoto: "Take a photo of the checkpoint first", needGps: "Turn on location (GPS) to report", verifying: "Sending…",
-    checking: "Checking photo…", photoOk: "✓ Looks like a checkpoint", photoBad: "This doesn't look like a checkpoint — retake so police, cones or signs are visible",
+    checking: "Checking photo…", photoOk: "✓ Photo matches the selected type", photoBad: "Photo doesn't match the selected type — retake or change the type",
     tooFar: "The pin is more than 500 m from where you are", rateLimited: "Too many reports — try again later",
     photoRejected: "This photo doesn't look like a checkpoint — retake it so the checkpoint is visible", sendErr: "Couldn't send the report — try again",
     closeRoute: "Close route", f_all: "All", f_toll: "Tollway", f_noToll: "No tollway",
@@ -516,15 +551,21 @@ const I18N = {
   },
 };
 // Report types are stored in the DB by their Thai name (the key); English is display-only.
+// Report types are stored in the DB by their Thai name (the key); English is display-only.
+// cat: which category the type belongs to; g: photo-check group in /static/clip_labels.json.
 const TYPES = {
-  "ตั้งแล้ว ระวังด้วย": "Checkpoint (general)",
-  "ใบขับขี่+หมวกกันน็อค": "License + helmet",
-  "เช็คลมปาก": "Breath test",
-  "ควันดำ": "Black smoke",
-  "เน้น 2 ล้อ": "Motorbikes",
-  "ส่องความเร็ว": "Speed check",
-  "ภาษี พ.ร.บ.": "Tax / insurance",
-  "รถบรรทุก": "Trucks",
+  "ตั้งแล้ว ระวังด้วย":      { en: "Checkpoint (general)", cat: "checkpoint", g: "checkpoint" },
+  "ใบขับขี่+หมวกกันน็อค":   { en: "License + helmet",     cat: "checkpoint", g: "checkpoint" },
+  "เช็คลมปาก":              { en: "Breath test",          cat: "checkpoint", g: "checkpoint" },
+  "ควันดำ":                 { en: "Black smoke",          cat: "checkpoint", g: "checkpoint" },
+  "เน้น 2 ล้อ":              { en: "Motorbikes",           cat: "checkpoint", g: "checkpoint" },
+  "ส่องความเร็ว":            { en: "Speed check",          cat: "checkpoint", g: "checkpoint" },
+  "ภาษี พ.ร.บ.":            { en: "Tax / insurance",      cat: "checkpoint", g: "checkpoint" },
+  "รถบรรทุก":               { en: "Trucks",               cat: "checkpoint", g: "checkpoint" },
+  "อุบัติเหตุ":               { en: "Accident",             cat: "incident",   g: "accident" },
+  "ทำถนน/ก่อสร้าง":          { en: "Roadworks",            cat: "incident",   g: "roadwork" },
+  "น้ำท่วม":                 { en: "Flooding",             cat: "incident",   g: "flood" },
+  "ถนนถูกปิด/สิ่งกีดขวาง":    { en: "Road blocked",         cat: "incident",   g: "blocked" },
 };
 const TYPE_KEYS = Object.keys(TYPES);
 
@@ -532,7 +573,15 @@ let lang = "th";
 try { lang = localStorage.getItem("daan-lang") || "th"; } catch (e) {}
 if (!I18N[lang]) lang = "th";
 function t(key, ...a) { const v = I18N[lang][key]; return typeof v === "function" ? v(...a) : v; }
-function typeName(k) { return lang === "en" ? (TYPES[k] || k) : k; }
+function typeName(k) { return lang === "en" ? (TYPES[k] ? TYPES[k].en : k) : k; }
+function catOf(cp) { return (TYPES[cp.type] || {}).cat || "checkpoint"; }
+let catFilter = "all", reportCat = "checkpoint";
+function catShown(cp) { return catFilter === "all" || catOf(cp) === catFilter; }
+function setCat(c) { catFilter = c; renderCatBars(); renderMap(); renderFeed(); renderRouteCps(); }
+function catButtons(cur, fn) {
+  return ["all", "checkpoint", "incident"].map(c => `<button class="${cur === c ? "on" : ""}" onclick="${fn}('${c}')">${t("c_" + c)}</button>`).join("");
+}
+function renderCatBars() { $("catbar").innerHTML = catButtons(catFilter, "setCat"); }
 function labelName(l) { return l === "ไม่ระบุตำแหน่ง" ? t("noLabel") : l; }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
@@ -544,6 +593,7 @@ function applyLang() {
   $("langBtn").textContent = lang === "th" ? "EN" : "ไทย";
   $("locBadge").textContent = userLoc ? t(locReal ? "locReal" : "locDemo") : t("locating");
   renderChips();
+  renderCatBars();
   baseMaps.forEach(setMapLabels);
 }
 function toggleLang() {
@@ -681,6 +731,18 @@ function agoText(min) {
 }
 function distText(m) { return m < 1000 ? `${Math.round(m)} ${t("m")}` : `${(m/1000).toFixed(1)} ${t("km")}`; }
 
+// Checkpoints: recency-coloured circles. Incidents: yellow warning diamonds (grey when stale).
+function makeMarker(cp, big = false) {
+  if (catOf(cp) === "incident") {
+    const sz = big ? 30 : 24;
+    return L.marker([cp.lat, cp.lng], { icon: L.divIcon({
+      className: "hz-wrap", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+      html: `<div class="hz ${cp.age_minutes > 180 ? "stale" : ""} ${big ? "big" : ""}"><span>!</span></div>`,
+    }) });
+  }
+  const st = styleFor(cp);
+  return L.circleMarker([cp.lat, cp.lng], big ? { ...st, radius: 13, weight: 3 } : st);
+}
 function styleFor(cp) {
   if (cp.age_minutes <= 60) return { color: "#fff", fillColor: "#FF453A", fillOpacity: 1, radius: 11, weight: 2 };
   if (cp.age_minutes <= 180) return { color: "#fff", fillColor: "#FF9F0A", fillOpacity: .9, radius: 9, weight: 2 };
@@ -700,18 +762,23 @@ function voteBtns(cp, cls) {
   return `<div class="${cls}"><button onclick="vote(${cp.id},true)">${t("stillThere")}</button><button onclick="vote(${cp.id},false)">${t("gone")}</button></div>`;
 }
 
+function catTag(cp) {
+  const inc = catOf(cp) === "incident";
+  return `<span class="cat-tag ${inc ? "inc" : "cp"}">${t(inc ? "tagIncident" : "tagCheckpoint")}</span>`;
+}
 function popupHtml(cp) {
   const conf = `${t("lastConfirmed", agoText(cp.age_minutes))} · ${t("people", cp.confirms)}${cp.reports > 1 ? ` · ${t("reportsN", cp.reports)}` : ""}`;
   return `<div class="pin-pop"><b>${esc(labelName(cp.label))}</b>
-    <div class="meta">${esc(typeName(cp.type))}<br>${conf}</div>${voteBtns(cp, "vr")}</div>`;
+    <div class="meta">${catTag(cp)}${esc(typeName(cp.type))}<br>${conf}</div>${voteBtns(cp, "vr")}</div>`;
 }
 
 function renderMap() {
   mapLayer.clearLayers();
   const animate = !pinsAnimated && checkpoints.length > 0;
-  checkpoints.forEach(cp => {
-    L.circleMarker([cp.lat, cp.lng], { ...styleFor(cp), className: animate ? "pin" : "" })
-      .bindPopup(popupHtml(cp)).addTo(mapLayer);
+  checkpoints.filter(catShown).forEach(cp => {
+    const m = catOf(cp) === "incident" ? makeMarker(cp)
+      : L.circleMarker([cp.lat, cp.lng], { ...styleFor(cp), className: animate ? "pin" : "" });
+    m.bindPopup(popupHtml(cp)).addTo(mapLayer);
   });
   if (animate) {
     pinsAnimated = true;
@@ -727,7 +794,7 @@ function cardHtml(cp, dist) {
     `<span class="badge dist ${dist > 5000 ? "far" : ""}">${distText(dist)}</span>`;
   return `<div class="card ${fresh ? "fresh" : ""}">
     <div class="card-top"><span class="card-title">${esc(labelName(cp.label))}</span>${distBadge}</div>
-    <div class="card-type">${esc(typeName(cp.type))}${cp.reports > 1 ? ` · ${t("mergedN", cp.reports)}` : ""}</div>
+    <div class="card-type">${catTag(cp)}${esc(typeName(cp.type))}${cp.reports > 1 ? ` · ${t("mergedN", cp.reports)}` : ""}</div>
     <div class="card-meta"><span>🕐 ${agoText(cp.age_minutes)}</span><span class="ok">${t("confirmedBy", cp.confirms)}</span></div>
     ${voteBtns(cp, "vote-row")}</div>`;
 }
@@ -735,7 +802,7 @@ function cardHtml(cp, dist) {
 let staleOpen = false;
 function renderFeed() {
   const el = $("feedScroll");
-  const withDist = checkpoints.map(cp => ({
+  const withDist = checkpoints.filter(catShown).map(cp => ({
     cp, dist: userLoc ? haversineM(userLoc, [cp.lat, cp.lng]) : null
   }));
   const active = withDist.filter(x => x.cp.status === "active")
@@ -743,7 +810,7 @@ function renderFeed() {
   const stale = withDist.filter(x => x.cp.status === "stale")
     .sort((a,b) => a.cp.age_minutes - b.cp.age_minutes);
 
-  let html = `<div class="section-label">${t("activeHead", active.length)}</div>`;
+  let html = `<div class="feed-cat">${catButtons(catFilter, "setCat")}</div><div class="section-label">${t("activeHead", active.length)}</div>`;
   html += active.length
     ? active.map(x => cardHtml(x.cp, x.dist)).join("")
     : `<div class="card" style="text-align:center;color:var(--muted)">${t("noneNear")}</div>`;
@@ -927,14 +994,12 @@ function drawRoutes() {
   renderRouteCps();
 }
 
-// Every checkpoint is always shown on the route map; ones on the selected route are drawn larger.
+// Every report is shown on the route map (per the category filter); ones on the selected route are drawn larger.
 function renderRouteCps() {
   routeCpLayer.clearLayers();
   const onSel = new Set(routeData.length ? routeData[selRoute].hits.map(h => h.cp.id) : []);
-  checkpoints.forEach(cp => {
-    const st = styleFor(cp);
-    const opts = onSel.has(cp.id) ? { ...st, radius: 13, weight: 3 } : st;
-    L.circleMarker([cp.lat, cp.lng], opts).bindPopup(popupHtml(cp)).addTo(routeCpLayer);
+  checkpoints.filter(cp => catShown(cp) || onSel.has(cp.id)).forEach(cp => {
+    makeMarker(cp, onSel.has(cp.id)).bindPopup(popupHtml(cp)).addTo(routeCpLayer);
   });
 }
 
@@ -949,20 +1014,21 @@ function renderRouteSummary() {
       `<button class="${tollFilter === k ? "on" : ""}" onclick="setTollFilter('${k}')">${t("f_" + k)}</button>`).join("")}</div>` : "";
   const opts = visible.length ? visible.map(i => {
     const r = routeData[i];
-    const n = r.hits.length;
+    const n = r.hits.filter(h => catOf(h.cp) === "checkpoint").length;
+    const ni = r.hits.length - n;
     return `<div class="route-opt ${i === selRoute ? "sel" : ""}" onclick="selRoute=${i};drawRoutes();renderRouteSummary()">
         <div class="ro-main">
           <b>${t("routeN", i + 1)}</b>
           <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}${r.delay > 0 ? ` · <span class="delay">${t("delay", r.delay)}</span>` : ""}${r.toll == null ? "" : ` · <span class="toll ${r.toll ? "yes" : "no"}">${t(r.toll ? "toll" : "noToll")}</span>`}</span>
         </div>
-        <div class="ro-badges"><span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span></div>
+        <div class="ro-badges"><span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span>${ni ? `<span class="cpcount inc-some">${t("incN", ni)}</span>` : ""}</div>
       </div>`;
   }).join("") : `<div class="route-hit" style="color:var(--muted)">${t("noRouteFilter")}</div>`;
 
   const sel = routeData[selRoute];
   const list = sel.hits.length
     ? sel.hits.map(h => `<div class="route-hit">
-          <div><b>${esc(labelName(h.cp.label))}</b><div class="t">${esc(typeName(h.cp.type))} · ${t("lastConfirmed", agoText(h.cp.age_minutes))}</div></div>
+          <div><b>${esc(labelName(h.cp.label))}</b><div class="t">${catTag(h.cp)}${esc(typeName(h.cp.type))} · ${t("lastConfirmed", agoText(h.cp.age_minutes))}</div></div>
           <span class="badge dist">${t("kmAt", (h.along / 1000).toFixed(1))}</span>
         </div>`).join("")
     : `<div class="route-hit" style="color:var(--muted)">${t("noCpOnRoute")}</div>`;
@@ -990,14 +1056,16 @@ function renderRouteSummary() {
    Anti-spam: live camera only (no file upload), reporter's live GPS must be near the pin,
    server rate-limits and (if configured) has Claude check the photo shows a checkpoint.
    The photo is only used for that check and is never stored. */
-let camStream = null, photoData = null, reportPos = null, photoOk = false;
+let camStream = null, photoData = null, reportPos = null, photoOk = false, photoProbs = undefined;
 
 /* On-device photo check: MobileCLIP-S0 (Apple, open weights) via transformers.js, zero server cost.
-   The model compares the photo with short text descriptions; the text side was computed offline and
+   The model compares the photo with short text descriptions grouped by report kind; the text side was computed offline and
    ships as /static/clip_labels.json, so only the ~23 MB image model downloads (once, then cached).
-   Tuned on sample photos: checkpoints scored >= 0.36, non-checkpoints <= 0.25. */
+   Pass rule: the photo must look like a road event at all (1 - P(neg) >= 0.5) AND the selected
+   type must be plausible (P(type group) >= 0.15). On 47 sample photos: 34/36 real reports passed,
+   all food/room/selfie photos were rejected. */
 const CLIP_MODEL = "Xenova/mobileclip_s0";
-const CLIP_THRESHOLD = 0.30;
+const CLIP_EVENT_MIN = 0.5, CLIP_TYPE_MIN = 0.15, CLIP_AUTODETECT = 0.6;
 let clipReady = null;
 function loadClip() {
   if (!clipReady) clipReady = (async () => {
@@ -1012,8 +1080,9 @@ function loadClip() {
   })().catch(e => { clipReady = null; throw e; });
   return clipReady;
 }
-// Returns the probability (0–1) that the photo shows a checkpoint, or null if the model can't run.
-async function checkpointScore(canvas) {
+// Returns {group: probability} over the label groups (checkpoint, accident, roadwork, flood,
+// blocked, neg), or null if the model can't run.
+async function photoScores(canvas) {
   try {
     const { T, processor, model, labels } = await loadClip();
     const img = await T.RawImage.fromCanvas(canvas);
@@ -1021,7 +1090,9 @@ async function checkpointScore(canvas) {
     const v = image_embeds.normalize().tolist()[0];
     const logits = labels.embeds.map(e => 100 * e.reduce((s, x, i) => s + x * v[i], 0));
     const m = Math.max(...logits), ex = logits.map(l => Math.exp(l - m)), z = ex.reduce((a, b) => a + b);
-    return ex.slice(0, labels.npos).reduce((a, b) => a + b) / z;
+    const out = {};
+    labels.groups.forEach((g, i) => { out[g] = (out[g] || 0) + ex[i] / z; });
+    return out;
   } catch (e) {
     console.warn("photo check unavailable", e);
     return null;
@@ -1033,7 +1104,7 @@ function stopCamera() {
 }
 async function startCamera() {
   const wrap = $("camWrap");
-  photoData = null; photoOk = false; wrap.classList.remove("shot", "err"); $("camCheck").className = ""; updateSubmit();
+  photoData = null; photoOk = false; photoProbs = undefined; wrap.classList.remove("shot", "err"); $("camCheck").className = ""; updateSubmit();
   stopCamera();
   try {
     camStream = await navigator.mediaDevices.getUserMedia({
@@ -1060,12 +1131,31 @@ async function capturePhoto() {
   chk.textContent = t("checking"); chk.className = "show";
   updateSubmit();
   const shot = photoData;
-  const score = await checkpointScore(c);
+  const probs = await photoScores(c);
   if (shot !== photoData) return; // retaken meanwhile
+  photoProbs = probs;
+  // Auto-pick the type when the photo clearly shows one kind of report.
+  let detected = null;
+  if (probs) {
+    const best = Object.entries(probs).filter(([g]) => g !== "neg").sort((a, b) => b[1] - a[1])[0];
+    if (best && best[1] >= CLIP_AUTODETECT && TYPES[selType].g !== best[0]) {
+      selType = TYPE_KEYS.find(k => TYPES[k].g === best[0]);
+      reportCat = TYPES[selType].cat;
+      renderChips();
+      detected = typeName(selType);
+    }
+  }
+  evalPhoto(detected);
+}
+// Re-checks the stored photo scores against the currently selected type.
+function evalPhoto(detected) {
+  const chk = $("camCheck");
+  if (!photoData || photoProbs === undefined) return;
   // Fail open if the model couldn't load (old phone / offline) — GPS + rate limits still apply.
-  photoOk = score == null || score >= CLIP_THRESHOLD;
-  if (score == null) chk.className = "";
-  else { chk.textContent = t(photoOk ? "photoOk" : "photoBad"); chk.className = "show " + (photoOk ? "good" : "bad"); }
+  if (photoProbs === null) { photoOk = true; chk.className = ""; updateSubmit(); return; }
+  photoOk = (1 - (photoProbs.neg || 0)) >= CLIP_EVENT_MIN && (photoProbs[TYPES[selType].g] || 0) >= CLIP_TYPE_MIN;
+  chk.textContent = photoOk ? (detected ? t("detected", detected) : t("photoOk")) : t("photoBad");
+  chk.className = "show " + (photoOk ? "good" : "bad");
   updateSubmit();
 }
 function updateSubmit() { $("submitBtn").disabled = !(photoData && photoOk); }
@@ -1090,7 +1180,7 @@ function openSheet() {
 }
 function closeSheet() {
   $("sheet").classList.remove("open");
-  stopCamera(); photoData = null; photoOk = false; $("camWrap").classList.remove("shot", "err"); $("camCheck").className = "";
+  stopCamera(); photoData = null; photoOk = false; photoProbs = undefined; $("camWrap").classList.remove("shot", "err"); $("camCheck").className = "";
 }
 
 async function submitReport() {
@@ -1140,10 +1230,17 @@ function switchTab(name) {
 }
 
 function renderChips() {
-  $("typeChips").innerHTML = TYPE_KEYS.map((k, i) =>
+  $("catSeg").innerHTML = ["checkpoint", "incident"].map(c =>
+    `<button class="${reportCat === c ? "on" : ""}" onclick="setReportCat('${c}')">${t("c_" + c)}</button>`).join("");
+  $("typeChips").innerHTML = TYPE_KEYS.map((k, i) => TYPES[k].cat !== reportCat ? "" :
     `<button class="chip ${k === selType ? "sel" : ""}" onclick="pickType(${i})">${esc(typeName(k))}</button>`).join("");
 }
-function pickType(i) { selType = TYPE_KEYS[i]; renderChips(); }
+function setReportCat(c) {
+  reportCat = c;
+  if (TYPES[selType].cat !== c) selType = TYPE_KEYS.find(k => TYPES[k].cat === c);
+  renderChips(); evalPhoto();
+}
+function pickType(i) { selType = TYPE_KEYS[i]; renderChips(); evalPhoto(); }
 $("routeBtn").onclick = () => { destLatLng = null; submitSearch(); };
 $("destInput").addEventListener("input", () => { destLatLng = null; onSearchInput(); });
 $("destInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); destLatLng = null; submitSearch(); } });

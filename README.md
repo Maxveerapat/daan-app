@@ -1,6 +1,7 @@
 # ด่าน — checkpoint alert (prototype)
 
-A Thai crowdsourced road-checkpoint ("ด่าน") awareness app — a modern rebuild of the
+A Thai crowdsourced road-awareness app — checkpoints ("ด่าน") plus ad-hoc road incidents
+(accidents, roadworks, flooding, blocked roads) — — a modern rebuild of the
 "ด่าน มีด่านบอกด้วย" concept. Users report checkpoints on a dark, Apple/Tesla-style map;
 others see what's active near them or along a route before they drive.
 
@@ -64,9 +65,11 @@ daan-app/
 
 - **Live camera photo only** (in-app camera, no upload option).
 - **On-device photo check:** MobileCLIP-S0 (free open model) runs in the phone's browser via
-  transformers.js and scores whether the photo shows a checkpoint (police, cones, barriers, signs).
+  transformers.js and scores the photo against label groups (checkpoint, accident, roadwork, flood,
+  blocked road, not-a-road-event). It auto-selects the report type when the photo is clear, and blocks
+  sending when the photo isn't a road event or doesn't fit the chosen type.
   ~23 MB download on first report, cached after. Text-side embeddings are precomputed in
-  `static/clip_labels.json`. The photo never leaves the phone. Threshold `CLIP_THRESHOLD = 0.30`.
+  `static/clip_labels.json`. The photo never leaves the phone.
 - **Server:** reporter's live GPS must be within 500 m of the pin; max 5 reports / 10 min per client.
 
 Limitation: the photo check runs client-side, so a determined spammer calling the API directly can

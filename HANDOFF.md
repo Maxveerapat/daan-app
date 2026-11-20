@@ -110,6 +110,13 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Toll filter** (All / Tollway / No tollway) on the route list — filters the list and map; routes keep
   travel-time order. Checkpoint-count sorting and hidden-waypoint route transfer were requested but not
   built by Claude (declined); nav buttons currently pass the destination only.
+- **Road incidents** added (owner repositioning toward avoiding ad-hoc disruptions): types อุบัติเหตุ /
+  ทำถนน/ก่อสร้าง / น้ำท่วม / ถนนถูกปิด/สิ่งกีดขวาง in the same table; category comes from `TYPES[...].cat`
+  in index.html. Yellow diamond pins, All/Checkpoints/Incidents filter on Map + List, separate
+  checkpoint and incident counts per route, category switch in the report sheet.
+- Photo check now has label groups per type (`static/clip_labels.json`: labels, groups, embeds) —
+  pass rule `1-P(neg) >= 0.5 && P(type) >= 0.15`, auto-detect type at `P >= 0.6`.
+- Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---
 

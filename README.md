@@ -1,0 +1,61 @@
+# ด่าน — checkpoint alert (prototype)
+
+A Thai crowdsourced road-checkpoint ("ด่าน") awareness app — a modern rebuild of the
+"ด่าน มีด่านบอกด้วย" concept. Users report checkpoints on a dark, Apple/Tesla-style map;
+others see what's active near them or along a route before they drive.
+
+> **Prototype.** Single-file Flask backend + one HTML page. Seed data is mock Bangkok data.
+
+## Run it
+
+```bash
+cd daan-app
+python3 app.py          # serves on http://localhost:5051 (binds 0.0.0.0 for LAN/phone testing)
+```
+
+Open `http://localhost:5051`. For the mobile look, use your browser's device toolbar
+(Chrome: Cmd+Opt+I → Cmd+Shift+M → pick iPhone). `localhost` is a secure context so
+browser geolocation works there.
+
+**Phone on same Wi-Fi:** find your machine IP (`ipconfig getifaddr en0`) and open
+`http://<ip>:5051`. Note: browsers block GPS over plain http, so the phone falls back to a
+demo location (Victory Monument); everything else works.
+
+**Fresh data:** reports auto-expire from the feed after ~3h and vanish entirely after 12h.
+If the map looks empty, the seed has aged out — delete `daan.db` and restart to reseed.
+
+## Stack
+
+- **Backend:** Flask + SQLite (`app.py`, ~184 lines). Seeds mock Bangkok checkpoints on first run.
+- **Frontend:** one page (`templates/index.html`, ~772 lines) — Leaflet + CARTO Dark Matter tiles,
+  Nominatim geocoding, OSRM/OpenRouteService routing. No build step.
+
+## Structure
+
+```
+daan-app/
+├── app.py                 # Flask API + SQLite schema + seed data
+├── templates/index.html   # entire UI (HTML/CSS/JS in one file)
+├── HANDOFF.md             # full context & decisions — READ THIS to continue the project
+├── README.md
+└── .gitignore
+```
+
+## Three tabs
+
+- **แผนที่ (Map):** recency-colored pins (red <1h, amber 1–3h, gray >3h), source filter chips.
+- **รายการ (Feed):** active checkpoints sorted by distance, 3h auto-expiry + collapse, confirm/clear votes.
+- **เส้นทาง (Route):** enter a destination → route options, each labeled with on-route checkpoint
+  count → hand off to Google/Apple Maps to drive.
+
+## Routing backend (optional upgrade)
+
+By default routing uses the free OSRM demo (usually only 1 route). To get reliable 2–3
+alternatives, paste a free OpenRouteService token into `ORS_KEY` near the top of the
+`<script>` in `templates/index.html`. See `HANDOFF.md` for details.
+
+## ⚠️ Scope boundary
+
+This app **displays** checkpoints (Waze-style awareness) but is deliberately built to **never
+route around them** — no ranking by checkpoint count, no forcing nav apps onto checkpoint-free
+paths. See the "Scope boundary" section in `HANDOFF.md` before adding routing features.

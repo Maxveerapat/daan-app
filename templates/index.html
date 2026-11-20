@@ -273,6 +273,12 @@
     flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: none; font-size: 15px;
     background: rgba(255,255,255,.12); color: var(--text); font-family: inherit;
   }
+  .toll-filter { display: flex; gap: 6px; margin: 0 0 12px; }
+  .toll-filter button {
+    flex: 1; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 6px; border-radius: 999px;
+    border: 1px solid var(--hair); background: var(--surface-2); color: var(--muted);
+  }
+  .toll-filter button.on { background: var(--text); color: var(--bg); border-color: transparent; }
   .nav-note { font-size: 11.5px; color: var(--muted); margin: -2px 0 8px; }
   #crosshair {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%);
@@ -446,7 +452,8 @@ const I18N = {
     checking: "กำลังตรวจรูป…", photoOk: "✓ ดูเหมือนด่าน", photoBad: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นตำรวจ/กรวย/ป้ายด่าน",
     tooFar: "หมุดอยู่ไกลจากตำแหน่งของคุณเกิน 500 ม.", rateLimited: "รายงานถี่เกินไป ลองใหม่ภายหลัง",
     photoRejected: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นด่านชัด ๆ", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
-    closeRoute: "ปิดเส้นทาง", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
+    closeRoute: "ปิดเส้นทาง", f_all: "ทั้งหมด", f_toll: "ขึ้นทางด่วน", f_noToll: "ไม่ขึ้นทางด่วน",
+    noRouteFilter: "ไม่มีเส้นทางแบบนี้ — ลองตัวกรองอื่น", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
     typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "เช่น หน้าโลตัส พระราม 2",
     cancel: "ยกเลิก", submit: "ส่งรายงาน",
     justNow: "เมื่อสักครู่", minAgo: m => `${m} นาทีที่แล้ว`,
@@ -483,7 +490,8 @@ const I18N = {
     checking: "Checking photo…", photoOk: "✓ Looks like a checkpoint", photoBad: "This doesn't look like a checkpoint — retake so police, cones or signs are visible",
     tooFar: "The pin is more than 500 m from where you are", rateLimited: "Too many reports — try again later",
     photoRejected: "This photo doesn't look like a checkpoint — retake it so the checkpoint is visible", sendErr: "Couldn't send the report — try again",
-    closeRoute: "Close route", navNote: "The navigation app picks its own route using live traffic",
+    closeRoute: "Close route", f_all: "All", f_toll: "Tollway", f_noToll: "No tollway",
+    noRouteFilter: "No routes of this kind — try another filter", navNote: "The navigation app picks its own route using live traffic",
     typeLabel: "Type", placeLabel: "Place (optional)", placePh: "e.g. in front of Lotus, Rama 2",
     cancel: "Cancel", submit: "Send report",
     justNow: "just now", minAgo: m => `${m} min ago`,
@@ -559,7 +567,9 @@ let selType = TYPE_KEYS[0];
 let map, routeMap, pickMap;
 let mapLayer = L.layerGroup(), routeCpLayer = L.layerGroup(), routeLines = L.layerGroup(), destMarker = null, userMarkers = [];
 let destLatLng = null;
-let routeData = [], selRoute = 0, lastDest = null, routeTraffic = false;
+let routeData = [], selRoute = 0, lastDest = null, routeTraffic = false, tollFilter = "all";
+function routeMatches(r) { return tollFilter === "all" || (tollFilter === "toll" ? r.toll === true : r.toll === false); }
+function setTollFilter(k) { tollFilter = k; renderRouteSummary(); drawRoutes(); }
 let pinsAnimated = false;
 
 const $ = id => document.getElementById(id);
@@ -906,7 +916,7 @@ function drawRoutes() {
   routeLines.clearLayers();
   // Draw unselected first so the selected route sits on top.
   routeData.forEach((r, i) => {
-    if (i === selRoute) return;
+    if (i === selRoute || !routeMatches(r)) return;
     L.polyline(r.coords, { color: "#5A5A62", weight: 4, opacity: .6 })
       .on("click", () => { selRoute = i; drawRoutes(); renderRouteSummary(); })
       .addTo(routeLines);
@@ -931,7 +941,14 @@ function renderRouteCps() {
 function renderRouteSummary() {
   const sum = $("routeSummary");
   sum.style.display = "block";
-  const opts = routeData.map((r, i) => {
+  // Toll filter only narrows the list; routes always stay in travel-time order.
+  const visible = routeData.map((r, i) => i).filter(i => routeMatches(routeData[i]));
+  if (visible.length && !visible.includes(selRoute)) { selRoute = visible[0]; drawRoutes(); }
+  const hasTollInfo = routeData.some(r => r.toll != null);
+  const filterBar = hasTollInfo ? `<div class="toll-filter">${["all", "toll", "noToll"].map(k =>
+      `<button class="${tollFilter === k ? "on" : ""}" onclick="setTollFilter('${k}')">${t("f_" + k)}</button>`).join("")}</div>` : "";
+  const opts = visible.length ? visible.map(i => {
+    const r = routeData[i];
     const n = r.hits.length;
     return `<div class="route-opt ${i === selRoute ? "sel" : ""}" onclick="selRoute=${i};drawRoutes();renderRouteSummary()">
         <div class="ro-main">
@@ -940,7 +957,7 @@ function renderRouteSummary() {
         </div>
         <div class="ro-badges"><span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span></div>
       </div>`;
-  }).join("");
+  }).join("") : `<div class="route-hit" style="color:var(--muted)">${t("noRouteFilter")}</div>`;
 
   const sel = routeData[selRoute];
   const list = sel.hits.length
@@ -962,6 +979,7 @@ function renderRouteSummary() {
 
   sum.innerHTML = `<div class="rs-head"><h3>${t("chooseRoute")} <span style="font-weight:400;color:var(--muted);font-size:11.5px">· ${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</span></h3>
       <button id="routeClose" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div>
+    ${filterBar}
     ${opts}
     <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>
     ${list}

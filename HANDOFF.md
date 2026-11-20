@@ -108,6 +108,9 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   OCR was considered and rejected — checkpoints rarely have readable text.
 - Owner asked to make Google Maps follow the **exact** selected route — declined per §7 (it's the
   waypoint-injection item). Nav buttons now say the nav app picks its own route with live traffic.
+- **Toll filter** (All / Tollway / No tollway) on the route list — filters only, order stays by travel time.
+  Owner also asked (again) for sorting by checkpoint count and exact-route transfer via hidden waypoints
+  to Google/Apple Maps; both declined per §7.
 
 ---
 

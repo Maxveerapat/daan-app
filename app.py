@@ -144,6 +144,17 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/health")
+def health():
+    """Which storage is live (no secrets) — handy after changing DATABASE_URL."""
+    try:
+        n = get_db().scalar("SELECT COUNT(*) FROM checkpoints")
+        return jsonify({"ok": True, "db": "postgres" if dbmod.IS_PG else "sqlite", "reports": n})
+    except Exception as e:  # noqa: BLE001 — report connectivity problems, not crash
+        app.logger.warning("health check failed: %s", e)
+        return jsonify({"ok": False, "db": "postgres" if dbmod.IS_PG else "sqlite"}), 503
+
+
 @app.route("/api/checkpoints")
 def list_checkpoints():
     now = int(time.time())

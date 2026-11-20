@@ -77,20 +77,38 @@
     border: 1px solid rgba(160,180,255,.22); box-shadow: 0 6px 20px rgba(0,0,0,.35);
   }
   #panel.full .mapctl { display: none; }
+  body.panel-full .legend { display: none; }
   .mapctl button { width: 52px; height: 52px; border: none; background: none; display: flex; align-items: center; justify-content: center; color: #fff; }
   .mapctl button + button { border-top: 1px solid rgba(255,255,255,.14); }
   .mapctl svg { width: 22px; height: 22px; }
 
+  /* ---- legend ---- */
+  .legend {
+    position: absolute; left: 12px; top: calc(env(safe-area-inset-top) + 72px); z-index: 800;
+    display: flex; flex-direction: column; gap: 7px; padding: 9px 11px; border-radius: 18px;
+    background: var(--glass); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--line-2); font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  }
+  .lg-row { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
+  .lg-i { display: flex; align-items: center; gap: 5px; color: #D7DAE4; }
+  .lg-i i { width: 9px; height: 9px; border-radius: 50%; }
+  .mk-s { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 6px; border-radius: 999px; background: #1E1F23; font-weight: 700; font-size: 12px; border: 1.5px solid rgba(255,255,255,.16); }
+  .mk-s .ic, .mk .ic { display: inline-flex; width: 15px; height: 15px; }
+  .mk-s .ic svg, .mk .ic svg { width: 100%; height: 100%; }
+  .mk-s.cp .ic, .mk.cp .ic { color: #FF8A7E; }
+  .mk-s.inc, .mk.inc { border-color: var(--yellow); }
+  .mk-s.inc .ic, .mk.inc .ic { color: var(--yellow); }
+
   /* ---- map pins: dark pill labels (JodNai style) ---- */
   .mk-wrap { background: none; border: none; }
   .mk {
-    position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 5px; white-space: nowrap;
     background: #1E1F23; color: #fff; font-size: 13px; font-weight: 700; padding: 6px 11px 6px 8px; border-radius: 999px;
     border: 2px solid rgba(255,255,255,.14); box-shadow: 0 3px 10px rgba(0,0,0,.45); line-height: 1;
   }
-  .mk i { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .mk.inc i { border-radius: 2px; transform: rotate(45deg); width: 9px; height: 9px; }
-  .mk.stale { opacity: .62; }
+  .mk i { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .mk.inc { background: #2A2614; }
+  .mk.stale { opacity: .6; }
   .mk.big, .mk.sel { border-color: #fff; transform: translate(-50%, -50%) scale(1.08); z-index: 2; }
   .mk.ghost { opacity: .45; }
 
@@ -144,6 +162,8 @@
   .row-t { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row-s { font-size: 14px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row-s .live { color: var(--red); font-weight: 600; }
+  .row-v .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }
+  .row-s .cat-tag { font-size: 11.5px; padding: 2px 7px; margin-right: 5px; }
   .row-v { font-size: 16px; font-weight: 500; text-align: right; flex-shrink: 0; }
   .row-v small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
   .empty { text-align: center; color: var(--muted); font-size: 15px; padding: 34px 10px; }
@@ -341,6 +361,19 @@
     <div id="routeMap"></div>
   </div>
 
+  <!-- Legend: pin style = category, dot colour = how recent -->
+  <div class="legend" id="legend">
+    <div class="lg-row">
+      <span class="mk-s cp"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/></svg></span><span data-i18n="c_checkpoint"></span></span>
+      <span class="mk-s inc"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg></span><span data-i18n="c_incident"></span></span>
+    </div>
+    <div class="lg-row">
+      <span class="lg-i"><i style="background:var(--fresh)"></i><span data-i18n="legFresh"></span></span>
+      <span class="lg-i"><i style="background:var(--aging)"></i><span data-i18n="legAging"></span></span>
+      <span class="lg-i"><i style="background:var(--stale)"></i><span data-i18n="legStale"></span></span>
+    </div>
+  </div>
+
   <!-- Persistent bottom panel: nearby list / report detail / route options + tab bar -->
   <section id="panel">
     <div class="mapctl"><button onclick="recenter()" aria-label="My location"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></button></div>
@@ -420,7 +453,7 @@ const I18N = {
   th: {
     title: "ด่าน — ด่านตรวจและเหตุบนถนน",
     locating: "กำลังหาตำแหน่ง…", locReal: "รอบตำแหน่งปัจจุบันของคุณ", locDemo: "รอบอนุสาวรีย์ชัยฯ (ตำแหน่งตัวอย่าง)",
-    legFresh: "<1 ชม.", legAging: "1–3 ชม.", legStale: ">3 ชม.",
+    legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.",
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
     legIncident: "เหตุ", c_all: "ทั้งหมด", c_checkpoint: "ด่านตรวจ", c_incident: "เหตุบนถนน",
     incN: n => `เหตุ ${n} จุด`, tagCheckpoint: "ด่าน", tagIncident: "เหตุบนถนน",
@@ -468,7 +501,7 @@ const I18N = {
   en: {
     title: "Daan — checkpoints & road incidents",
     locating: "Locating…", locReal: "Around your current location", locDemo: "Around Victory Monument (demo location)",
-    legFresh: "<1 hr", legAging: "1–3 hrs", legStale: ">3 hrs",
+    legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs",
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
     legIncident: "Incident", c_all: "All", c_checkpoint: "Checkpoints", c_incident: "Incidents",
     incN: n => `${n} incident${n === 1 ? "" : "s"}`, tagCheckpoint: "Checkpoint", tagIncident: "Incident",
@@ -699,15 +732,18 @@ function agoText(min) {
 }
 function distText(m) { return m < 1000 ? `${Math.round(m)} ${t("m")}` : `${(m/1000).toFixed(1)} ${t("km")}`; }
 
-// Map pins: dark pill labels with a status dot (red <1h, amber 1–3h, grey >3h; incidents yellow diamond).
+// Map pins: pill style shows the CATEGORY (shield = checkpoint; yellow border + warning = incident),
+// the dot shows RECENCY (red <1h, orange 1–3h, grey >3h). Same encoding as the legend.
+const PIN_SHIELD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/></svg>';
+const PIN_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg>';
 function pinColor(cp) {
-  if (catOf(cp) === "incident") return cp.age_minutes > 180 ? "var(--stale)" : "var(--yellow)";
   return cp.age_minutes <= 60 ? "var(--fresh)" : cp.age_minutes <= 180 ? "var(--aging)" : "var(--stale)";
 }
 function makeMarker(cp, big = false) {
-  const cls = ["mk", catOf(cp) === "incident" ? "inc" : "", cp.age_minutes > 180 ? "stale" : "", big || cp.id === selectedId ? "sel" : ""].join(" ");
+  const inc = catOf(cp) === "incident";
+  const cls = ["mk", inc ? "inc" : "cp", cp.age_minutes > 180 ? "stale" : "", big || cp.id === selectedId ? "sel" : ""].join(" ");
   const icon = L.divIcon({ className: "mk-wrap", iconSize: [0, 0],
-    html: `<div class="${cls}"><i style="background:${pinColor(cp)}"></i>${esc(shortName(cp.type))}</div>` });
+    html: `<div class="${cls}"><span class="ic">${inc ? PIN_WARN : PIN_SHIELD}</span>${esc(shortName(cp.type))}<i style="background:${pinColor(cp)}"></i></div>` });
   return L.marker([cp.lat, cp.lng], { icon, zIndexOffset: big || cp.id === selectedId ? 1000 : (cp.age_minutes <= 60 ? 500 : 0) })
     .on("click", () => openDetail(cp.id));
 }
@@ -783,12 +819,11 @@ function tileHtml(cp, big = false) {
   return `<div class="tile ${inc ? "inc" : "cp"} ${big ? "big" : ""}">${inc ? ICON_INC : ICON_CP}</div>`;
 }
 function rowHtml(cp, dist) {
-  const live = cp.age_minutes <= 60 ? `<span class="live">● ${t("live")}</span> · ` : "";
   return `<div class="row" onclick="openDetail(${cp.id})">
     ${tileHtml(cp)}
     <div class="row-main"><div class="row-t">${esc(labelName(cp.label))}</div>
-      <div class="row-s">${live}${esc(typeName(cp.type))} · ${agoText(cp.age_minutes)}</div></div>
-    ${dist == null ? "" : `<div class="row-v">${distText(dist)}</div>`}
+      <div class="row-s">${catTag(cp)}${esc(typeName(cp.type))}</div></div>
+    <div class="row-v">${dist == null ? "" : distText(dist)}<small><span class="dot" style="background:${pinColor(cp)}"></span>${agoText(cp.age_minutes)}</small></div>
   </div>`;
 }
 
@@ -809,7 +844,10 @@ function renderFeed() {
 /* ---------- bottom panel: views (near / detail / route) and heights (mini / peek / full) ---------- */
 let panelView = "near", prevView = "near", prevPanelState = "peek";
 function panelState() { const p = $("panel"); return p.classList.contains("full") ? "full" : p.classList.contains("mini") ? "mini" : "peek"; }
-function setPanel(st) { const p = $("panel"); p.classList.remove("full", "mini"); if (st !== "peek") p.classList.add(st); }
+function setPanel(st) {
+  const p = $("panel"); p.classList.remove("full", "mini"); if (st !== "peek") p.classList.add(st);
+  document.body.classList.toggle("panel-full", st === "full");
+}
 function showView(v) {
   panelView = v;
   ["near", "detail", "route"].forEach(x => $("pv-" + x).classList.toggle("on", x === v));

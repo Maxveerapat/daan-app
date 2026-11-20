@@ -140,6 +140,9 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   replaces Leaflet popups), route options (`pv-route`). Tab bar lives inside the panel:
   แถวนี้ · เส้นทาง · รายงาน (report opens the stepper sheet). Solid dark surfaces, blue primary CTA,
   outlined secondary, green info boxes; glass only on map-floating controls. Font: Google Sans (has Thai).
+- **Legend + category encoding** (owner wanted both back after the JodNai redesign): pin STYLE = category
+  (🛡 shield = checkpoint; yellow border + ⚠ = incident), dot COLOUR = recency (red <1h, orange 1–3h,
+  grey >3h, stale pins faded). Legend card on both maps; list rows show a category tag + recency dot.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

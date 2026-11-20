@@ -242,6 +242,13 @@
   #camWrap.shot #camVideo, #camWrap.shot #shutter { display: none; }
   #camMsg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
   #camWrap.err #camMsg { display: flex; }
+  #camCheck {
+    display: none; position: absolute; left: 12px; right: 110px; bottom: 12px; font-size: 12.5px; font-weight: 600;
+    color: #fff; background: rgba(0,0,0,.65); padding: 8px 12px; border-radius: 12px; line-height: 1.35;
+  }
+  #camCheck.show { display: block; }
+  #camCheck.bad { background: rgba(255,69,58,.88); }
+  #camCheck.good { background: rgba(48,209,88,.85); }
   #shutter {
     position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
     width: 62px; height: 62px; border-radius: 50%; background: #fff; border: 5px solid rgba(255,255,255,.35);
@@ -393,6 +400,7 @@
         <video id="camVideo" playsinline muted autoplay></video>
         <img id="camShot" alt="">
         <div id="camMsg"></div>
+        <div id="camCheck"></div>
         <button id="shutter" onclick="capturePhoto()" aria-label="Take photo"></button>
         <button id="retake" onclick="startCamera()" data-i18n="retake"></button>
         <div class="cam-note" data-i18n="passengerNote"></div>
@@ -434,7 +442,8 @@ const I18N = {
     sheetTitle: "รายงานด่านตรงนี้", sheetHint: "ถ่ายรูปด่านสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เจอด่าน",
     retake: "ถ่ายใหม่", passengerNote: "ให้ผู้โดยสารถ่าย — ห้ามใช้มือถือขณะขับรถ",
     camErr: "เปิดกล้องไม่ได้ — อนุญาตให้เบราว์เซอร์ใช้กล้อง แล้วลองอีกครั้ง",
-    needPhoto: "ถ่ายรูปด่านก่อนส่ง", needGps: "ต้องเปิดตำแหน่ง (GPS) เพื่อรายงาน", verifying: "กำลังตรวจสอบรูป…",
+    needPhoto: "ถ่ายรูปด่านก่อนส่ง", needGps: "ต้องเปิดตำแหน่ง (GPS) เพื่อรายงาน", verifying: "กำลังส่ง…",
+    checking: "กำลังตรวจรูป…", photoOk: "✓ ดูเหมือนด่าน", photoBad: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นตำรวจ/กรวย/ป้ายด่าน",
     tooFar: "หมุดอยู่ไกลจากตำแหน่งของคุณเกิน 500 ม.", rateLimited: "รายงานถี่เกินไป ลองใหม่ภายหลัง",
     photoRejected: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นด่านชัด ๆ", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
     closeRoute: "ปิดเส้นทาง", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
@@ -470,7 +479,8 @@ const I18N = {
     sheetTitle: "Report a checkpoint here", sheetHint: "Take a live photo, then move the map so the pin sits on the checkpoint",
     retake: "Retake", passengerNote: "Passengers only — don't use your phone while driving",
     camErr: "Can't open the camera — allow camera access in your browser and try again",
-    needPhoto: "Take a photo of the checkpoint first", needGps: "Turn on location (GPS) to report", verifying: "Checking photo…",
+    needPhoto: "Take a photo of the checkpoint first", needGps: "Turn on location (GPS) to report", verifying: "Sending…",
+    checking: "Checking photo…", photoOk: "✓ Looks like a checkpoint", photoBad: "This doesn't look like a checkpoint — retake so police, cones or signs are visible",
     tooFar: "The pin is more than 500 m from where you are", rateLimited: "Too many reports — try again later",
     photoRejected: "This photo doesn't look like a checkpoint — retake it so the checkpoint is visible", sendErr: "Couldn't send the report — try again",
     closeRoute: "Close route", navNote: "The navigation app picks its own route using live traffic",
@@ -962,14 +972,50 @@ function renderRouteSummary() {
    Anti-spam: live camera only (no file upload), reporter's live GPS must be near the pin,
    server rate-limits and (if configured) has Claude check the photo shows a checkpoint.
    The photo is only used for that check and is never stored. */
-let camStream = null, photoData = null, reportPos = null;
+let camStream = null, photoData = null, reportPos = null, photoOk = false;
+
+/* On-device photo check: MobileCLIP-S0 (Apple, open weights) via transformers.js, zero server cost.
+   The model compares the photo with short text descriptions; the text side was computed offline and
+   ships as /static/clip_labels.json, so only the ~23 MB image model downloads (once, then cached).
+   Tuned on sample photos: checkpoints scored >= 0.36, non-checkpoints <= 0.25. */
+const CLIP_MODEL = "Xenova/mobileclip_s0";
+const CLIP_THRESHOLD = 0.30;
+let clipReady = null;
+function loadClip() {
+  if (!clipReady) clipReady = (async () => {
+    const T = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2");
+    T.env.allowLocalModels = false;
+    const [processor, model, labels] = await Promise.all([
+      T.AutoProcessor.from_pretrained(CLIP_MODEL),
+      T.CLIPVisionModelWithProjection.from_pretrained(CLIP_MODEL, { dtype: "fp16", device: "wasm" }),
+      fetch("/static/clip_labels.json").then(r => r.json()),
+    ]);
+    return { T, processor, model, labels };
+  })().catch(e => { clipReady = null; throw e; });
+  return clipReady;
+}
+// Returns the probability (0–1) that the photo shows a checkpoint, or null if the model can't run.
+async function checkpointScore(canvas) {
+  try {
+    const { T, processor, model, labels } = await loadClip();
+    const img = await T.RawImage.fromCanvas(canvas);
+    const { image_embeds } = await model(await processor(img));
+    const v = image_embeds.normalize().tolist()[0];
+    const logits = labels.embeds.map(e => 100 * e.reduce((s, x, i) => s + x * v[i], 0));
+    const m = Math.max(...logits), ex = logits.map(l => Math.exp(l - m)), z = ex.reduce((a, b) => a + b);
+    return ex.slice(0, labels.npos).reduce((a, b) => a + b) / z;
+  } catch (e) {
+    console.warn("photo check unavailable", e);
+    return null;
+  }
+}
 
 function stopCamera() {
   if (camStream) { camStream.getTracks().forEach(tr => tr.stop()); camStream = null; }
 }
 async function startCamera() {
   const wrap = $("camWrap");
-  photoData = null; wrap.classList.remove("shot", "err"); updateSubmit();
+  photoData = null; photoOk = false; wrap.classList.remove("shot", "err"); $("camCheck").className = ""; updateSubmit();
   stopCamera();
   try {
     camStream = await navigator.mediaDevices.getUserMedia({
@@ -981,7 +1027,7 @@ async function startCamera() {
     wrap.classList.add("err");
   }
 }
-function capturePhoto() {
+async function capturePhoto() {
   const v = $("camVideo");
   if (!camStream || !v.videoWidth) return;
   const scale = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight));
@@ -992,9 +1038,19 @@ function capturePhoto() {
   $("camShot").src = photoData;
   $("camWrap").classList.add("shot");
   stopCamera();
+  const chk = $("camCheck");
+  chk.textContent = t("checking"); chk.className = "show";
+  updateSubmit();
+  const shot = photoData;
+  const score = await checkpointScore(c);
+  if (shot !== photoData) return; // retaken meanwhile
+  // Fail open if the model couldn't load (old phone / offline) — GPS + rate limits still apply.
+  photoOk = score == null || score >= CLIP_THRESHOLD;
+  if (score == null) chk.className = "";
+  else { chk.textContent = t(photoOk ? "photoOk" : "photoBad"); chk.className = "show " + (photoOk ? "good" : "bad"); }
   updateSubmit();
 }
-function updateSubmit() { $("submitBtn").disabled = !photoData; }
+function updateSubmit() { $("submitBtn").disabled = !(photoData && photoOk); }
 
 function openSheet() {
   $("sheet").classList.add("open");
@@ -1006,6 +1062,7 @@ function openSheet() {
   }
   setTimeout(() => pickMap.invalidateSize(), 150);
   startCamera();
+  loadClip().catch(() => {}); // warm up the model while the user aims
   // Fresh high-accuracy fix: the pin starts here and the server checks the pin is near it.
   reportPos = null;
   navigator.geolocation && navigator.geolocation.getCurrentPosition(
@@ -1015,11 +1072,12 @@ function openSheet() {
 }
 function closeSheet() {
   $("sheet").classList.remove("open");
-  stopCamera(); photoData = null; $("camWrap").classList.remove("shot", "err");
+  stopCamera(); photoData = null; photoOk = false; $("camWrap").classList.remove("shot", "err"); $("camCheck").className = "";
 }
 
 async function submitReport() {
   if (!photoData) return toast(t("needPhoto"));
+  if (!photoOk) return toast(t("photoBad"));
   if (!reportPos) return toast(t("needGps"));
   const c = pickMap.getCenter();
   $("submitBtn").disabled = true;
@@ -1030,15 +1088,14 @@ async function submitReport() {
       method: "POST", headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
         lat: c.lat, lng: c.lng, type: selType, label: $("labelInput").value,
-        user_lat: reportPos[0], user_lng: reportPos[1], photo: photoData,
+        user_lat: reportPos[0], user_lng: reportPos[1],
       })
     });
     js = await res.json();
   } catch (e) { updateSubmit(); return toast(t("sendErr")); }
   if (!res.ok || !js.ok) {
     updateSubmit();
-    const msg = { need_gps: "needGps", too_far: "tooFar", rate_limited: "rateLimited", photo_rejected: "photoRejected" }[js.error];
-    if (js.error === "photo_rejected") startCamera();
+    const msg = { need_gps: "needGps", too_far: "tooFar", rate_limited: "rateLimited" }[js.error];
     return toast(t(msg || "sendErr"));
   }
   closeSheet();

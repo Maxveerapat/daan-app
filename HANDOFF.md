@@ -100,9 +100,12 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Route map always shows every checkpoint**; ones on the selected route are drawn larger.
 - **Route view has an explicit ✕ close**; the floating tab bar hides while a route is open.
 - **Report anti-spam:** live in-app camera photo (getUserMedia, no file input), live GPS ≤ 500 m from pin,
-  5 reports / 10 min per client, optional Claude vision check (`ANTHROPIC_API_KEY`, `claude-opus-5-5`,
-  effort low, structured output). Photo is discarded after the check. OCR was considered and rejected —
-  checkpoints rarely have readable text, so a vision yes/no is the "simple" option that actually works.
+  5 reports / 10 min per client, and an **on-device MobileCLIP-S0 photo check** (owner wanted zero
+  operating cost — a paid Claude vision check was built then removed). Labels/embeddings in
+  `static/clip_labels.json` (regenerate offline with transformers.js `CLIPTextModelWithProjection`,
+  dtype fp16 — the q8 MobileCLIP weights give garbage). Tuned on Wikimedia sample photos:
+  checkpoints ≥ 0.36, others ≤ 0.25, threshold 0.30; fails open if the model can't load.
+  OCR was considered and rejected — checkpoints rarely have readable text.
 - Owner asked to make Google Maps follow the **exact** selected route — declined per §7 (it's the
   waypoint-injection item). Nav buttons now say the nav app picks its own route with live traffic.
 

@@ -60,11 +60,17 @@ daan-app/
 - **เส้นทาง (Route):** enter a destination → route options (with/without tolls), each labeled with
   on-route checkpoint count → hand off to Google/Apple Maps to drive.
 
-## Report anti-spam
+## Report anti-spam (zero operating cost)
 
-Reports need a **live camera photo** (in-app camera only, no upload) and the reporter's **live GPS
-within 500 m** of the pin; max 5 reports / 10 min per client. If `ANTHROPIC_API_KEY` is set, Claude
-checks the photo plausibly shows a checkpoint (fails open if the API is down). Photos are never stored.
+- **Live camera photo only** (in-app camera, no upload option).
+- **On-device photo check:** MobileCLIP-S0 (free open model) runs in the phone's browser via
+  transformers.js and scores whether the photo shows a checkpoint (police, cones, barriers, signs).
+  ~23 MB download on first report, cached after. Text-side embeddings are precomputed in
+  `static/clip_labels.json`. The photo never leaves the phone. Threshold `CLIP_THRESHOLD = 0.30`.
+- **Server:** reporter's live GPS must be within 500 m of the pin; max 5 reports / 10 min per client.
+
+Limitation: the photo check runs client-side, so a determined spammer calling the API directly can
+skip it — GPS + rate limits still apply. Good enough for a tester build.
 
 ## Routing & search
 

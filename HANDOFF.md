@@ -152,6 +152,9 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Drag from content** (`contentDrag()`): at scrollTop 0 a downward drag moves the sheet (panel shrinks,
   report sheet closes); a non-full panel expands on upward drag. Skips maps, camera, inputs, segmented
   controls, sideways swipes; disabled in the wide two-pane layout.
+- **Route start point is editable** (Google-Maps-style A/B box with swap): `tripOrig` null = live
+  location, otherwise a searched place or dropped pin; map tap fills whichever field is being edited.
+  Nav handoff passes `origin=` (Google) / `saddr=` (Apple) when a custom start is set.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

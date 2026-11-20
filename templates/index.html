@@ -243,6 +243,19 @@
   #destInput { flex: 1; min-width: 0; height: 100%; font-size: 16px; padding: 0 10px; border: none; outline: none; background: transparent; }
   #destInput::placeholder { color: var(--muted); }
   #clearBtn { display: none; border: none; background: var(--s2); width: 24px; height: 24px; border-radius: 50%; font-size: 11px; margin-right: 13px; flex-shrink: 0; }
+  .trip { position: relative; flex: 1; min-width: 0; padding-right: 48px; background: var(--sheet); border: 1px solid var(--line-2); border-radius: 22px; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+  .trip-row { display: flex; align-items: center; height: 46px; }
+  .trip-sep { height: 1px; background: var(--line); margin-left: 38px; }
+  .tdot { width: 10px; height: 10px; border-radius: 50%; margin: 0 2px 0 16px; flex-shrink: 0; }
+  .tdot.o { border: 2.5px solid var(--blue-t); }
+  .tdot.d { background: var(--red); }
+  .trip input { flex: 1; min-width: 0; height: 100%; font-size: 16px; padding: 0 10px; border: none; outline: none; background: transparent; }
+  .trip input::placeholder { color: var(--muted); }
+  #origInput::placeholder { color: var(--blue-t); }
+  .tclr { display: none; border: none; background: var(--s2); width: 22px; height: 22px; border-radius: 50%; font-size: 10px; flex-shrink: 0; margin-right: 4px; }
+  #swapBtn { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--s1); display: flex; align-items: center; justify-content: center; }
+  #swapBtn svg { width: 18px; height: 18px; }
+  .sg-pin.me { color: var(--blue-t); }
   #routeBtn { height: 50px; padding: 0 20px; border-radius: 999px; border: none; background: var(--blue); color: #fff; font-size: 15px; font-weight: 700; white-space: nowrap; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
   #suggest { display: none; margin-top: 8px; max-height: 52vh; overflow-y: auto; background: var(--sheet); border: 1px solid var(--line-2); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
   #suggest.open { display: block; }
@@ -345,7 +358,7 @@
   .sheet-actions .submit { border: none; background: var(--blue); color: #fff; }
   .sheet-actions .submit:disabled { opacity: .4; }
 
-  #toast { position: absolute; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 72px); z-index: 1400; display: none; width: max-content; max-width: calc(100% - 32px); text-align: center; color: #fff; font-size: 14.5px; font-weight: 500; padding: 13px 20px; border-radius: 999px; background: rgba(40,44,58,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid var(--line-2); box-shadow: 0 8px 26px rgba(0,0,0,.4); }
+  #toast { position: absolute; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 124px); z-index: 1400; display: none; width: max-content; max-width: calc(100% - 32px); text-align: center; color: #fff; font-size: 14.5px; font-weight: 500; padding: 13px 20px; border-radius: 999px; background: rgba(40,44,58,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid var(--line-2); box-shadow: 0 8px 26px rgba(0,0,0,.4); }
 
   /* ===== Wide screens: unfolded foldables, tablets, desktop ===== */
   @media (min-width: 700px) {
@@ -385,12 +398,16 @@
   <div class="tab" id="tab-route">
     <div id="routePanel">
       <div class="row-in">
-        <div class="search-wrap">
-          <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-          <input id="destInput" data-i18n-ph="destPh" autocomplete="off" enterkeyhint="search">
-          <button id="clearBtn" aria-label="Clear" onclick="clearSearch()">✕</button>
+        <div class="trip">
+          <div class="trip-row"><i class="tdot o"></i>
+            <input id="origInput" data-i18n-ph="origPh" autocomplete="off" enterkeyhint="search">
+            <button class="tclr" id="origClear" aria-label="Clear" onclick="clearField('orig')">✕</button></div>
+          <div class="trip-sep"></div>
+          <div class="trip-row"><i class="tdot d"></i>
+            <input id="destInput" data-i18n-ph="destPh" autocomplete="off" enterkeyhint="search">
+            <button class="tclr" id="clearBtn" aria-label="Clear" onclick="clearField('dest')">✕</button></div>
+          <button id="swapBtn" aria-label="Swap" onclick="swapTrip()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg></button>
         </div>
-        <button id="routeBtn" data-i18n="routeBtn"></button>
       </div>
       <div id="suggest"></div>
       <div id="routeHint" data-i18n="routeHint"></div>
@@ -491,8 +508,8 @@ const I18N = {
     openG: "เปิด Google Maps", openA: "เปิด Apple Maps", routeTitle: "เส้นทาง",
     share: "แชร์", shareTitle: "ด่าน — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
     sharedGone: "รายงานนี้หมดอายุหรือถูกลบแล้ว", detected: x => `ตรวจพบ: ${x} ✓`,
-    destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "ดูเส้นทาง",
-    routeHint: "จากตำแหน่งคุณ · หรือแตะแผนที่",
+    destPh: "ไปไหน? เช่น สยามพารากอน", origPh: "ตำแหน่งของคุณ", myLoc: "ตำแหน่งของคุณ", needOrig: "เลือกจุดเริ่มต้น", routeBtn: "ดูเส้นทาง",
+    routeHint: "ตั้งจุดเริ่ม–ปลายทาง · หรือแตะแผนที่",
     sheetTitle: "รายงาน", st1: "ถ่ายรูป", st2: "ประเภท", st3: "ตำแหน่ง", next: "ถัดไป", back: "ย้อนกลับ",
     photoDone: "ถ่ายแล้ว", fromYou: m => `ห่างจากคุณ ${m}`, pickHint: "เลื่อนแผนที่ให้หมุดตรงจุด", sheetHint: "ถ่ายรูปสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เกิดเหตุ",
     retake: "ถ่ายใหม่", passengerNote: "ให้ผู้โดยสารถ่าย — ห้ามใช้มือถือขณะขับรถ",
@@ -539,8 +556,8 @@ const I18N = {
     openG: "Open Google Maps", openA: "Open Apple Maps", routeTitle: "Route",
     share: "Share", shareTitle: "Daan — road report", copied: "Link copied", shareErr: "Couldn't share",
     sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
-    destPh: "Where to? e.g. Siam Paragon", routeBtn: "Check",
-    routeHint: "From your location · or tap the map",
+    destPh: "Where to? e.g. Siam Paragon", origPh: "Your location", myLoc: "Your location", needOrig: "Choose a starting point", routeBtn: "Check",
+    routeHint: "Set start & destination · or tap the map",
     sheetTitle: "Report", st1: "Photo", st2: "Type", st3: "Location", next: "Next", back: "Back",
     photoDone: "Taken", fromYou: m => `${m} from you`, pickHint: "Move the map to put the pin on the spot", sheetHint: "Take a live photo, then move the map so the pin sits on the spot",
     retake: "Retake", passengerNote: "Passengers only — don't use your phone while driving",
@@ -669,6 +686,7 @@ let map, routeMap, pickMap;
 let mapLayer = L.layerGroup(), routeCpLayer = L.layerGroup(), routeLines = L.layerGroup(), destMarker = null, userMarkers = [];
 let destLatLng = null;
 const MAX_NAV_STOPS = 3;
+let lastOrig = null;
 let routeData = [], selRoute = 0, lastDest = null, routeTraffic = false, tollFilter = "all";
 function routeMatches(r) { return tollFilter === "all" || (tollFilter === "toll" ? r.toll === true : r.toll === false); }
 function setTollFilter(k) { tollFilter = k; renderRouteSummary(); drawRoutes(); }
@@ -739,13 +757,10 @@ function initMaps() {
   routeCpLayer.addTo(routeMap);
   new ResizeObserver(() => routeMap.invalidateSize()).observe($("routeMap"));
   new ResizeObserver(() => map.invalidateSize()).observe($("map"));
+  // Tap the map to drop a pin for whichever field is being edited (start if its box is focused).
   routeMap.on("click", e => {
-    destLatLng = e.latlng;
-    $("destInput").value = t("pinned");
-    $("clearBtn").style.display = "block"; suggestions = []; closeSuggest();
-    if (destMarker) destMarker.remove();
-    destMarker = L.marker(e.latlng).addTo(routeMap);
-    buildRoute();
+    const f = activeField === "orig" ? "orig" : "dest";
+    setTripEnd(f, { lat: e.latlng.lat, lng: e.latlng.lng, name: t("pinned") });
   });
 }
 
@@ -1045,19 +1060,30 @@ function distToRoute(cp, coords) {
   return { dist: best, along };
 }
 
-/* ---------- place search (Google-Maps-style autocomplete via /api/search) ---------- */
+/* ---------- trip search: start (A) + destination (B), Google-Maps-style ----------
+   tripOrig null = the user's live location; any other value is a chosen place, so users can
+   preview trips from somewhere they aren't yet. Autocomplete via /api/search for either field. */
 let suggestions = [], suggestTimer = null, suggestSeq = 0;
+let tripOrig = null, tripDest = null, activeField = "dest", origMarker = null;
 const PIN_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>';
+const ME_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg>';
+const fieldEl = f => $(f === "orig" ? "origInput" : "destInput");
+const clearEl = f => $(f === "orig" ? "origClear" : "clearBtn");
 
 async function searchPlaces(q, final = false) {
-  const c = userLoc || DEFAULT_LOC;
+  const c = (tripOrig && activeField === "dest") ? [tripOrig.lat, tripOrig.lng] : (userLoc || DEFAULT_LOC);
   const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&lat=${c[0]}&lng=${c[1]}&lang=${lang}${final ? "&final=1" : ""}`);
   return res.ok ? (await res.json()).results || [] : [];
 }
 function renderSuggest(q, submitted = false) {
   const el = $("suggest");
-  if (!q || q.length < 2) { el.classList.remove("open"); $("routeHint").style.display = ""; return; }
-  el.innerHTML = suggestions.length
+  const meRow = activeField === "orig" ? `<div class="sg" onmousedown="event.preventDefault()" onclick="pickMyLoc()">
+      <div class="sg-pin me">${ME_SVG}</div><div class="sg-txt"><div class="sg-name">${t("myLoc")}</div></div></div>` : "";
+  if (!q || q.length < 2) {
+    if (meRow) { el.innerHTML = meRow; el.classList.add("open"); } else el.classList.remove("open");
+    return;
+  }
+  el.innerHTML = meRow + (suggestions.length
     ? suggestions.map((r, i) => `<div class="sg" onmousedown="event.preventDefault()" onclick="pickPlace(${i})">
         <div class="sg-pin">${PIN_SVG}</div>
         <div class="sg-txt"><div class="sg-name">${esc(r.name)}</div>${r.address ? `<div class="sg-addr">${esc(r.address)}</div>` : ""}</div>
@@ -1066,13 +1092,14 @@ function renderSuggest(q, submitted = false) {
     : (submitted ? `<div class="sg-empty">${t("noResults")}</div>`
       : `<div class="sg" onmousedown="event.preventDefault()" onclick="submitSearch()">
           <div class="sg-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
-          <div class="sg-txt"><div class="sg-name">${t("searchFor", esc(q))}</div></div></div>`);
+          <div class="sg-txt"><div class="sg-name">${t("searchFor", esc(q))}</div></div></div>`));
   el.classList.add("open");
-  $("routeHint").style.display = "none";
 }
-function onSearchInput() {
-  const q = $("destInput").value.trim();
-  $("clearBtn").style.display = q ? "block" : "none";
+function onSearchInput(f) {
+  activeField = f;
+  if (f === "orig") tripOrig = null; else tripDest = null;
+  const q = fieldEl(f).value.trim();
+  clearEl(f).style.display = q ? "block" : "none";
   clearTimeout(suggestTimer);
   if (q.length < 2) { suggestions = []; renderSuggest(""); return; }
   suggestTimer = setTimeout(async () => {
@@ -1083,20 +1110,31 @@ function onSearchInput() {
     renderSuggest(q);
   }, 280);
 }
-function closeSuggest() { $("suggest").classList.remove("open"); $("routeHint").style.display = ""; }
+function closeSuggest() { $("suggest").classList.remove("open"); }
+function syncTripUI() {
+  $("origInput").value = tripOrig ? tripOrig.name : ($("origInput") === document.activeElement ? $("origInput").value : "");
+  $("destInput").value = tripDest ? tripDest.name : $("destInput").value;
+  ["orig", "dest"].forEach(f => clearEl(f).style.display = fieldEl(f).value ? "block" : "none");
+  if (destMarker) { destMarker.remove(); destMarker = null; }
+  if (origMarker) { origMarker.remove(); origMarker = null; }
+  if (tripDest) destMarker = L.marker([tripDest.lat, tripDest.lng]).addTo(routeMap);
+  if (tripOrig) origMarker = L.circleMarker([tripOrig.lat, tripOrig.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#7EA3FF", fillOpacity: 1 }).addTo(routeMap);
+}
+// After either end changes: route if both are known, else move the cursor to the missing one.
+function tripChanged() {
+  syncTripUI(); closeSuggest(); suggestions = [];
+  if (tripDest) { document.activeElement && document.activeElement.blur(); buildRoute(); }
+  else { activeField = "dest"; $("destInput").focus(); }
+}
+function setTripEnd(f, place) { if (f === "orig") tripOrig = place; else tripDest = place; tripChanged(); }
 function pickPlace(i) {
   const r = suggestions[i]; if (!r) return;
-  $("destInput").value = r.name;
-  $("destInput").blur();
-  closeSuggest();
-  destLatLng = L.latLng(r.lat, r.lng);
-  if (destMarker) destMarker.remove();
-  destMarker = L.marker(destLatLng).addTo(routeMap);
-  buildRoute();
+  setTripEnd(activeField, { lat: r.lat, lng: r.lng, name: r.name });
 }
+function pickMyLoc() { $("origInput").value = ""; setTripEnd("orig", null); }
 async function submitSearch() {
-  const q = $("destInput").value.trim();
-  if (!q) return toast(t("needDest"));
+  const f = activeField, q = fieldEl(f).value.trim();
+  if (!q) { if (f === "orig") return pickMyLoc(); return toast(t("needDest")); }
   clearTimeout(suggestTimer);
   if (!suggestions.length) {
     const seq = ++suggestSeq;
@@ -1106,9 +1144,19 @@ async function submitSearch() {
   if (!suggestions.length) { renderSuggest(q, true); return; }
   pickPlace(0);
 }
-function clearSearch() {
-  $("destInput").value = ""; suggestions = []; closeSuggest();
-  $("clearBtn").style.display = "none"; $("destInput").focus();
+function clearField(f) {
+  fieldEl(f).value = ""; suggestions = [];
+  if (f === "orig") { tripOrig = null; syncTripUI(); if (tripDest && routeData.length) buildRoute(); }
+  else { tripDest = null; syncTripUI(); }
+  activeField = f; fieldEl(f).focus(); renderSuggest("");
+}
+function swapTrip() {
+  const me = () => { const c = userLoc || DEFAULT_LOC; return { lat: c[0], lng: c[1], name: t("myLoc"), me: true }; };
+  const o = tripOrig || me(), d = tripDest;
+  if (!d) return toast(t("needDest"));
+  tripOrig = d.me ? null : d; tripDest = o;
+  $("destInput").value = ""; $("origInput").value = "";
+  tripChanged();
 }
 
 // Route options come from our backend (/api/routes), which asks the routing engine for its
@@ -1123,8 +1171,9 @@ async function fetchRoutes(o, dest) {
 }
 
 async function buildRoute() {
-  if (!destLatLng) return submitSearch();
-  const o = userLoc || DEFAULT_LOC;
+  if (!tripDest) { activeField = "dest"; return submitSearch(); }
+  const o = tripOrig ? [tripOrig.lat, tripOrig.lng] : (userLoc || DEFAULT_LOC);
+  const destLatLng = L.latLng(tripDest.lat, tripDest.lng);
   toast(t("calcRoute"));
   let raw;
   try { const js = await fetchRoutes(o, destLatLng); raw = js.routes || []; routeTraffic = !!js.traffic; }
@@ -1145,8 +1194,8 @@ async function buildRoute() {
     return { coords: rt.coords, hits, km: rt.km, mins: rt.mins, toll: rt.toll, delay: rt.delay_mins || 0 };
   });
   selRoute = 0;
-  lastDest = { lat: destLatLng.lat, lng: destLatLng.lng };
-  destLatLng = null;
+  lastDest = { lat: tripDest.lat, lng: tripDest.lng };
+  lastOrig = tripOrig ? { lat: tripOrig.lat, lng: tripOrig.lng } : null;
   drawRoutes();
   renderRouteSummary();
   showView("route"); setPanel("collapsed");
@@ -1154,17 +1203,17 @@ async function buildRoute() {
     routeMap.invalidateSize();
     const b = L.latLngBounds(routeData.flatMap(r => r.coords));
     routeMap.fitBounds(b, isWide()
-      ? { paddingTopLeft: [$("panel").offsetWidth + 40, 90], paddingBottomRight: [40, 40] }
-      : { paddingTopLeft: [30, 90], paddingBottomRight: [30, $("panel").offsetHeight + 30] });
+      ? { paddingTopLeft: [$("panel").offsetWidth + 40, 130], paddingBottomRight: [40, 40] }
+      : { paddingTopLeft: [30, 130], paddingBottomRight: [30, $("panel").offsetHeight + 30] });
   }, 380);
 }
 
 function closeRoute() {
-  routeData = []; selRoute = 0; lastDest = null; destLatLng = null;
+  routeData = []; selRoute = 0; lastDest = null; lastOrig = null;
   routeLines.clearLayers();
-  if (destMarker) { destMarker.remove(); destMarker = null; }
+  tripOrig = null; tripDest = null; $("origInput").value = ""; $("destInput").value = ""; syncTripUI();
   renderRouteEmpty(); setPanel("collapsed");
-  $("destInput").value = ""; $("clearBtn").style.display = "none"; suggestions = []; closeSuggest();
+  suggestions = []; closeSuggest(); activeField = "dest";
   renderRouteCps();
   if (userLoc) routeMap.setView(userLoc, 12);
 }
@@ -1235,8 +1284,8 @@ function renderRouteSummary() {
   const navBtns = lastDest ? `<div class="ro-listhead">${t("navWith")}</div>
     <div class="nav-note">${cpStops.length ? t("navNoteStops", cpStops.length) : t("navNote")}</div>
     <div class="nav-row">
-      <a class="cta" href="https://www.google.com/maps/dir/?api=1&destination=${lastDest.lat},${lastDest.lng}${gWaypoints}&travelmode=driving" target="_blank" rel="noopener">${ICON_GO}${t("openG")}</a>
-      <a class="btn-outline" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">${t("openA")}</a>
+      <a class="cta" href="https://www.google.com/maps/dir/?api=1${lastOrig ? `&origin=${lastOrig.lat},${lastOrig.lng}` : ""}&destination=${lastDest.lat},${lastDest.lng}${gWaypoints}&travelmode=driving" target="_blank" rel="noopener">${ICON_GO}${t("openG")}</a>
+      <a class="btn-outline" href="https://maps.apple.com/?${lastOrig ? `saddr=${lastOrig.lat},${lastOrig.lng}&` : ""}daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">${t("openA")}</a>
     </div>` : "";
 
   sum.innerHTML = `<div class="p-head"><div><h2>${t("chooseRoute")}</h2><div class="p-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>${recLegendHtml()}
@@ -1518,11 +1567,16 @@ function setReportCat(c) {
   renderChips(); evalPhoto();
 }
 function pickType(i) { selType = TYPE_KEYS[i]; renderChips(); evalPhoto(); }
-$("routeBtn").onclick = () => { destLatLng = null; submitSearch(); };
-$("destInput").addEventListener("input", () => { destLatLng = null; onSearchInput(); });
-$("destInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); destLatLng = null; submitSearch(); } });
-$("destInput").addEventListener("focus", () => { if ($("destInput").value.trim().length >= 2 && suggestions.length) renderSuggest($("destInput").value.trim()); });
-$("destInput").addEventListener("blur", () => setTimeout(closeSuggest, 150));
+["orig", "dest"].forEach(f => {
+  const el = fieldEl(f);
+  el.addEventListener("input", () => onSearchInput(f));
+  el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); activeField = f; submitSearch(); } });
+  el.addEventListener("focus", () => {
+    if (activeField !== f) suggestions = [];
+    activeField = f; renderSuggest(el.value.trim());
+  });
+  el.addEventListener("blur", () => setTimeout(() => { if (!document.activeElement || !document.activeElement.closest(".trip")) { closeSuggest(); if (activeField === "orig" && !tripOrig) setTimeout(() => { activeField = "dest"; }, 300); } }, 150));
+});
 
 /* ---------- Drag the sheet from its content, not just the grabber ----------
    When the content is scrolled to the top, a downward drag moves the sheet instead of scrolling

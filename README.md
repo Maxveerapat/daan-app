@@ -61,6 +61,12 @@ daan-app/
 - **เส้นทาง (Route):** enter a destination → route options (with/without tolls), each labeled with
   on-route checkpoint count → hand off to Google/Apple Maps to drive.
 
+## Database
+
+Set `DATABASE_URL` (Postgres, e.g. Neon or Supabase) in Render → Environment so reports survive
+restarts. Without it the app uses a local SQLite file (fine for development, wiped on Render
+restarts). Tables are created/migrated automatically on startup (`db.py`).
+
 ## Report anti-spam (zero operating cost)
 
 - **Live camera photo only** (in-app camera, no upload option).

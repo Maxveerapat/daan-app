@@ -85,10 +85,24 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 
 - **Name: GlubDD** (owner is buying the domain). Repo/Render service still called `daan-app`;
   point the new domain at Render via Settings → Custom Domains.
-- **Monetization: no ads.** Free during testing. Later: pay-per-use **daily pass** first, then a
-  **monthly subscription**. A permanent **free tier without the map** — static report list only
+- **Monetization: no ads.** Free during testing. Later: **two paid packages offered side by side**
+  — a pay-per-use **daily pass** and a **monthly subscription** (different prices). A permanent **free tier without the map** — static report list only
   (like the original "ด่าน" app); the map, routing and route counts are the paid features.
   Not built yet — no auth/payments exist. Gate should be server-enforced when added.
+
+## 0b. Data storage (production)
+
+- `db.py`: Postgres when `DATABASE_URL` is set (psycopg 3), else local SQLite. Same SQL for both
+  (`?` placeholders rewritten for Postgres). Schema changes = append to `MIGRATIONS` (tracked in
+  `schema_migrations`); never edit a shipped migration.
+- Demo seed data only goes into an empty SQLite DB (or Postgres with `SEED_DEMO=1`).
+- Anonymous **device id** (random UUID in localStorage, sent as `X-Device-Id`): stored on reports
+  (`reporter_device`) and votes; one vote per device per report (`votes` table, unique index).
+- **Prepared for accounts/payments (not built):** nullable `reporter_user_id` / `votes.user_id`.
+  Planned next tables: `users` (id, phone/LINE id, created_at), `devices` (device_id → user_id),
+  `plans` (daily, monthly, price), `subscriptions` (user_id, plan, starts_at, ends_at, provider ref),
+  `payments` (provider, amount, status, raw webhook). Gate map/routing server-side on an active
+  subscription. Likely providers: Omise or Stripe (PromptPay + cards); LINE Login or phone OTP.
 
 ## 0. Changes since this handoff was written (Nov 2026)
 

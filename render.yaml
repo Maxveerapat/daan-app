@@ -8,6 +8,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
+      - key: DATABASE_URL   # Postgres connection string (Neon/Supabase); without it data is lost on restart
+        sync: false
       - key: TOMTOM_KEY     # TomTom key: live-traffic routes + place search
         sync: false
       - key: ORS_KEY        # free OpenRouteService key; enter it in Render → Environment

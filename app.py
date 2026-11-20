@@ -4,14 +4,16 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-import sqlite3
 import time
 from pathlib import Path
 
 from flask import Flask, g, jsonify, render_template, request
 
+import db as dbmod
+
 APP_DIR = Path(__file__).parent
-DB_PATH = APP_DIR / "daan.db"
+# Demo reports are only seeded into an empty local (SQLite) DB unless SEED_DEMO=1 is set.
+SEED_DEMO = os.environ.get("SEED_DEMO", "" if dbmod.IS_PG else "1") == "1"
 
 ACTIVE_SECONDS = 3 * 3600          # fresh window: last confirmed within 3h
 HIDE_AFTER_SECONDS = 12 * 3600     # drop from API entirely after 12h
@@ -57,8 +59,7 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
+        g.db = dbmod.DB()
     return g.db
 
 
@@ -79,28 +80,11 @@ def haversine_m(lat1, lng1, lat2, lng2):
 
 
 def init_db():
-    db = sqlite3.connect(DB_PATH)
-    db.execute(
-        """CREATE TABLE IF NOT EXISTS checkpoints (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            lat REAL NOT NULL,
-            lng REAL NOT NULL,
-            label TEXT NOT NULL,
-            type TEXT NOT NULL,
-            reported_at INTEGER NOT NULL,
-            last_confirmed_at INTEGER NOT NULL,
-            confirms INTEGER NOT NULL DEFAULT 1,
-            dismisses INTEGER NOT NULL DEFAULT 0,
-            reports INTEGER NOT NULL DEFAULT 1,
-            cleared_at INTEGER,
-            source TEXT NOT NULL DEFAULT 'user',
-            source_name TEXT
-        )"""
-    )
+    db = dbmod.migrate()
     db.execute("DELETE FROM checkpoints WHERE source = 'official'")  # legacy rows from older DBs
     for old, code in LEGACY_TYPES.items():
         db.execute("UPDATE checkpoints SET type = ? WHERE type = ?", (code, old))
-    if db.execute("SELECT COUNT(*) FROM checkpoints").fetchone()[0] == 0:
+    if SEED_DEMO and db.scalar("SELECT COUNT(*) FROM checkpoints") == 0:
         now = int(time.time())
         # All checkpoints are crowdsourced in-app (source = 'user'). There is no public
         # feed of Thai police checkpoints, so the old 'official' source was removed.
@@ -170,8 +154,15 @@ def list_checkpoints():
     return jsonify({"now": now, "checkpoints": [row_to_dict(r, now) for r in rows]})
 
 
+def _device_id():
+    """Anonymous per-browser id (random UUID kept in localStorage). Becomes linkable to a user
+    account once accounts exist. Not trusted for security on its own."""
+    d = (request.headers.get("X-Device-Id") or "").strip()
+    return d[:64] if d else None
+
+
 def _client_id():
-    return (request.headers.get("X-Forwarded-For") or request.remote_addr or "?").split(",")[0].strip()
+    return _device_id() or (request.headers.get("X-Forwarded-For") or request.remote_addr or "?").split(",")[0].strip()
 
 
 def _rate_limited():
@@ -217,12 +208,12 @@ def add_checkpoint():
             db.commit()
             return jsonify({"ok": True, "merged": True, "id": row["id"]})
 
-    cur = db.execute(
-        "INSERT INTO checkpoints (lat,lng,label,type,reported_at,last_confirmed_at) VALUES (?,?,?,?,?,?)",
-        (lat, lng, label, typ, now, now),
+    new_id = db.insert(
+        "INSERT INTO checkpoints (lat,lng,label,type,reported_at,last_confirmed_at,reporter_device) VALUES (?,?,?,?,?,?,?)",
+        (lat, lng, label, typ, now, now, _device_id()),
     )
     db.commit()
-    return jsonify({"ok": True, "merged": False, "id": cur.lastrowid})
+    return jsonify({"ok": True, "merged": False, "id": new_id})
 
 
 @app.route("/api/checkpoints/<int:cid>/vote", methods=["POST"])
@@ -230,6 +221,16 @@ def vote(cid):
     still = bool(request.get_json(force=True).get("still"))
     now = int(time.time())
     db = get_db()
+    if db.scalar("SELECT COUNT(*) FROM checkpoints WHERE id = ?", (cid,)) == 0:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    device = _device_id() or _client_id()
+    prev = db.execute("SELECT still_there FROM votes WHERE report_id = ? AND device_id = ?", (cid, device)).fetchone()
+    if prev is not None and bool(prev["still_there"]) == still:
+        return jsonify({"ok": True, "already": True})   # same vote again: no double counting
+    if prev is None:
+        db.execute("INSERT INTO votes (report_id, device_id, still_there, created_at) VALUES (?,?,?,?)", (cid, device, still, now))
+    else:
+        db.execute("UPDATE votes SET still_there = ?, created_at = ? WHERE report_id = ? AND device_id = ?", (still, now, cid, device))
     if still:
         db.execute(
             "UPDATE checkpoints SET last_confirmed_at=?, confirms=confirms+1, dismisses=0, cleared_at=NULL WHERE id=?",
@@ -237,8 +238,7 @@ def vote(cid):
         )
     else:
         db.execute("UPDATE checkpoints SET dismisses=dismisses+1 WHERE id=?", (cid,))
-        row = db.execute("SELECT dismisses FROM checkpoints WHERE id=?", (cid,)).fetchone()
-        if row and row["dismisses"] >= DISMISS_THRESHOLD:
+        if db.scalar("SELECT dismisses FROM checkpoints WHERE id=?", (cid,)) >= DISMISS_THRESHOLD:
             db.execute("UPDATE checkpoints SET cleared_at=? WHERE id=?", (now, cid))
     db.commit()
     return jsonify({"ok": True})

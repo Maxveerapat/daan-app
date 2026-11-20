@@ -120,6 +120,8 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   max 3 = mobile URL limit). Incidents are never sent as stops; a route with 0 checkpoints sends the
   destination only. Apple Maps URLs can't carry stops → destination only. Agreed compromise after
   exact-route transfer was declined: stops can only make navigation pass checkpoints, not avoid them.
+- **Per-report Share / Google Maps / Apple Maps** buttons (popup + list card). Share uses the native share
+  sheet (fallback: copy) with a deep link `/?r=<id>` that opens the app focused on that report.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

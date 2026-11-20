@@ -344,6 +344,12 @@
   .pin-pop b { font-size: 14.5px; font-weight: 600; }
   .pin-pop .meta { color: var(--muted); font-size: 12px; margin: 4px 0 10px; }
   .pin-pop .vr { display: flex; gap: 7px; }
+  .links { margin-top: 7px !important; }
+  .links a, .links button {
+    flex: 1; display: block; text-align: center; text-decoration: none; font-size: 12px; font-weight: 600;
+    padding: 8px 4px; border-radius: 9px; border: 1px solid var(--hair); font-family: inherit;
+    background: transparent !important; color: #64B3FF !important; white-space: nowrap;
+  }
   .pin-pop .vr button { flex: 1; font-size: 12px; padding: 8px; border-radius: 9px; border: 1px solid var(--hair); background: var(--surface); color: var(--text); font-family: inherit; font-weight: 600; }
 
   /* motion */
@@ -475,7 +481,9 @@ const I18N = {
     legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.",
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
     legIncident: "เหตุบนถนน", c_all: "ทั้งหมด", c_checkpoint: "ด่านตรวจ", c_incident: "เหตุบนถนน",
-    incN: n => `เหตุ ${n} จุด`, tagCheckpoint: "ด่าน", tagIncident: "เหตุบนถนน", detected: x => `ตรวจพบ: ${x} ✓`,
+    incN: n => `เหตุ ${n} จุด`, tagCheckpoint: "ด่าน", tagIncident: "เหตุบนถนน",
+    share: "แชร์", shareTitle: "ด่าน — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
+    sharedGone: "รายงานนี้หมดอายุหรือถูกลบแล้ว", detected: x => `ตรวจพบ: ${x} ✓`,
     destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "เช็คเส้นทาง",
     routeHint: "จากตำแหน่งปัจจุบัน · หรือแตะบนแผนที่เพื่อปักหมุดปลายทาง",
     sheetTitle: "รายงานตรงนี้", sheetHint: "ถ่ายรูปสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เกิดเหตุ",
@@ -516,7 +524,9 @@ const I18N = {
     legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs",
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
     legIncident: "Road incident", c_all: "All", c_checkpoint: "Checkpoints", c_incident: "Incidents",
-    incN: n => `${n} incident${n === 1 ? "" : "s"}`, tagCheckpoint: "Checkpoint", tagIncident: "Incident", detected: x => `Detected: ${x} ✓`,
+    incN: n => `${n} incident${n === 1 ? "" : "s"}`, tagCheckpoint: "Checkpoint", tagIncident: "Incident",
+    share: "Share", shareTitle: "Daan — road report", copied: "Link copied", shareErr: "Couldn't share",
+    sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
     destPh: "Where to? e.g. Siam Paragon", routeBtn: "Check",
     routeHint: "From your location · or tap the map to drop a pin",
     sheetTitle: "Report here", sheetHint: "Take a live photo, then move the map so the pin sits on the spot",
@@ -714,7 +724,7 @@ function onLocated(real) {
   userMarkers = [map, routeMap].map(m =>
     L.circleMarker(userLoc, { radius: 7, color: "#fff", weight: 2.5, fillColor: "#0A84FF", fillOpacity: 1 }).addTo(m)
   );
-  map.setView(userLoc, 13);
+  if (!focusedShared) map.setView(userLoc, 13);
   routeMap.setView(userLoc, 12);
   renderFeed();
 }
@@ -759,10 +769,44 @@ async function loadCheckpoints() {
   renderMap();
   renderFeed();
   renderRouteCps();
+  openShared();
 }
 
 function voteBtns(cp, cls) {
   return `<div class="${cls}"><button onclick="vote(${cp.id},true)">${t("stillThere")}</button><button onclick="vote(${cp.id},false)">${t("gone")}</button></div>`;
+}
+
+// Per-report share + open in Google/Apple Maps.
+function gmapsUrl(cp) { return `https://www.google.com/maps/search/?api=1&query=${cp.lat.toFixed(6)},${cp.lng.toFixed(6)}`; }
+function amapsUrl(cp) { return `https://maps.apple.com/?ll=${cp.lat.toFixed(6)},${cp.lng.toFixed(6)}&q=${encodeURIComponent(typeName(cp.type))}`; }
+function linkRow(cp, cls) {
+  return `<div class="${cls} links"><button onclick="shareReport(${cp.id})">${t("share")}</button>
+    <a href="${gmapsUrl(cp)}" target="_blank" rel="noopener">Google Maps ↗</a>
+    <a href="${amapsUrl(cp)}" target="_blank" rel="noopener">Apple Maps ↗</a></div>`;
+}
+async function shareReport(id) {
+  const cp = checkpoints.find(c => c.id === id); if (!cp) return;
+  const appUrl = `${location.origin}/?r=${cp.id}`;
+  const text = `${typeName(cp.type)} · ${labelName(cp.label)} (${agoText(cp.age_minutes)})\nGoogle Maps: ${gmapsUrl(cp)}`;
+  try {
+    if (navigator.share) { await navigator.share({ title: t("shareTitle"), text, url: appUrl }); return; }
+    await navigator.clipboard.writeText(`${text}\n${appUrl}`);
+    toast(t("copied"));
+  } catch (e) { if (e && e.name !== "AbortError") toast(t("shareErr")); }
+}
+// Opening a shared link (/?r=<id>) focuses that report on the map.
+let markerById = {}, sharedHandled = false, focusedShared = false, openPopupId = null;
+function openShared() {
+  if (sharedHandled) return; sharedHandled = true;
+  const id = +new URLSearchParams(location.search).get("r"); if (!id) return;
+  history.replaceState(null, "", location.pathname);
+  const cp = checkpoints.find(c => c.id === id);
+  if (!cp) return toast(t("sharedGone"));
+  switchTab("map");
+  if (!catShown(cp)) setCat("all");
+  focusedShared = true;
+  map.setView([cp.lat, cp.lng], 16);
+  setTimeout(() => markerById[id] && markerById[id].openPopup(), 300);
 }
 
 function catTag(cp) {
@@ -772,17 +816,26 @@ function catTag(cp) {
 function popupHtml(cp) {
   const conf = `${t("lastConfirmed", agoText(cp.age_minutes))} · ${t("people", cp.confirms)}${cp.reports > 1 ? ` · ${t("reportsN", cp.reports)}` : ""}`;
   return `<div class="pin-pop"><b>${esc(labelName(cp.label))}</b>
-    <div class="meta">${catTag(cp)}${esc(typeName(cp.type))}<br>${conf}</div>${voteBtns(cp, "vr")}</div>`;
+    <div class="meta">${catTag(cp)}${esc(typeName(cp.type))}<br>${conf}</div>${voteBtns(cp, "vr")}${linkRow(cp, "vr")}</div>`;
 }
 
+// Keep popups clear of the header, filter bar and legend at the top and the tab bar at the bottom.
+const POPUP_OPTS = { autoPanPaddingTopLeft: [16, 250], autoPanPaddingBottomRight: [16, 110], maxWidth: 300 };
+let rerendering = false;
 function renderMap() {
-  mapLayer.clearLayers();
+  rerendering = true;
+  mapLayer.clearLayers(); markerById = {};
   const animate = !pinsAnimated && checkpoints.length > 0;
   checkpoints.filter(catShown).forEach(cp => {
     const m = catOf(cp) === "incident" ? makeMarker(cp)
       : L.circleMarker([cp.lat, cp.lng], { ...styleFor(cp), className: animate ? "pin" : "" });
-    m.bindPopup(popupHtml(cp)).addTo(mapLayer);
+    m.bindPopup(popupHtml(cp), POPUP_OPTS).addTo(mapLayer);
+    m.on("popupopen", () => { openPopupId = cp.id; });
+    m.on("popupclose", () => { if (openPopupId === cp.id && !rerendering) openPopupId = null; });
+    markerById[cp.id] = m;
   });
+  if (openPopupId && markerById[openPopupId]) markerById[openPopupId].openPopup();
+  rerendering = false;
   if (animate) {
     pinsAnimated = true;
     document.querySelectorAll("#map path.pin").forEach((p, i) => {
@@ -799,7 +852,7 @@ function cardHtml(cp, dist) {
     <div class="card-top"><span class="card-title">${esc(labelName(cp.label))}</span>${distBadge}</div>
     <div class="card-type">${catTag(cp)}${esc(typeName(cp.type))}${cp.reports > 1 ? ` · ${t("mergedN", cp.reports)}` : ""}</div>
     <div class="card-meta"><span>🕐 ${agoText(cp.age_minutes)}</span><span class="ok">${t("confirmedBy", cp.confirms)}</span></div>
-    ${voteBtns(cp, "vote-row")}</div>`;
+    ${voteBtns(cp, "vote-row")}${linkRow(cp, "vote-row")}</div>`;
 }
 
 let staleOpen = false;
@@ -1002,7 +1055,7 @@ function renderRouteCps() {
   routeCpLayer.clearLayers();
   const onSel = new Set(routeData.length ? routeData[selRoute].hits.map(h => h.cp.id) : []);
   checkpoints.filter(cp => catShown(cp) || onSel.has(cp.id)).forEach(cp => {
-    makeMarker(cp, onSel.has(cp.id)).bindPopup(popupHtml(cp)).addTo(routeCpLayer);
+    makeMarker(cp, onSel.has(cp.id)).bindPopup(popupHtml(cp), POPUP_OPTS).addTo(routeCpLayer);
   });
 }
 

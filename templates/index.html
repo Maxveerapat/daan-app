@@ -285,6 +285,8 @@
   #routeSummary .cta { margin-top: 10px; }
   #routeSummary .p-head h2 { font-size: 22px; }
   .toll-filter { margin-bottom: 8px !important; }
+  #routeSummary .cat-seg { margin-bottom: 8px; }
+  #routeSummary .p-head { align-items: flex-start; }
   .nav-row { display: grid; grid-template-columns: 1fr; }
   .nav-btn.g { composes: cta; }
 
@@ -605,11 +607,23 @@ function shortName(k) { return TYPES[k] ? TYPES[k].s[lang === "en" ? 1 : 0] : k;
 function catOf(cp) { return (TYPES[cp.type] || {}).cat || "checkpoint"; }
 let catFilter = "all", reportCat = "checkpoint";
 function catShown(cp) { return catFilter === "all" || catOf(cp) === catFilter; }
-function setCat(c) { catFilter = c; renderCatBars(); renderMap(); renderFeed(); renderRouteCps(); }
+function setCat(c) {
+  catFilter = c; renderCatBars(); renderMap(); renderFeed(); renderRouteCps();
+  if (routeData.length) renderRouteSummary(); else renderRouteEmpty();
+  if (panelView === "route") updateCollapsed();
+}
 function catButtons(cur, fn) {
   const ic = { all: "", checkpoint: `<span class="seg-ic cp">${PIN_SHIELD}</span>`, incident: `<span class="seg-ic inc">${PIN_WARN}</span>` };
   return ["all", "checkpoint", "incident"].map(c => `<button class="${cur === c ? "on" : ""}" onclick="${fn}('${c}')">${ic[c]}${t("c_" + c)}</button>`).join("");
 }
+// Panel top section shared by Nearby and Route: recency legend + category filter.
+function recLegendHtml() {
+  return `<div class="rec-legend">
+    <span><i style="background:var(--fresh)"></i>${t("legFresh")}</span>
+    <span><i style="background:var(--aging)"></i>${t("legAging")}</span>
+    <span><i style="background:var(--stale)"></i>${t("legStale")}</span></div>`;
+}
+function catSegHtml() { return `<div class="seg cat-seg">${catButtons(catFilter, "setCat")}</div>`; }
 // One-line legend (used in the route panel): category pin styles + recency dots.
 function legendInline() {
   return `<div class="leg-line"><span class="mk-s cp"><span class="ic">${PIN_SHIELD}</span>${t("tagCheckpoint")}</span>
@@ -973,7 +987,7 @@ function closeDetail() {
   renderMap(); renderRouteCps();
 }
 function renderRouteEmpty() {
-  $("routeSummary").innerHTML = `<div class="p-head"><div><h2>${t("routeTitle")}</h2><div class="p-sub">${t("routeHint")}</div></div></div>${legendInline()}`;
+  $("routeSummary").innerHTML = `<div class="p-head"><div><h2>${t("routeTitle")}</h2><div class="p-sub">${t("routeHint")}</div></div>${recLegendHtml()}</div>${catSegHtml()}`;
 }
 
 // Drag the grabber: up = expand, down = shrink; tap toggles peek/full.
@@ -1198,13 +1212,14 @@ function renderRouteSummary() {
           <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}</span>
           ${(r.delay > 0 || r.toll != null) ? `<span class="ro-tags">${r.delay > 0 ? `<span class="mini delay">${t("delay", r.delay)}</span>` : ""}${r.toll == null ? "" : `<span class="mini toll ${r.toll ? "yes" : "no"}">${t(r.toll ? "toll" : "noToll")}</span>`}</span>` : ""}
         </div>
-        <div class="ro-badges"><span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span>${ni ? `<span class="cpcount inc-some">${t("incN", ni)}</span>` : ""}</div>
+        <div class="ro-badges">${catFilter !== "incident" ? `<span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span>` : ""}${catFilter !== "checkpoint" && ni ? `<span class="cpcount inc-some">${t("incN", ni)}</span>` : ""}</div>
       </div>`;
   }).join("") : `<div class="route-hit" style="color:var(--muted)">${t("noRouteFilter")}</div>`;
 
   const sel = routeData[selRoute];
-  const list = sel.hits.length
-    ? sel.hits.map(h => `<div class="route-hit">
+  const shownHits = sel.hits.filter(h => catShown(h.cp));
+  const list = shownHits.length
+    ? shownHits.map(h => `<div class="route-hit">
           <div><b>${esc(labelName(h.cp.label))}</b><div class="t">${catTag(h.cp)}<span class="nw">${esc(typeName(h.cp.type))}</span> · <span class="nw">${t("lastConfirmed", agoText(h.cp.age_minutes))}</span></div></div>
           <span class="badge dist">${t("kmAt", (h.along / 1000).toFixed(1))}</span>
         </div>`).join("")
@@ -1225,9 +1240,9 @@ function renderRouteSummary() {
       <a class="btn-outline" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">${t("openA")}</a>
     </div>` : "";
 
-  sum.innerHTML = `<div class="p-head"><div><h2>${t("chooseRoute")}</h2><div class="p-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>
+  sum.innerHTML = `<div class="p-head"><div><h2>${t("chooseRoute")}</h2><div class="p-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>${recLegendHtml()}
       <button class="ibtn" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div>
-    ${legendInline()}
+    ${catSegHtml()}
     ${filterBar}
     ${opts}
     <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>

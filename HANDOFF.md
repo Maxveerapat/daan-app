@@ -98,6 +98,13 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Search** is Google-Maps-style autocomplete (`/api/search`): TomTom fuzzy search → Photon → Nominatim
   (Nominatim only on explicit submit, per its no-autocomplete policy).
 - **Route map always shows every checkpoint**; ones on the selected route are drawn larger.
+- **Route view has an explicit ✕ close**; the floating tab bar hides while a route is open.
+- **Report anti-spam:** live in-app camera photo (getUserMedia, no file input), live GPS ≤ 500 m from pin,
+  5 reports / 10 min per client, optional Claude vision check (`ANTHROPIC_API_KEY`, `claude-opus-5-5`,
+  effort low, structured output). Photo is discarded after the check. OCR was considered and rejected —
+  checkpoints rarely have readable text, so a vision yes/no is the "simple" option that actually works.
+- Owner asked to make Google Maps follow the **exact** selected route — declined per §7 (it's the
+  waypoint-injection item). Nav buttons now say the nav app picks its own route with live traffic.
 
 ---
 

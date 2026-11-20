@@ -60,6 +60,12 @@ daan-app/
 - **เส้นทาง (Route):** enter a destination → route options (with/without tolls), each labeled with
   on-route checkpoint count → hand off to Google/Apple Maps to drive.
 
+## Report anti-spam
+
+Reports need a **live camera photo** (in-app camera only, no upload) and the reporter's **live GPS
+within 500 m** of the pin; max 5 reports / 10 min per client. If `ANTHROPIC_API_KEY` is set, Claude
+checks the photo plausibly shows a checkpoint (fails open if the API is down). Photos are never stored.
+
 ## Routing & search
 
 Both run server-side, keys come from environment variables (Render → Environment):

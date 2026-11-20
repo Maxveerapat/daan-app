@@ -233,13 +233,46 @@
   .grabber { width: 38px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.22); margin: 10px auto 2px; flex-shrink: 0; }
   #sheetBody h2 { font-size: 18px; font-weight: 600; padding: 8px 18px 4px; }
   #sheetBody .hint { font-size: 12.5px; color: var(--muted); padding: 0 18px 12px; }
-  #pickWrap { position: relative; height: 220px; flex-shrink: 0; }
+  .sheet-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #pickWrap { position: relative; height: 170px; flex-shrink: 0; }
+  #camWrap { position: relative; height: 260px; background: #000; margin: 0 0 2px; overflow: hidden; }
+  #camVideo, #camShot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #camShot { display: none; }
+  #camWrap.shot #camShot { display: block; }
+  #camWrap.shot #camVideo, #camWrap.shot #shutter { display: none; }
+  #camMsg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+  #camWrap.err #camMsg { display: flex; }
+  #shutter {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    width: 62px; height: 62px; border-radius: 50%; background: #fff; border: 5px solid rgba(255,255,255,.35);
+    background-clip: padding-box; box-shadow: 0 2px 12px rgba(0,0,0,.5);
+  }
+  #shutter:active { transform: translateX(-50%) scale(.92); }
+  #retake {
+    display: none; position: absolute; right: 12px; bottom: 12px; font-family: inherit; font-size: 13px; font-weight: 600;
+    background: rgba(0,0,0,.6); color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 8px 14px;
+  }
+  #camWrap.shot #retake { display: block; }
+  .cam-note {
+    position: absolute; left: 12px; top: 10px; font-size: 11.5px; color: #fff; background: rgba(0,0,0,.55);
+    padding: 5px 10px; border-radius: 999px;
+  }
+  .sheet-actions .submit:disabled { opacity: .45; }
+  body.routing nav { display: none; }
+  body.routing #routeSummary { padding-bottom: calc(env(safe-area-inset-bottom) + 22px); }
+  .rs-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .rs-head h3 { margin: 0 !important; }
+  #routeClose {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: none; font-size: 15px;
+    background: rgba(255,255,255,.12); color: var(--text); font-family: inherit;
+  }
+  .nav-note { font-size: 11.5px; color: var(--muted); margin: -2px 0 8px; }
   #crosshair {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%);
     z-index: 1000; pointer-events: none; font-size: 30px; line-height: 1;
     filter: drop-shadow(0 2px 3px rgba(0,0,0,.6));
   }
-  .sheet-form { padding: 14px 18px 18px; overflow-y: auto; }
+  .sheet-form { padding: 14px 18px 18px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
   .chip {
     font-size: 12.5px; padding: 8px 14px; border-radius: 999px;
@@ -355,6 +388,15 @@
       <div class="grabber"></div>
       <h2 data-i18n="sheetTitle"></h2>
       <div class="hint" data-i18n="sheetHint"></div>
+      <div class="sheet-scroll">
+      <div id="camWrap">
+        <video id="camVideo" playsinline muted autoplay></video>
+        <img id="camShot" alt="">
+        <div id="camMsg"></div>
+        <button id="shutter" onclick="capturePhoto()" aria-label="Take photo"></button>
+        <button id="retake" onclick="startCamera()" data-i18n="retake"></button>
+        <div class="cam-note" data-i18n="passengerNote"></div>
+      </div>
       <div id="pickWrap">
         <div id="pickMap"></div>
         <div id="crosshair">📍</div>
@@ -366,8 +408,9 @@
         <input id="labelInput" data-i18n-ph="placePh">
         <div class="sheet-actions">
           <button class="cancel" onclick="closeSheet()" data-i18n="cancel"></button>
-          <button class="submit" onclick="submitReport()">＋ <span data-i18n="submit"></span></button>
+          <button class="submit" id="submitBtn" onclick="submitReport()">＋ <span data-i18n="submit"></span></button>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -388,7 +431,13 @@ const I18N = {
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงานด่าน",
     destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "เช็คเส้นทาง",
     routeHint: "จากตำแหน่งปัจจุบัน · หรือแตะบนแผนที่เพื่อปักหมุดปลายทาง",
-    sheetTitle: "รายงานด่านตรงนี้", sheetHint: "เลื่อนแผนที่ให้หมุดอยู่ตรงจุดที่เจอด่าน · เวลาใช้ตอนนี้อัตโนมัติ",
+    sheetTitle: "รายงานด่านตรงนี้", sheetHint: "ถ่ายรูปด่านสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เจอด่าน",
+    retake: "ถ่ายใหม่", passengerNote: "ให้ผู้โดยสารถ่าย — ห้ามใช้มือถือขณะขับรถ",
+    camErr: "เปิดกล้องไม่ได้ — อนุญาตให้เบราว์เซอร์ใช้กล้อง แล้วลองอีกครั้ง",
+    needPhoto: "ถ่ายรูปด่านก่อนส่ง", needGps: "ต้องเปิดตำแหน่ง (GPS) เพื่อรายงาน", verifying: "กำลังตรวจสอบรูป…",
+    tooFar: "หมุดอยู่ไกลจากตำแหน่งของคุณเกิน 500 ม.", rateLimited: "รายงานถี่เกินไป ลองใหม่ภายหลัง",
+    photoRejected: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นด่านชัด ๆ", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
+    closeRoute: "ปิดเส้นทาง", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
     typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "เช่น หน้าโลตัส พระราม 2",
     cancel: "ยกเลิก", submit: "ส่งรายงาน",
     justNow: "เมื่อสักครู่", minAgo: m => `${m} นาทีที่แล้ว`,
@@ -418,7 +467,13 @@ const I18N = {
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
     destPh: "Where to? e.g. Siam Paragon", routeBtn: "Check",
     routeHint: "From your location · or tap the map to drop a pin",
-    sheetTitle: "Report a checkpoint here", sheetHint: "Move the map so the pin sits on the checkpoint · time is set to now",
+    sheetTitle: "Report a checkpoint here", sheetHint: "Take a live photo, then move the map so the pin sits on the checkpoint",
+    retake: "Retake", passengerNote: "Passengers only — don't use your phone while driving",
+    camErr: "Can't open the camera — allow camera access in your browser and try again",
+    needPhoto: "Take a photo of the checkpoint first", needGps: "Turn on location (GPS) to report", verifying: "Checking photo…",
+    tooFar: "The pin is more than 500 m from where you are", rateLimited: "Too many reports — try again later",
+    photoRejected: "This photo doesn't look like a checkpoint — retake it so the checkpoint is visible", sendErr: "Couldn't send the report — try again",
+    closeRoute: "Close route", navNote: "The navigation app picks its own route using live traffic",
     typeLabel: "Type", placeLabel: "Place (optional)", placePh: "e.g. in front of Lotus, Rama 2",
     cancel: "Cancel", submit: "Send report",
     justNow: "just now", minAgo: m => `${m} min ago`,
@@ -815,6 +870,7 @@ async function buildRoute() {
   destLatLng = null;
   drawRoutes();
   renderRouteSummary();
+  document.body.classList.add("routing");
   const sum = $("routeSummary");
   sum.classList.remove("show"); void sum.offsetWidth; sum.classList.add("show");
   setTimeout(() => {
@@ -823,6 +879,17 @@ async function buildRoute() {
     const sheetH = $("routeSummary").offsetHeight || 0;
     routeMap.fitBounds(b, { paddingTopLeft: [30, 150], paddingBottomRight: [30, sheetH + 20] });
   }, 250);
+}
+
+function closeRoute() {
+  routeData = []; selRoute = 0; lastDest = null; destLatLng = null;
+  routeLines.clearLayers();
+  if (destMarker) { destMarker.remove(); destMarker = null; }
+  const sum = $("routeSummary"); sum.style.display = "none"; sum.classList.remove("show");
+  document.body.classList.remove("routing");
+  $("destInput").value = ""; $("clearBtn").style.display = "none"; suggestions = []; closeSuggest();
+  renderRouteCps();
+  if (userLoc) routeMap.setView(userLoc, 12);
 }
 
 function drawRoutes() {
@@ -877,19 +944,58 @@ function renderRouteSummary() {
   // uses the phone's live GPS as the start. We pass destination, not our route
   // geometry (deep links can't carry a full path), so the nav app routes its own way.
   const navBtns = lastDest ? `<div class="ro-listhead">${t("navWith")}</div>
+    <div class="nav-note">${t("navNote")}</div>
     <div class="nav-row">
       <a class="nav-btn g" href="https://www.google.com/maps/dir/?api=1&destination=${lastDest.lat},${lastDest.lng}&travelmode=driving" target="_blank" rel="noopener">Google Maps ↗</a>
       <a class="nav-btn a" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">Apple Maps ↗</a>
     </div>` : "";
 
-  sum.innerHTML = `<h3>${t("chooseRoute")} <span style="font-weight:400;color:var(--muted);font-size:11.5px">· ${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</span></h3>
+  sum.innerHTML = `<div class="rs-head"><h3>${t("chooseRoute")} <span style="font-weight:400;color:var(--muted);font-size:11.5px">· ${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</span></h3>
+      <button id="routeClose" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div>
     ${opts}
     <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>
     ${list}
     ${navBtns}`;
 }
 
-/* ---------- report sheet ---------- */
+/* ---------- report sheet ----------
+   Anti-spam: live camera only (no file upload), reporter's live GPS must be near the pin,
+   server rate-limits and (if configured) has Claude check the photo shows a checkpoint.
+   The photo is only used for that check and is never stored. */
+let camStream = null, photoData = null, reportPos = null;
+
+function stopCamera() {
+  if (camStream) { camStream.getTracks().forEach(tr => tr.stop()); camStream = null; }
+}
+async function startCamera() {
+  const wrap = $("camWrap");
+  photoData = null; wrap.classList.remove("shot", "err"); updateSubmit();
+  stopCamera();
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false,
+    });
+    $("camVideo").srcObject = camStream;
+  } catch (e) {
+    $("camMsg").textContent = t("camErr");
+    wrap.classList.add("err");
+  }
+}
+function capturePhoto() {
+  const v = $("camVideo");
+  if (!camStream || !v.videoWidth) return;
+  const scale = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight));
+  const c = document.createElement("canvas");
+  c.width = Math.round(v.videoWidth * scale); c.height = Math.round(v.videoHeight * scale);
+  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+  photoData = c.toDataURL("image/jpeg", 0.75);
+  $("camShot").src = photoData;
+  $("camWrap").classList.add("shot");
+  stopCamera();
+  updateSubmit();
+}
+function updateSubmit() { $("submitBtn").disabled = !photoData; }
+
 function openSheet() {
   $("sheet").classList.add("open");
   if (!pickMap) {
@@ -899,16 +1005,42 @@ function openSheet() {
     pickMap.setView(userLoc || DEFAULT_LOC, 16);
   }
   setTimeout(() => pickMap.invalidateSize(), 150);
+  startCamera();
+  // Fresh high-accuracy fix: the pin starts here and the server checks the pin is near it.
+  reportPos = null;
+  navigator.geolocation && navigator.geolocation.getCurrentPosition(
+    p => { reportPos = [p.coords.latitude, p.coords.longitude]; pickMap.setView(reportPos, 17); },
+    () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+  );
 }
-function closeSheet() { $("sheet").classList.remove("open"); }
+function closeSheet() {
+  $("sheet").classList.remove("open");
+  stopCamera(); photoData = null; $("camWrap").classList.remove("shot", "err");
+}
 
 async function submitReport() {
+  if (!photoData) return toast(t("needPhoto"));
+  if (!reportPos) return toast(t("needGps"));
   const c = pickMap.getCenter();
-  const res = await fetch("/api/checkpoints", {
-    method: "POST", headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ lat: c.lat, lng: c.lng, type: selType, label: $("labelInput").value })
-  });
-  const js = await res.json();
+  $("submitBtn").disabled = true;
+  toast(t("verifying"));
+  let res, js = {};
+  try {
+    res = await fetch("/api/checkpoints", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        lat: c.lat, lng: c.lng, type: selType, label: $("labelInput").value,
+        user_lat: reportPos[0], user_lng: reportPos[1], photo: photoData,
+      })
+    });
+    js = await res.json();
+  } catch (e) { updateSubmit(); return toast(t("sendErr")); }
+  if (!res.ok || !js.ok) {
+    updateSubmit();
+    const msg = { need_gps: "needGps", too_far: "tooFar", rate_limited: "rateLimited", photo_rejected: "photoRejected" }[js.error];
+    if (js.error === "photo_rejected") startCamera();
+    return toast(t(msg || "sendErr"));
+  }
   closeSheet();
   $("labelInput").value = "";
   toast(js.merged ? t("merged") : t("sent"));

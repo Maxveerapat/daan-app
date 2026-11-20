@@ -1,3 +1,4 @@
+import base64
 import json
 import math
 import os
@@ -9,6 +10,12 @@ import time
 from pathlib import Path
 
 from flask import Flask, g, jsonify, render_template, request
+from pydantic import BaseModel
+
+try:
+    import anthropic
+except ImportError:  # photo check is optional
+    anthropic = None
 
 APP_DIR = Path(__file__).parent
 DB_PATH = APP_DIR / "daan.db"
@@ -17,6 +24,17 @@ ACTIVE_SECONDS = 3 * 3600          # fresh window: last confirmed within 3h
 HIDE_AFTER_SECONDS = 12 * 3600     # drop from API entirely after 12h
 DEDUP_RADIUS_M = 300               # same type within this radius -> merge as confirmation
 DISMISS_THRESHOLD = 2              # this many "gone" votes clears a checkpoint
+
+# ---------- report anti-spam ----------
+REPORT_MAX_DIST_M = 500            # reporter's live GPS must be within this of the pin
+REPORT_RATE = (5, 600)             # max 5 reports per 10 minutes per client
+MAX_PHOTO_BYTES = 2_500_000
+# Claude vision check of the live photo. Optional: without ANTHROPIC_API_KEY, reports are
+# accepted on the GPS + live-camera checks alone.
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+PHOTO_MODEL = "claude-opus-5-5"
+_claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, timeout=25.0, max_retries=1) if (anthropic and ANTHROPIC_API_KEY) else None
+_recent_reports = {}               # client id -> [timestamps]
 
 # TomTom key (https://developer.tomtom.com → Dashboard → Keys). Free tier ~2,500 requests/day.
 # Used for live-traffic routing + place search. Set it in Render → Environment as TOMTOM_KEY.
@@ -145,17 +163,101 @@ def list_checkpoints():
     return jsonify({"now": now, "checkpoints": [row_to_dict(r, now) for r in rows]})
 
 
+class PhotoCheck(BaseModel):
+    is_checkpoint: bool
+    reason: str
+
+
+PHOTO_PROMPT = """You verify crowd reports for a Thai road-checkpoint app. Look at this photo, taken \
+live from a phone camera at the reported spot, possibly at night, blurry or through a car window.
+
+Answer is_checkpoint=true if it plausibly shows a police or traffic checkpoint (ด่านตรวจ / จุดตรวจ) \
+or one being set up: e.g. police officers in uniform at the roadside, traffic cones or barriers \
+narrowing lanes, checkpoint signs (ด่านตรวจ, จุดตรวจ, หยุดตรวจ, ตำรวจ), police vehicles, tents or \
+light batons with officers stopping vehicles. Partial or distant views count.
+
+Answer is_checkpoint=false for: unrelated scenes (food, selfies, rooms, empty roads with nothing \
+checkpoint-like), photos of a screen or another photo, memes, screenshots, or a black/blank frame.
+
+Give a short reason (max 15 words)."""
+
+
+def _client_id():
+    return (request.headers.get("X-Forwarded-For") or request.remote_addr or "?").split(",")[0].strip()
+
+
+def _rate_limited():
+    now = time.time()
+    n, window = REPORT_RATE
+    hits = [t for t in _recent_reports.get(_client_id(), []) if now - t < window]
+    _recent_reports[_client_id()] = hits
+    return len(hits) >= n
+
+
+def _check_photo(data_url):
+    """Returns (ok, reason). Fails open on API errors so testers aren't blocked by an outage."""
+    if not data_url or not data_url.startswith("data:image/jpeg;base64,"):
+        return False, "photo_missing"
+    b64 = data_url.split(",", 1)[1]
+    if len(b64) * 3 // 4 > MAX_PHOTO_BYTES:
+        return False, "photo_too_large"
+    try:
+        base64.b64decode(b64, validate=True)
+    except ValueError:
+        return False, "photo_invalid"
+    if _claude is None:
+        return True, "not_checked"
+    try:
+        resp = _claude.messages.parse(
+            model=PHOTO_MODEL,
+            max_tokens=2000,
+            output_config={"effort": "low"},
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
+                {"type": "text", "text": PHOTO_PROMPT},
+            ]}],
+            output_format=PhotoCheck,
+        )
+    except anthropic.APIConnectionError as e:
+        app.logger.warning("photo check: connection error: %s", e)
+        return True, "check_unavailable"
+    except anthropic.APIStatusError as e:
+        app.logger.warning("photo check: API error %s: %s", e.status_code, e.message)
+        return True, "check_unavailable"
+    if resp.stop_reason == "refusal" or resp.parsed_output is None:
+        app.logger.warning("photo check: no verdict (stop_reason=%s)", resp.stop_reason)
+        return True, "check_unavailable"
+    verdict = resp.parsed_output
+    app.logger.info("photo check: %s (%s)", verdict.is_checkpoint, verdict.reason)
+    return verdict.is_checkpoint, verdict.reason
+
+
 @app.route("/api/checkpoints", methods=["POST"])
 def add_checkpoint():
     data = request.get_json(force=True)
-    lat, lng = float(data["lat"]), float(data["lng"])
-    label = (data.get("label") or "").strip() or "ไม่ระบุตำแหน่ง"
-    typ = (data.get("type") or "").strip() or "ตั้งแล้ว ระวังด้วย"
+    try:
+        lat, lng = float(data["lat"]), float(data["lng"])
+        ulat, ulng = float(data["user_lat"]), float(data["user_lng"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"ok": False, "error": "need_gps"}), 400
+    label = (data.get("label") or "").strip()[:80] or "ไม่ระบุตำแหน่ง"
+    typ = (data.get("type") or "").strip()[:40] or "ตั้งแล้ว ระวังด้วย"
+
+    # 1. cheap checks first
+    if _rate_limited():
+        return jsonify({"ok": False, "error": "rate_limited"}), 429
+    if haversine_m(lat, lng, ulat, ulng) > REPORT_MAX_DIST_M:
+        return jsonify({"ok": False, "error": "too_far"}), 400
+    # 2. live photo (never stored — checked, then discarded)
+    ok, reason = _check_photo(data.get("photo"))
+    if not ok:
+        return jsonify({"ok": False, "error": "photo_rejected", "reason": reason}), 400
+    _recent_reports.setdefault(_client_id(), []).append(time.time())
+
     now = int(time.time())
     db = get_db()
-
     active = db.execute(
-        "SELECT * FROM checkpoints WHERE cleared_at IS NULL AND source != 'official' AND last_confirmed_at > ? AND type = ?",
+        "SELECT * FROM checkpoints WHERE cleared_at IS NULL AND last_confirmed_at > ? AND type = ?",
         (now - ACTIVE_SECONDS, typ),
     ).fetchall()
     for row in active:
@@ -165,14 +267,14 @@ def add_checkpoint():
                 (now, row["id"]),
             )
             db.commit()
-            return jsonify({"merged": True, "id": row["id"]})
+            return jsonify({"ok": True, "merged": True, "id": row["id"]})
 
     cur = db.execute(
         "INSERT INTO checkpoints (lat,lng,label,type,reported_at,last_confirmed_at) VALUES (?,?,?,?,?,?)",
         (lat, lng, label, typ, now, now),
     )
     db.commit()
-    return jsonify({"merged": False, "id": cur.lastrowid})
+    return jsonify({"ok": True, "merged": False, "id": cur.lastrowid})
 
 
 @app.route("/api/checkpoints/<int:cid>/vote", methods=["POST"])

@@ -1464,6 +1464,75 @@ $("destInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.pre
 $("destInput").addEventListener("focus", () => { if ($("destInput").value.trim().length >= 2 && suggestions.length) renderSuggest($("destInput").value.trim()); });
 $("destInput").addEventListener("blur", () => setTimeout(closeSuggest, 150));
 
+/* ---------- Drag the sheet from its content, not just the grabber ----------
+   When the content is scrolled to the top, a downward drag moves the sheet instead of scrolling
+   (bottom panel shrinks; report sheet closes). While the panel isn't full height, an upward drag
+   expands it. Drags that start on maps, the camera, inputs or segmented controls, sideways swipes,
+   and drags in content that's scrolled down keep their normal behaviour. */
+function contentDrag(el, o) {
+  let sx = 0, sy = 0, t0 = 0, mode = null;
+  el.addEventListener("touchstart", e => {
+    mode = null;
+    if (e.touches.length !== 1 || !o.enabled() || e.target.closest(".leaflet-container, #camWrap, input, textarea, .seg")) { mode = "skip"; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; t0 = performance.now();
+  }, { passive: true });
+  el.addEventListener("touchmove", e => {
+    if (mode === "skip") return;
+    const x = e.touches[0].clientX, y = e.touches[0].clientY;
+    if (mode === null) {
+      const dx = x - sx, dy = y - sy;
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy)) { mode = "skip"; return; }
+      if (dy > 0 && el.scrollTop <= 0) mode = "drag";
+      else if (dy < 0 && o.allowUp && o.allowUp()) mode = "drag";
+      else { mode = "skip"; return; }
+      sy = y; t0 = performance.now(); o.begin();
+    }
+    e.preventDefault();
+    o.move(y - sy);
+  }, { passive: false });
+  const finish = e => {
+    if (mode === "drag") {
+      const dy = e.changedTouches[0].clientY - sy;
+      o.end(dy, dy / Math.max(1, performance.now() - t0));
+    }
+    mode = null;
+  };
+  el.addEventListener("touchend", finish);
+  el.addEventListener("touchcancel", finish);
+}
+
+// Bottom panel: same height snapping as the grabber.
+let panelH0 = 0;
+const panelDragOpts = {
+  enabled: () => !isWide(),
+  allowUp: () => panelState() !== "full",
+  begin: () => { panelH0 = $("panel").offsetHeight; $("panel").classList.add("dragging"); },
+  move: dy => { $("panel").style.height = Math.max(150, Math.min(window.innerHeight - 80, panelH0 - dy)) + "px"; },
+  end: (dy, v) => {
+    const p = $("panel"); p.classList.remove("dragging"); p.style.height = "";
+    const st = panelState();
+    if (dy < -40 || v < -0.5) setPanel(st === "mini" ? "peek" : "full");
+    else if (dy > 40 || v > 0.5) setPanel(st === "full" ? "peek" : "mini");
+  },
+};
+document.querySelectorAll("#panel .pv").forEach(el => contentDrag(el, panelDragOpts));
+
+// Report sheet: drag down from the top of its content to close.
+contentDrag(document.querySelector("#sheetBody .steps"), {
+  enabled: () => true,
+  begin: () => { const b = $("sheetBody"); b.classList.add("dragging"); b.classList.remove("snap"); },
+  move: dy => { $("sheetBody").style.transform = `translateY(${Math.max(0, dy)}px)`; },
+  end: (dy, v) => {
+    const b = $("sheetBody");
+    b.classList.remove("dragging"); b.classList.add("snap");
+    if (dy > b.offsetHeight * 0.25 || v > 0.6) {
+      b.style.transform = "translateY(100%)";
+      setTimeout(() => { closeSheet(); b.classList.remove("snap"); b.style.transform = ""; }, 230);
+    } else b.style.transform = "";
+  },
+});
+
 initMaps();
 applyLang();
 locate();

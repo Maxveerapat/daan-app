@@ -148,6 +148,9 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Foldables / tablets (≥700px wide):** two-pane layout — panel becomes a full-height left pane
   (`min(420px, 42vw)`), map on the right, report sheet as centred dialog; map focus/fitBounds offset by
   the pane width (`isWide()`). Below zoom 13 pins collapse to dots (`COMPACT_BELOW_ZOOM`) to avoid pile-ups.
+- **Drag from content** (`contentDrag()`): at scrollTop 0 a downward drag moves the sheet (panel shrinks,
+  report sheet closes); a non-full panel expands on upward drag. Skips maps, camera, inputs, segmented
+  controls, sideways swipes; disabled in the wide two-pane layout.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

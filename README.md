@@ -24,6 +24,18 @@ demo location (Victory Monument); everything else works.
 **Fresh data:** reports auto-expire from the feed after ~3h and vanish entirely after 12h.
 If the map looks empty, the seed has aged out — delete `daan.db` and restart to reseed.
 
+## Share with testers (public link via Render)
+
+The repo includes `render.yaml`, `requirements.txt` and a gunicorn start command, so Render can host it for free:
+
+1. Go to https://dashboard.render.com → **New → Blueprint** → connect GitHub → pick `maxveerapat/daan-app`
+   (choose the branch that has `render.yaml`). Click **Apply**.
+2. After ~2 min you get `https://daan-app-xxxx.onrender.com` — send that link to testers.
+   It's https, so real phone GPS works.
+
+Notes (free plan): the app sleeps after ~15 min idle, so the first visit takes ~30–60s to wake up.
+The SQLite DB is reset on every restart/redeploy (seed data comes back fresh; tester reports are lost).
+
 ## Stack
 
 - **Backend:** Flask + SQLite (`app.py`, ~184 lines). Seeds mock Bangkok checkpoints on first run.

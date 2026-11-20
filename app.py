@@ -1,4 +1,5 @@
 import math
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -181,4 +182,4 @@ def vote(cid):
 init_db()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5051, use_reloader=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5051)), use_reloader=False)

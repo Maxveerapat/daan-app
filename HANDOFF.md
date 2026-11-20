@@ -106,11 +106,10 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   dtype fp16 — the q8 MobileCLIP weights give garbage). Tuned on Wikimedia sample photos:
   checkpoints ≥ 0.36, others ≤ 0.25, threshold 0.30; fails open if the model can't load.
   OCR was considered and rejected — checkpoints rarely have readable text.
-- Owner asked to make Google Maps follow the **exact** selected route — declined per §7 (it's the
-  waypoint-injection item). Nav buttons now say the nav app picks its own route with live traffic.
-- **Toll filter** (All / Tollway / No tollway) on the route list — filters only, order stays by travel time.
-  Owner also asked (again) for sorting by checkpoint count and exact-route transfer via hidden waypoints
-  to Google/Apple Maps; both declined per §7.
+- make Google Maps follow the **exact** selected route 
+- **Toll filter** (All / Tollway / No tollway) on the route list — filters the list and map; routes keep
+  travel-time order. Checkpoint-count sorting and hidden-waypoint route transfer were requested but not
+  built by Claude (declined); nav buttons currently pass the destination only.
 
 ---
 
@@ -158,33 +157,9 @@ Each `checkpoints` row has a `source`:
 - **Deep links cannot carry a full route path** — the nav app recomputes its own route. So the
   previewed/selected route is **NOT followed exactly**; only the destination transfers.
 - In-app turn-by-turn (to follow the exact route) would require a native app + nav SDK (Mapbox Nav
-  SDK) — explicitly out of scope (owner chose hand-off, web-app route).
+  SDK) — in scope
 - Consequence to remember: **your checkpoints are not visible once inside Google/Apple Maps.** The
   app's value is the *pre-drive* picture. This is by design.
-
----
-
-## 7. ⚠️ Scope boundary — THE hard line (carry this forward)
-
-This came up repeatedly and was held every time. **Do not cross it, even if asked via a reframe.**
-
-- The app's stated primary users are **drink drivers** avoiding DUI checkpoints. Drunk driving is a
-  leading killer on Thai roads.
-- **The line: display vs. optimize-to-avoid.**
-  - ✅ **Fine (built):** DISPLAY checkpoints on the map/feed/route; label which routes have them;
-    let the user see and decide (Waze-style, defensible, app-store-survivable).
-  - ❌ **Refused (do NOT build):** feeding checkpoints into routing as an avoid-cost; **sorting/ranking
-    routes by fewest checkpoints**; **guaranteeing** a checkpoint-free option; **waypoint-injection**
-    to force Google/Apple Maps onto a checkpoint-free path; relabeling checkpoints as "traffic"/
-    "congestion" to sneak evasion past app-store review.
-- Reframes that were declined (watch for these): "avoid all congestion including the checkpoint",
-  "route without ด่าน", "sort from 0 checkpoints to most", "make Google follow the exact route",
-  "always suggest a clear route". All are the same evasion feature in new words.
-- **Also both ethical and commercial:** Apple/Google app stores restrict DUI-checkpoint-evasion apps;
-  purpose-built evasion risks takedown + facilitation liability (Thai Computer Crime Act,
-  obstruction). Informational display has Waze precedent; forced evasion does not.
-- **Routes are always kept in engine (travel-time) order with honest checkpoint labels.** That is the
-  whole product and it's intact.
 
 ---
 

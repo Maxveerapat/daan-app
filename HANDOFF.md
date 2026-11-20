@@ -125,6 +125,14 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Report sheet is a 3-step accordion: 1 type → 2 location → 3 photo** (owner's order; `STEPS` array in
   index.html). One step open at a time, ✓ summaries on done steps, tap a header to go back, fixed
   Back/Next/Send bar. Camera only runs on the photo step; Send enables once the photo check passes.
+- **Report types are stable codes** (`general`, `alcohol`, `license_helmet`, … `flood`, `blocked`); TH/EN
+  names in `TYPES` (index.html). Old DBs that stored Thai names are migrated on startup (`LEGACY_TYPES`).
+  Thai labels revised to police/news usage (ตรวจวัดแอลกอฮอล์ instead of slang เช็คลมปาก; หมวกกันน็อก).
+- **UI kit: Liquid Glass** (CSS tokens at the top of index.html): "controls" glass for floating controls,
+  "standard" glass for sheets/popups, tinted glass for primary actions, one segmented-control style,
+  floating header pills + tab bar, inset sheets sized to content. Content cards stay on solid surfaces.
+  Respects prefers-reduced-transparency. Wrapping rules: 2-column chip grid, `text-wrap: balance/pretty`,
+  phrases wrapped in `.nw` so lines only break between phrases.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

@@ -18,6 +18,18 @@ HIDE_AFTER_SECONDS = 12 * 3600     # drop from API entirely after 12h
 DEDUP_RADIUS_M = 300               # same type within this radius -> merge as confirmation
 DISMISS_THRESHOLD = 2              # this many "gone" votes clears a checkpoint
 
+# ---------- report types ----------
+# Types are stored as stable codes; display names (TH/EN) live in index.html. Older databases
+# stored the Thai display name itself — those rows are migrated to codes on startup.
+TYPE_CODES = {"general", "license_helmet", "alcohol", "black_smoke", "motorbike", "speed",
+              "tax_insurance", "truck", "accident", "roadwork", "flood", "blocked"}
+LEGACY_TYPES = {
+    "ตั้งแล้ว ระวังด้วย": "general", "ใบขับขี่+หมวกกันน็อค": "license_helmet", "เช็คลมปาก": "alcohol",
+    "ควันดำ": "black_smoke", "เน้น 2 ล้อ": "motorbike", "ส่องความเร็ว": "speed", "ภาษี พ.ร.บ.": "tax_insurance",
+    "รถบรรทุก": "truck", "อุบัติเหตุ": "accident", "ทำถนน/ก่อสร้าง": "roadwork", "น้ำท่วม": "flood",
+    "ถนนถูกปิด/สิ่งกีดขวาง": "blocked",
+}
+
 # ---------- report anti-spam ----------
 REPORT_MAX_DIST_M = 500            # reporter's live GPS must be within this of the pin
 REPORT_RATE = (5, 600)             # max 5 reports per 10 minutes per client
@@ -86,6 +98,8 @@ def init_db():
         )"""
     )
     db.execute("DELETE FROM checkpoints WHERE source = 'official'")  # legacy rows from older DBs
+    for old, code in LEGACY_TYPES.items():
+        db.execute("UPDATE checkpoints SET type = ? WHERE type = ?", (code, old))
     if db.execute("SELECT COUNT(*) FROM checkpoints").fetchone()[0] == 0:
         now = int(time.time())
         # All checkpoints are crowdsourced in-app (source = 'user'). There is no public
@@ -93,18 +107,18 @@ def init_db():
         seed = [
             # lat, lng, label, type, rep_min, conf_min, confirms, reports, source, source_name
             # coordinates snapped to the road network (OSRM /nearest) so pins sit on roads, not buildings
-            (13.78062, 100.50344, "ถ.ราชวิถี ใกล้สะพานกรุงธน", "ใบขับขี่+หมวกกันน็อค", 55, 15, 4, 2, "user", None),
-            (13.66041, 100.43404, "ถ.พระราม 2 หน้าโลตัส", "ส่องความเร็ว", 95, 40, 2, 3, "user", None),
-            (13.72203, 100.52311, "ถ.สาทร ใกล้ รพ.เซนต์หลุยส์", "ตั้งแล้ว ระวังด้วย", 30, 8, 5, 2, "user", None),
-            (13.76474, 100.53874, "วงเวียนอนุสาวรีย์ชัยฯ", "เช็คลมปาก", 70, 25, 3, 1, "user", None),
-            (13.73052, 100.56972, "ถ.สุขุมวิท ซ.33", "เน้น 2 ล้อ", 170, 165, 1, 1, "user", None),
-            (13.7097, 100.4601, "ถ.จรัญสนิทวงศ์ ซ.35", "ใบขับขี่+หมวกกันน็อค", 480, 470, 1, 1, "user", None),
-            (13.8037, 100.55419, "ถ.กำแพงเพชร ใกล้ ม.เกษตร", "ภาษี พ.ร.บ.", 60, 35, 6, 4, "user", None),
-            (13.74671, 100.53406, "แยกราชเทวี", "ตั้งแล้ว ระวังด้วย", 50, 20, 8, 5, "user", None),
+            (13.78062, 100.50344, "ถ.ราชวิถี ใกล้สะพานกรุงธน", "license_helmet", 55, 15, 4, 2, "user", None),
+            (13.66041, 100.43404, "ถ.พระราม 2 หน้าโลตัส", "speed", 95, 40, 2, 3, "user", None),
+            (13.72203, 100.52311, "ถ.สาทร ใกล้ รพ.เซนต์หลุยส์", "general", 30, 8, 5, 2, "user", None),
+            (13.76474, 100.53874, "วงเวียนอนุสาวรีย์ชัยฯ", "alcohol", 70, 25, 3, 1, "user", None),
+            (13.73052, 100.56972, "ถ.สุขุมวิท ซ.33", "motorbike", 170, 165, 1, 1, "user", None),
+            (13.7097, 100.4601, "ถ.จรัญสนิทวงศ์ ซ.35", "license_helmet", 480, 470, 1, 1, "user", None),
+            (13.8037, 100.55419, "ถ.กำแพงเพชร ใกล้ ม.เกษตร", "tax_insurance", 60, 35, 6, 4, "user", None),
+            (13.74671, 100.53406, "แยกราชเทวี", "general", 50, 20, 8, 5, "user", None),
             # road incidents (same table; category comes from the type)
-            (13.72258, 100.56003, "ถ.พระราม 4 ใกล้คลองเตย", "ทำถนน/ก่อสร้าง", 240, 40, 3, 2, "user", None),
-            (13.77610, 100.55870, "ถ.วิภาวดีรังสิต ขาเข้า ใกล้ดินแดง", "อุบัติเหตุ", 25, 10, 4, 3, "user", None),
-            (13.71862, 100.59672, "ถ.สุขุมวิท ซ.71", "น้ำท่วม", 70, 30, 2, 2, "user", None),
+            (13.72258, 100.56003, "ถ.พระราม 4 ใกล้คลองเตย", "roadwork", 240, 40, 3, 2, "user", None),
+            (13.77610, 100.55870, "ถ.วิภาวดีรังสิต ขาเข้า ใกล้ดินแดง", "accident", 25, 10, 4, 3, "user", None),
+            (13.71862, 100.59672, "ถ.สุขุมวิท ซ.71", "flood", 70, 30, 2, 2, "user", None),
         ]
         for lat, lng, label, typ, rep_m, conf_m, confirms, reports, source, sname in seed:
             db.execute(
@@ -177,7 +191,10 @@ def add_checkpoint():
     except (KeyError, TypeError, ValueError):
         return jsonify({"ok": False, "error": "need_gps"}), 400
     label = (data.get("label") or "").strip()[:80] or "ไม่ระบุตำแหน่ง"
-    typ = (data.get("type") or "").strip()[:40] or "ตั้งแล้ว ระวังด้วย"
+    typ = (data.get("type") or "").strip()
+    typ = LEGACY_TYPES.get(typ, typ)
+    if typ not in TYPE_CODES:
+        typ = "general"
 
     if _rate_limited():
         return jsonify({"ok": False, "error": "rate_limited"}), 429

@@ -7,50 +7,106 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
+  /* ============ Liquid Glass design tokens ============
+     Two materials, after Apple's iOS 26 Liquid Glass: "controls" glass for small floating controls
+     and "standard" glass for larger panels/sheets. Glass = translucency + blur/saturation of what's
+     behind, a top specular edge, a faint inner rim and a soft drop shadow. Content (lists, cards)
+     stays on solid surfaces for legibility; glass is for the navigation/control layer above it. */
   :root {
-    --bg: #0B0B0F;
-    --surface: #16171C;
-    --surface-2: #1F2027;
+    --bg: #0A0A0D;
+    --surface: #17181D;
+    --surface-2: #212228;
     --text: #F5F5F7;
-    --muted: #93939C;
-    --hair: rgba(255,255,255,.09);
+    --muted: #9A9AA3;
+    --hair: rgba(255,255,255,.08);
     --accent: #FF453A;
     --blue: #0A84FF;
     --green: #30D158;
     --amber: #FF9F0A;
+    --yellow: #FFD60A;
     --fresh: #FF453A;
     --aging: #FF9F0A;
     --stale: #6E6E76;
-    --radius: 16px;
-    --topbar: calc(env(safe-area-inset-top) + 50px);
-    --glass: rgba(22,23,28,.72);
+    --radius: 22px;
+    --topbar: calc(env(safe-area-inset-top) + 64px);
+
+    --glass-ctl: rgba(58,58,66,.38);
+    --glass-std: rgba(30,31,37,.58);
+    --glass-thick: rgba(26,27,32,.82);
+    --glass-blur: blur(22px) saturate(185%);
+    --glass-blur-std: blur(34px) saturate(190%);
+    --glass-sheen: linear-gradient(180deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.035) 38%, rgba(255,255,255,0) 60%);
+    --glass-rim: inset 0 1px 0 rgba(255,255,255,.26), inset 0 -1px 0 rgba(255,255,255,.05), inset 0 0 0 .5px rgba(255,255,255,.14);
+    --glass-shadow: 0 8px 28px rgba(0,0,0,.38), 0 1px 3px rgba(0,0,0,.3);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Noto Sans Thai", "Sukhumvit Set", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans Thai", "Sukhumvit Set", sans-serif;
     background: var(--bg); color: var(--text);
     position: relative; max-width: 480px; margin: 0 auto;
     height: 100dvh; overflow: hidden;
     -webkit-font-smoothing: antialiased; letter-spacing: -0.01em;
   }
+  /* no lone words on their own line */
+  h1, h2, h3, .step-t, .nav-note, .route-hit .t, .card-title, #routeHint, #camCheck, .sg-empty { text-wrap: balance; }
+  p, .card-type, .card-meta, .pin-pop .meta { text-wrap: pretty; }
+
+  /* ---- glass primitives ---- */
+  .glass, header .pill, .catbar, .feed-cat, .toll-filter, .legend, nav, #fab, .search-wrap, #routeBtn, #routeHint,
+  #suggest, #routeSummary, #sheetBody, #toast, .leaflet-popup-content-wrapper, .sh-x, #routeClose, #retake, .cam-note,
+  #pickHint, #camCheck {
+    background-color: var(--glass-ctl);
+    background-image: var(--glass-sheen);
+    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-rim), var(--glass-shadow);
+    border: none;
+  }
+  #routeSummary, #sheetBody, #suggest, .leaflet-popup-content-wrapper {
+    background-color: var(--glass-std);
+    -webkit-backdrop-filter: var(--glass-blur-std); backdrop-filter: var(--glass-blur-std);
+  }
+  /* tinted glass for primary actions */
+  .tint, #fab, #routeBtn, .sheet-actions .submit, .nav-btn.g, .chip.sel, .step.open .step-n {
+    background-color: rgba(255,69,58,.86);
+    background-image: linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,.06) 45%, rgba(255,255,255,0) 60%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 0 0 .5px rgba(255,255,255,.22), 0 6px 20px rgba(255,69,58,.32);
+    color: #fff;
+  }
+  .nav-btn.g { background-color: rgba(10,132,255,.88); box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 0 0 .5px rgba(255,255,255,.22), 0 6px 20px rgba(10,132,255,.3); }
+  @media (prefers-reduced-transparency: reduce) {
+    :root { --glass-ctl: rgba(44,44,50,.97); --glass-std: rgba(28,29,34,.98); }
+  }
+
+  /* ---- segmented control (one glass capsule, selected = brighter inner pill) ---- */
+  .catbar, .feed-cat, .toll-filter, .seg { display: flex; gap: 2px; padding: 3px; border-radius: 999px; }
+  .catbar button, .feed-cat button, .toll-filter button, .seg button {
+    flex: 1; font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 6px; border-radius: 999px;
+    border: none; background: transparent; color: var(--muted); white-space: nowrap; transition: background .2s, color .2s;
+  }
+  .catbar button.on, .feed-cat button.on, .toll-filter button.on, .seg button.on {
+    color: var(--text); background: rgba(255,255,255,.17);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 1px 4px rgba(0,0,0,.25);
+  }
+  .seg { background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.08); }
+
+  /* ---- header: floating glass pills, no bar ---- */
   header {
-    position: absolute; top: 0; left: 0; right: 0; z-index: 1200;
-    padding: calc(env(safe-area-inset-top) + 11px) 20px 11px;
-    display: flex; align-items: center; justify-content: space-between;
-    background: rgba(11,11,15,.7); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
-    border-bottom: 1px solid var(--hair);
+    position: absolute; top: 0; left: 0; right: 0; z-index: 1200; pointer-events: none;
+    padding: calc(env(safe-area-inset-top) + 10px) 12px 0;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
   }
-  header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.02em; }
+  header .pill { pointer-events: auto; border-radius: 999px; display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 16px; }
+  header h1 { font-size: 19px; font-weight: 700; letter-spacing: .01em; }
   header .sub { display: none; }
-  .hdr-right { display: flex; align-items: center; gap: 12px; }
+  .hdr-right { padding-right: 5px !important; }
   #langBtn {
-    font-family: inherit; font-size: 12px; font-weight: 600; color: var(--text);
-    background: rgba(255,255,255,.1); border: 1px solid var(--hair); border-radius: 999px;
-    padding: 5px 11px; letter-spacing: .03em;
+    font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--text);
+    background: rgba(255,255,255,.14); border: none; border-radius: 999px; height: 32px; padding: 0 12px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.2);
   }
-  #locBadge { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  #locBadge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 7px var(--blue); }
+  #locBadge { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
+  #locBadge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 7px var(--blue); flex-shrink: 0; }
 
   main { position: absolute; inset: 0; overflow: hidden; }
   .tab { position: absolute; inset: 0; display: none; }
@@ -59,331 +115,274 @@
 
   #map, #routeMap { position: absolute; inset: 0; width: 100%; height: 100%; }
   #pickMap { position: absolute; inset: 0; }
-  .leaflet-container { background: #0B0B0F; }
+  .leaflet-container { background: #1C1D21; font-family: inherit; }
   .leaflet-control-attribution {
-    background: rgba(11,11,15,.5) !important; color: #6a6a72 !important;
-    font-size: 9px !important; padding: 1px 5px !important;
+    background: rgba(10,10,13,.45) !important; color: #6a6a72 !important;
+    font-size: 9px !important; padding: 1px 6px !important; border-radius: 8px 0 0 0;
   }
   .leaflet-control-attribution a { color: #8a8a92 !important; }
 
-  /* map legend */
+  /* ---- map overlays ---- */
+  .catbar { position: absolute; top: var(--topbar); left: 12px; right: 12px; z-index: 1000; }
   .legend {
-    position: absolute; left: 14px; top: calc(var(--topbar) + 12px); z-index: 1000;
-    background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--hair); border-radius: 14px;
-    padding: 10px 12px; font-size: 11.5px; line-height: 1.9; color: var(--text);
+    position: absolute; left: 12px; top: calc(var(--topbar) + 50px); z-index: 1000;
+    border-radius: 999px; padding: 6px 12px; font-size: 11.5px; color: var(--text);
+    display: flex; gap: 11px; align-items: center; white-space: nowrap;
   }
-  .legend { top: calc(var(--topbar) + 58px); }
-  .dia { display: inline-block; width: 9px; height: 9px; margin-right: 7px; background: #FFD60A; transform: rotate(45deg); border-radius: 2px; }
-  .catbar {
-    position: absolute; top: calc(var(--topbar) + 10px); left: 14px; right: 14px; z-index: 1000; display: flex; gap: 6px;
-  }
-  .catbar button, .feed-cat button, .seg button {
-    flex: 1; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 6px; border-radius: 999px;
-    border: 1px solid var(--hair); background: var(--glass); color: var(--muted);
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  }
-  .catbar button.on, .feed-cat button.on, .seg button.on { background: var(--text); color: var(--bg); border-color: transparent; }
-  .feed-cat { display: flex; gap: 6px; margin: 0 0 12px; }
-  .seg { display: flex; gap: 6px; margin: 10px 0 4px; }
-  .seg button { background: var(--surface-2); }
-  /* incident pin: yellow road-warning diamond */
+  .legend > div { display: flex; align-items: center; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+  .dia { display: inline-block; width: 8px; height: 8px; margin-right: 6px; background: var(--yellow); transform: rotate(45deg); border-radius: 2px; }
   .hz-wrap { background: none; border: none; }
   .hz {
-    width: 20px; height: 20px; margin: 2px; transform: rotate(45deg); border-radius: 4px;
-    background: #FFD60A; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5);
+    width: 20px; height: 20px; margin: 2px; transform: rotate(45deg); border-radius: 5px;
+    background: var(--yellow); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.45);
     display: flex; align-items: center; justify-content: center;
   }
   .hz span { transform: rotate(-45deg); color: #1C1C1E; font-weight: 800; font-size: 12px; line-height: 1; }
   .hz.stale { background: #8E8E93; }
   .hz.big { width: 26px; height: 26px; margin: -1px; border-width: 3px; }
-  .cat-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; }
+
+  /* ---- tags & badges ---- */
+  .cat-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; white-space: nowrap; }
   .cat-tag.cp { background: rgba(255,69,58,.16); color: #FF6961; }
-  .cat-tag.inc { background: rgba(255,214,10,.16); color: #FFD60A; }
-  .cpcount.inc-some { background: rgba(255,214,10,.16); color: #FFD60A; }
-  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
-
-  /* feed */
-  #feedScroll { flex: 1; overflow-y: auto; padding: calc(var(--topbar) + 10px) 14px 120px; -webkit-overflow-scrolling: touch; }
-  .section-label { font-size: 12px; color: var(--muted); margin: 6px 4px 10px; letter-spacing: 0; }
-  .card {
-    background: var(--surface); border: 1px solid var(--hair);
-    border-radius: var(--radius); padding: 15px 16px; margin-bottom: 11px;
-  }
-  .card.fresh { border-color: rgba(255,69,58,.35); }
-  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .card-title { font-size: 15.5px; font-weight: 600; }
-  .badge {
-    font-size: 11px; padding: 4px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; font-weight: 600;
-  }
+  .cat-tag.inc { background: rgba(255,214,10,.15); color: var(--yellow); }
+  .badge { font-size: 11.5px; padding: 4px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; font-weight: 600; }
   .badge.dist { background: rgba(255,69,58,.16); color: #FF6961; }
-  .badge.dist.far { background: rgba(255,159,10,.16); color: var(--amber); }
-  .card-type { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
-  .card-meta { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
-  .card-meta .ok { color: var(--green); }
-  .vote-row { display: flex; gap: 8px; margin-top: 12px; }
-  .vote-row button {
-    flex: 1; font-size: 12.5px; padding: 9px; border-radius: 11px; font-weight: 600;
-    border: 1px solid var(--hair); background: var(--surface-2); color: var(--text); font-family: inherit;
+  .badge.dist.far { background: rgba(255,159,10,.15); color: var(--amber); }
+  .cpcount { font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .cpcount.cp-some { background: rgba(255,69,58,.16); color: #FF6961; }
+  .cpcount.cp-none { background: rgba(48,209,88,.15); color: var(--green); }
+  .cpcount.inc-some { background: rgba(255,214,10,.15); color: var(--yellow); }
+
+  /* ---- feed ---- */
+  #feedScroll { flex: 1; overflow-y: auto; padding: var(--topbar) 12px 120px; -webkit-overflow-scrolling: touch; }
+  .feed-cat { margin: 0 0 12px; position: sticky; top: 0; z-index: 2; }
+  .section-label { font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 4px 6px 8px; }
+  .card {
+    background: var(--surface); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+    box-shadow: inset 0 0 0 .5px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.05);
   }
-  .vote-row button:active { background: #2A2B33; }
+  .card.fresh { box-shadow: inset 0 0 0 1px rgba(255,69,58,.32), inset 0 1px 0 rgba(255,255,255,.05); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .card-title { font-size: 16px; font-weight: 600; line-height: 1.3; }
+  .card-type { font-size: 13px; color: var(--muted); margin-top: 5px; }
+  .card-meta { display: flex; gap: 14px; margin-top: 8px; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
+  .card-meta .ok { color: var(--green); }
+  .vote-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .vote-row.links { grid-template-columns: repeat(3, 1fr); margin-top: 8px !important; }
+  .vote-row button, .pin-pop .vr button {
+    font-size: 13px; padding: 10px 6px; border-radius: 999px; font-weight: 600;
+    border: none; background: rgba(255,255,255,.08); color: var(--text); font-family: inherit;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .vote-row button:active, .pin-pop .vr button:active { background: rgba(255,255,255,.16); }
+  .links a, .links button {
+    display: block; text-align: center; text-decoration: none; font-size: 12.5px; font-weight: 600;
+    padding: 9px 4px; border-radius: 999px; border: none; font-family: inherit;
+    background: rgba(10,132,255,.12) !important; color: #64B3FF !important; white-space: nowrap;
+  }
   .collapse-bar {
-    background: var(--surface); border: 1px solid var(--hair); border-radius: var(--radius); padding: 13px 16px;
+    background: var(--surface); border-radius: var(--radius); padding: 13px 16px; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.07);
     font-size: 13px; color: var(--muted); display: flex; justify-content: space-between;
-    align-items: center; margin-bottom: 11px; cursor: pointer;
+    align-items: center; margin-bottom: 10px; cursor: pointer;
   }
 
-  /* route tab */
-  #routePanel {
-    position: absolute; top: calc(var(--topbar) + 10px); left: 14px; right: 14px; z-index: 1000;
-  }
+  /* ---- route tab ---- */
+  #routePanel { position: absolute; top: var(--topbar); left: 12px; right: 12px; z-index: 1000; }
   #routePanel .row { display: flex; gap: 8px; }
-  .search-wrap {
-    flex: 1; position: relative; display: flex; align-items: center; min-width: 0;
-    border: 1px solid var(--hair); border-radius: 13px;
-    background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  }
-  .s-ico { width: 17px; height: 17px; color: var(--muted); margin-left: 12px; flex-shrink: 0; }
+  .search-wrap { flex: 1; position: relative; display: flex; align-items: center; min-width: 0; border-radius: 999px; height: 46px; }
+  .s-ico { width: 17px; height: 17px; color: var(--muted); margin-left: 15px; flex-shrink: 0; }
   #destInput {
-    flex: 1; min-width: 0; font-size: 16px; padding: 12px 8px; border: none; outline: none;
+    flex: 1; min-width: 0; font-size: 16px; padding: 0 8px; height: 100%; border: none; outline: none;
     font-family: inherit; color: var(--text); background: transparent;
   }
+  #destInput::placeholder { color: var(--muted); }
   #clearBtn {
-    display: none; border: none; background: rgba(255,255,255,.14); color: var(--text);
-    width: 22px; height: 22px; border-radius: 50%; font-size: 11px; margin-right: 10px; flex-shrink: 0;
+    display: none; border: none; background: rgba(255,255,255,.16); color: var(--text);
+    width: 22px; height: 22px; border-radius: 50%; font-size: 11px; margin-right: 12px; flex-shrink: 0;
   }
-  #suggest {
-    display: none; margin-top: 8px; max-height: 55vh; overflow-y: auto;
-    background: rgba(28,29,34,.97); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-    border: 1px solid var(--hair); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  #routeBtn { border: none; border-radius: 999px; height: 46px; padding: 0 18px; font-size: 14.5px; font-family: inherit; font-weight: 600; white-space: nowrap; }
+  #routeHint {
+    font-size: 12px; color: var(--muted); margin-top: 8px; text-align: center;
+    padding: 6px 12px; border-radius: 999px; display: block; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto;
   }
+  #suggest { display: none; margin-top: 8px; max-height: 55vh; overflow-y: auto; border-radius: 22px; }
   #suggest.open { display: block; }
-  .sg {
-    display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer;
-    border-bottom: 1px solid var(--hair);
-  }
-  .sg:last-child { border-bottom: none; }
+  .sg { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; }
+  .sg + .sg { box-shadow: inset 0 .5px 0 rgba(255,255,255,.08); }
   .sg:active, .sg.hi { background: rgba(255,255,255,.07); }
   .sg-pin {
-    width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.1); flex-shrink: 0;
+    width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,.1); flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; color: var(--muted);
   }
   .sg-pin svg { width: 15px; height: 15px; }
   .sg-txt { flex: 1; min-width: 0; }
-  .sg-name { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sg-addr { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-  .sg-dist { font-size: 11.5px; color: var(--muted); flex-shrink: 0; }
+  .sg-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sg-addr { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .sg-dist { font-size: 12px; color: var(--muted); flex-shrink: 0; }
   .sg-empty { padding: 14px; font-size: 13px; color: var(--muted); text-align: center; }
   .delay { color: var(--amber); font-weight: 600; }
-  #destInput::placeholder { color: var(--muted); }
-  #routeBtn {
-    background: var(--accent); color: #fff; border: none; border-radius: 13px;
-    padding: 9px 18px; font-size: 14px; font-family: inherit; font-weight: 600;
-  }
-  #routeHint {
-    font-size: 11.5px; color: var(--muted); margin-top: 8px; text-align: center;
-    background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    padding: 6px 12px; border-radius: 999px; display: inline-block;
-    position: relative; left: 50%; transform: translateX(-50%);
-  }
-  #routeSummary {
-    position: absolute; left: 0; right: 0; bottom: 0; z-index: 1050;
-    max-height: 56%; overflow-y: auto;
-    background: var(--glass); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
-    border-top: 1px solid var(--hair); border-radius: 22px 22px 0 0;
-    padding: 16px 16px 110px; display: none;
-  }
-  #routeSummary h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
-  .route-hit { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--hair); font-size: 13px; gap: 8px; }
-  .route-hit:last-child { border-bottom: none; }
-  .route-hit .t { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
-  .route-opt {
-    display: flex; justify-content: space-between; align-items: center; gap: 8px;
-    padding: 13px 15px; margin-bottom: 9px; border: 1px solid var(--hair);
-    border-radius: 14px; cursor: pointer; background: var(--surface);
-  }
-  .route-opt.sel { border-color: var(--accent); background: rgba(255,69,58,.12); }
-  .route-opt .ro-main { display: flex; flex-direction: column; gap: 3px; }
-  .route-opt .ro-main b { font-size: 15px; font-weight: 600; }
-  .route-opt .ro-sub { font-size: 12.5px; color: var(--muted); }
-  .ro-badges { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
-  .cpcount { font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-  .cpcount.cp-some { background: rgba(255,69,58,.16); color: #FF6961; }
-  .cpcount.cp-none { background: rgba(48,209,88,.16); color: var(--green); }
-  .toll { font-weight: 600; }
-  .toll.yes { color: #FFD60A; }
-  .toll.no { color: var(--text); }
-  .ro-listhead { font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
-  .nav-row { display: flex; gap: 8px; margin: 6px 0 2px; }
-  .nav-btn {
-    flex: 1; display: block; text-align: center; text-decoration: none;
-    font-weight: 600; font-size: 14px; padding: 13px; border-radius: 13px;
-  }
-  .nav-btn.g { background: var(--blue); color: #fff; }
-  .nav-btn.a { background: var(--surface-2); color: var(--text); border: 1px solid var(--hair); }
 
-  /* bottom nav — floating pill */
+  /* inset floating sheet (iOS 26 style) */
+  #routeSummary {
+    position: absolute; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 8px); z-index: 1050;
+    max-height: 58%; overflow-y: auto; border-radius: 30px; padding: 14px 14px 16px; display: none;
+  }
+  #routeSummary h3 { font-size: 17px; font-weight: 700; }
+  .rs-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 2px 12px; }
+  .rs-sub { display: block; font-weight: 500; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  #routeClose, .sh-x {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; font-size: 14px; color: var(--text); font-family: inherit;
+  }
+  .toll-filter { margin: 0 0 10px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.08); }
+  .route-opt {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 12px 14px; margin-bottom: 8px; border-radius: 20px; cursor: pointer;
+    background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.08);
+  }
+  .route-opt.sel { background: rgba(255,69,58,.14); box-shadow: inset 0 0 0 1.5px rgba(255,69,58,.75); }
+  .route-opt .ro-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .route-opt .ro-main b { font-size: 15.5px; font-weight: 600; }
+  .route-opt .ro-sub { font-size: 12.5px; color: var(--muted); }
+  .ro-badges { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; flex-shrink: 0; }
+  .nw { white-space: nowrap; }
+  .ro-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+  .mini { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: rgba(255,255,255,.08); }
+  .mini.delay { color: var(--amber); background: rgba(255,159,10,.14); }
+  .mini.toll.yes { color: var(--yellow); background: rgba(255,214,10,.13); }
+  .mini.toll.no { color: var(--text); }
+  .ro-listhead { font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 14px 4px 4px; }
+  .route-hit { display: flex; justify-content: space-between; align-items: center; padding: 10px 4px; font-size: 13.5px; gap: 10px; }
+  .route-hit + .route-hit { box-shadow: inset 0 .5px 0 rgba(255,255,255,.08); }
+  .route-hit .t { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .nav-note { font-size: 12px; color: var(--muted); margin: 0 4px 8px; }
+  .nav-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .nav-btn { display: block; text-align: center; text-decoration: none; font-weight: 600; font-size: 14.5px; padding: 14px; border-radius: 999px; }
+  .nav-btn.a { background: rgba(255,255,255,.1); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
+  body.routing nav { display: none; }
+
+  /* ---- floating tab bar + FAB ---- */
   nav {
-    position: absolute; bottom: calc(env(safe-area-inset-bottom) + 14px); left: 50%; transform: translateX(-50%);
-    z-index: 1100; display: flex; gap: 4px; padding: 6px;
-    background: var(--glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-    border: 1px solid var(--hair); border-radius: 999px;
-    box-shadow: 0 8px 30px rgba(0,0,0,.45);
+    position: absolute; bottom: calc(env(safe-area-inset-bottom) + 12px); left: 12px; z-index: 1100;
+    display: flex; gap: 2px; padding: 5px; border-radius: 999px;
   }
   nav button {
-    background: none; border: none; padding: 8px 15px; border-radius: 999px;
-    font-size: 10.5px; color: var(--muted); font-family: inherit; white-space: nowrap;
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: none; padding: 7px 16px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; color: var(--muted); font-family: inherit; white-space: nowrap;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; transition: background .2s, color .2s;
   }
-  nav button.active { color: #fff; background: rgba(255,255,255,.1); }
-  nav button svg { width: 21px; height: 21px; }
-
-  /* FAB */
+  nav button.active { color: var(--text); background: rgba(255,255,255,.15); box-shadow: inset 0 1px 0 rgba(255,255,255,.22); }
+  nav button svg { width: 22px; height: 22px; }
   #fab {
-    position: absolute; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 82px); z-index: 1100;
-    background: var(--accent); color: #fff; border: none; border-radius: 999px;
-    padding: 14px 20px; font-size: 14px; font-weight: 600; font-family: inherit;
-    box-shadow: 0 6px 20px rgba(255,69,58,.4); display: flex; align-items: center; gap: 7px;
+    position: absolute; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 12px); z-index: 1100;
+    border: none; border-radius: 999px; height: 62px; padding: 0 22px; font-size: 15px; font-weight: 700; font-family: inherit;
+    display: flex; align-items: center; gap: 6px;
   }
 
-  /* report sheet */
+  /* ---- report sheet (inset glass sheet, sized to content) ---- */
   #sheet {
-    position: absolute; inset: 0; z-index: 1300; background: rgba(0,0,0,.55);
-    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-    display: none; align-items: flex-end;
+    position: absolute; inset: 0; z-index: 1300; background: rgba(0,0,0,.42);
+    display: none; align-items: flex-end; padding: 0 8px calc(env(safe-area-inset-bottom) + 8px);
   }
   #sheet.open { display: flex; }
-  #sheetBody { height: 92%; }
   #sheetBody {
-    background: var(--surface); border-radius: 24px 24px 0 0; width: 100%;
-    max-height: 92%; display: flex; flex-direction: column; overflow: hidden;
-    padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--hair);
+    border-radius: 32px; width: 100%; max-height: calc(100% - env(safe-area-inset-top) - 16px);
+    display: flex; flex-direction: column; overflow: hidden;
   }
-  .grabber { width: 38px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.22); margin: 10px auto 2px; flex-shrink: 0; }
-  #sheetBody h2 { font-size: 18px; font-weight: 600; padding: 8px 18px 4px; }
-  #sheetBody .hint { font-size: 12.5px; color: var(--muted); padding: 0 18px 12px; }
   .drag-zone { touch-action: none; cursor: grab; flex-shrink: 0; }
   #sheetBody.dragging { transition: none !important; }
   #sheetBody.snap { transition: transform .25s cubic-bezier(.32,.72,0,1); }
-  .sh-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 14px 8px 0; }
-  .sh-head h2 { padding-bottom: 0 !important; }
-  .sh-x { width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: var(--text); font-size: 14px; }
-  .steps { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
-  .step { border-top: 1px solid var(--hair); display: flex; flex-direction: column; flex-shrink: 0; }
-  .step.open { flex: 1 0 auto; min-height: 0; }
+  .grabber { width: 36px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.28); margin: 8px auto 0; }
+  .sh-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px 8px 20px; }
+  #sheetBody h2 { font-size: 20px; font-weight: 700; }
+  .steps { min-height: 0; overflow-y: auto; padding: 0 10px; display: flex; flex-direction: column; gap: 6px; }
+  .step { border-radius: 22px; background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.07); overflow: hidden; flex-shrink: 0; }
+  .step.open { background: rgba(255,255,255,.07); }
   .step-h {
-    display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 18px; background: none; border: none;
-    color: var(--text); font-family: inherit; text-align: left; flex-shrink: 0;
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px; background: none; border: none;
+    color: var(--text); font-family: inherit; text-align: left;
   }
-  .step-h:disabled { opacity: .4; }
+  .step-h:disabled { opacity: .42; }
   .step-n {
-    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    font-size: 12.5px; font-weight: 700; background: var(--surface-2); color: var(--muted); border: 1px solid var(--hair);
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; background: rgba(255,255,255,.1); color: var(--muted);
   }
-  .step.open .step-n { background: var(--accent); color: #fff; border-color: transparent; }
-  .step.done:not(.open) .step-n { background: var(--green); color: #04210E; border-color: transparent; }
-  .step-t { font-size: 15px; font-weight: 600; flex-shrink: 0; }
-  .step-s { flex: 1; text-align: right; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step.done:not(.open) .step-n { background: var(--green); color: #04210E; }
+  .step-t { font-size: 15.5px; font-weight: 600; flex-shrink: 0; }
+  .step-s { flex: 1; text-align: right; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .step.open .step-s { display: none; }
   .step-b { display: none; }
-  .step.open .step-b { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-  .step-b.pad, .step-b .pad { padding: 0 18px 12px; }
-  #pickWrap { position: relative; flex: 1; min-height: 200px; }
+  .step.open .step-b { display: block; }
+  .step-b.pad, .step-b .pad { padding: 0 12px 12px; }
+  /* even 2-column grid: no orphan chip on its own row */
+  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 0; }
+  .chip {
+    font-size: 13.5px; font-weight: 500; padding: 11px 10px; border-radius: 16px; min-height: 46px;
+    border: none; background: rgba(255,255,255,.08); font-family: inherit; color: var(--text);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07); text-wrap: balance; line-height: 1.25;
+  }
+  .chip.sel { font-weight: 600; border-radius: 16px; }
+  #pickWrap { position: relative; height: clamp(170px, calc(100dvh - 450px), 420px); margin: 0 8px; border-radius: 18px; overflow: hidden; }
   #pickHint {
     position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 1000; font-size: 12px; white-space: nowrap;
-    background: rgba(0,0,0,.6); color: #fff; padding: 5px 11px; border-radius: 999px; pointer-events: none;
+    color: #fff; padding: 6px 12px; border-radius: 999px; pointer-events: none;
   }
-  #camWrap { position: relative; flex: 1; min-height: 240px; background: #000; overflow: hidden; }
+  #crosshair {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%);
+    z-index: 1000; pointer-events: none; font-size: 32px; line-height: 1; filter: drop-shadow(0 3px 4px rgba(0,0,0,.55));
+  }
+  #labelInput {
+    width: 100%; font-size: 16px; padding: 13px 16px; border: none; border-radius: 999px; font-family: inherit; margin: 10px 0 0;
+    background: rgba(255,255,255,.08); color: var(--text); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.1);
+  }
+  #labelInput::placeholder { color: var(--muted); }
+  #camWrap { position: relative; height: clamp(220px, calc(100dvh - 360px), 520px); margin: 0 8px 8px; border-radius: 18px; background: #000; overflow: hidden; }
   #camVideo, #camShot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   #camShot { display: none; }
   #camWrap.shot #camShot { display: block; }
   #camWrap.shot #camVideo, #camWrap.shot #shutter { display: none; }
-  #camMsg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+  #camMsg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); font-size: 13.5px; }
   #camWrap.err #camMsg { display: flex; }
   #camCheck {
-    display: none; position: absolute; left: 12px; right: 110px; bottom: 12px; font-size: 12.5px; font-weight: 600;
-    color: #fff; background: rgba(0,0,0,.65); padding: 8px 12px; border-radius: 12px; line-height: 1.35;
+    display: none; position: absolute; left: 10px; right: 104px; bottom: 10px; font-size: 13px; font-weight: 600;
+    color: #fff; padding: 9px 13px; border-radius: 16px; line-height: 1.35;
   }
   #camCheck.show { display: block; }
-  #camCheck.bad { background: rgba(255,69,58,.88); }
-  #camCheck.good { background: rgba(48,209,88,.85); }
+  #camCheck.bad { background-color: rgba(255,69,58,.8); }
+  #camCheck.good { background-color: rgba(48,209,88,.78); }
   #shutter {
     position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-    width: 62px; height: 62px; border-radius: 50%; background: #fff; border: 5px solid rgba(255,255,255,.35);
-    background-clip: padding-box; box-shadow: 0 2px 12px rgba(0,0,0,.5);
+    width: 66px; height: 66px; border-radius: 50%; background: #fff; border: 5px solid rgba(255,255,255,.35);
+    background-clip: padding-box; box-shadow: 0 2px 14px rgba(0,0,0,.5);
   }
   #shutter:active { transform: translateX(-50%) scale(.92); }
-  #retake {
-    display: none; position: absolute; right: 12px; bottom: 12px; font-family: inherit; font-size: 13px; font-weight: 600;
-    background: rgba(0,0,0,.6); color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 8px 14px;
-  }
+  #retake { display: none; position: absolute; right: 10px; bottom: 10px; font-family: inherit; font-size: 13.5px; font-weight: 600; color: #fff; border-radius: 999px; padding: 9px 15px; }
   #camWrap.shot #retake { display: block; }
-  .cam-note {
-    position: absolute; left: 12px; top: 10px; font-size: 11.5px; color: #fff; background: rgba(0,0,0,.55);
-    padding: 5px 10px; border-radius: 999px;
-  }
-  .sheet-actions .submit:disabled { opacity: .45; }
-  body.routing nav { display: none; }
-  body.routing #routeSummary { padding-bottom: calc(env(safe-area-inset-bottom) + 22px); }
-  .rs-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-  .rs-head h3 { margin: 0 !important; }
-  #routeClose {
-    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: none; font-size: 15px;
-    background: rgba(255,255,255,.12); color: var(--text); font-family: inherit;
-  }
-  .toll-filter { display: flex; gap: 6px; margin: 0 0 12px; }
-  .toll-filter button {
-    flex: 1; font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 6px; border-radius: 999px;
-    border: 1px solid var(--hair); background: var(--surface-2); color: var(--muted);
-  }
-  .toll-filter button.on { background: var(--text); color: var(--bg); border-color: transparent; }
-  .nav-note { font-size: 11.5px; color: var(--muted); margin: -2px 0 8px; }
-  #crosshair {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%);
-    z-index: 1000; pointer-events: none; font-size: 30px; line-height: 1;
-    filter: drop-shadow(0 2px 3px rgba(0,0,0,.6));
-  }
-  .sheet-actions { padding: 12px 18px calc(env(safe-area-inset-bottom) + 14px); border-top: 1px solid var(--hair); flex-shrink: 0; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
-  .chip {
-    font-size: 12.5px; padding: 8px 14px; border-radius: 999px;
-    border: 1px solid var(--hair); background: var(--surface-2); font-family: inherit; color: var(--text);
-  }
-  .chip.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .sheet-form label { font-size: 13px; font-weight: 600; color: var(--muted); }
-  #labelInput {
-    width: 100%; font-size: 15px; padding: 12px 14px; border: 1px solid var(--hair);
-    border-radius: 12px; font-family: inherit; margin: 12px 0 0; background: var(--surface-2); color: var(--text);
-  }
-  #labelInput::placeholder { color: var(--muted); }
-  .sheet-actions { display: flex; gap: 10px; }
-  .sheet-actions .cancel { flex: 1; background: var(--surface-2); border: 1px solid var(--hair); color: var(--text); border-radius: 13px; padding: 14px; font-size: 15px; font-weight: 600; font-family: inherit; }
-  .sheet-actions .submit { flex: 2; background: var(--accent); color: #fff; border: none; border-radius: 13px; padding: 14px; font-size: 15px; font-weight: 600; font-family: inherit; }
+  .cam-note { position: absolute; left: 10px; top: 10px; right: 10px; width: fit-content; font-size: 12px; color: #fff; padding: 6px 11px; border-radius: 999px; }
+  .sheet-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; padding: 12px 12px 12px; flex-shrink: 0; }
+  .sheet-actions .cancel, .sheet-actions .submit { border: none; border-radius: 999px; height: 52px; font-size: 16px; font-weight: 600; font-family: inherit; }
+  .sheet-actions .cancel { background: rgba(255,255,255,.1); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
+  .sheet-actions .submit:disabled { opacity: .42; }
 
+  /* ---- toast ---- */
   #toast {
-    position: absolute; left: 50%; transform: translateX(-50%); bottom: 100px;
-    background: rgba(40,40,46,.94); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    color: #fff; font-size: 13px; padding: 12px 20px; border: 1px solid var(--hair);
-    border-radius: 999px; z-index: 1400; display: none; white-space: nowrap; max-width: 90%;
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 90px);
+    color: #fff; font-size: 13.5px; font-weight: 500; padding: 12px 20px; background-color: var(--glass-thick);
+    border-radius: 999px; z-index: 1400; display: none; width: max-content; max-width: calc(100% - 32px); text-align: center; text-wrap: balance;
   }
-  /* dark leaflet popups */
-  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface-2); color: var(--text); box-shadow: 0 6px 24px rgba(0,0,0,.5); }
-  .leaflet-popup-content-wrapper { border-radius: 14px; border: 1px solid var(--hair); }
-  .leaflet-popup-close-button { color: var(--muted) !important; }
-  .pin-pop { font-size: 13px; line-height: 1.55; min-width: 195px; }
-  .pin-pop b { font-size: 14.5px; font-weight: 600; }
-  .pin-pop .meta { color: var(--muted); font-size: 12px; margin: 4px 0 10px; }
-  .pin-pop .vr { display: flex; gap: 7px; }
-  .links { margin-top: 7px !important; }
-  .links a, .links button {
-    flex: 1; display: block; text-align: center; text-decoration: none; font-size: 12px; font-weight: 600;
-    padding: 8px 4px; border-radius: 9px; border: 1px solid var(--hair); font-family: inherit;
-    background: transparent !important; color: #64B3FF !important; white-space: nowrap;
-  }
-  .pin-pop .vr button { flex: 1; font-size: 12px; padding: 8px; border-radius: 9px; border: 1px solid var(--hair); background: var(--surface); color: var(--text); font-family: inherit; font-weight: 600; }
+  /* ---- map popups ---- */
+  .leaflet-popup-content-wrapper { border-radius: 24px; color: var(--text); }
+  .leaflet-popup-tip { background: var(--glass-std); box-shadow: none; }
+  .leaflet-popup-content { margin: 14px 16px; }
+  .leaflet-popup-close-button { color: var(--muted) !important; top: 8px !important; right: 8px !important; }
+  .pin-pop { font-size: 13.5px; line-height: 1.5; min-width: 230px; }
+  .pin-pop b { font-size: 15.5px; font-weight: 600; display: block; padding-right: 16px; }
+  .pin-pop .meta { color: var(--muted); font-size: 12.5px; margin: 4px 0 10px; }
+  .pin-pop .vr { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .pin-pop .vr.links { grid-template-columns: repeat(3, 1fr); }
 
-  /* motion */
-  @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  /* ---- motion ---- */
+  @keyframes sheetUp { from { transform: translateY(105%); } to { transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes pinPop {
     0% { opacity: 0; transform: translateY(-13px) scale(.3); }
@@ -391,8 +390,8 @@
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
   #sheet.open { animation: fadeIn .18s ease; }
-  #sheet.open #sheetBody { animation: sheetUp .34s cubic-bezier(.32,.72,0,1); }
-  #routeSummary.show { animation: sheetUp .34s cubic-bezier(.32,.72,0,1); }
+  #sheet.open #sheetBody { animation: sheetUp .38s cubic-bezier(.32,.72,0,1); }
+  #routeSummary.show { animation: sheetUp .38s cubic-bezier(.32,.72,0,1); }
   .pin { transform-box: fill-box; transform-origin: center; animation: pinPop .5s cubic-bezier(.34,1.56,.64,1) both; }
   @media (prefers-reduced-motion: reduce) {
     #sheet.open, #sheet.open #sheetBody, #routeSummary.show, .pin { animation: none; }
@@ -402,11 +401,8 @@
 <body>
 
 <header>
-  <div>
-    <h1>ด่าน</h1>
-    <div class="sub">แจ้งเตือนช่วยกันจ้าาา</div>
-  </div>
-  <div class="hdr-right">
+  <div class="pill"><h1>ด่าน</h1></div>
+  <div class="pill hdr-right">
     <div id="locBadge"></div>
     <button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button>
   </div>
@@ -518,61 +514,61 @@
 /* ---------- i18n ---------- */
 const I18N = {
   th: {
-    title: "ด่าน — แจ้งเตือนด่านตรวจ",
+    title: "ด่าน — ด่านตรวจและเหตุบนถนน",
     locating: "กำลังหาตำแหน่ง…", locReal: "ตำแหน่งปัจจุบัน", locDemo: "อนุสาวรีย์ชัยฯ (ตัวอย่าง)",
-    legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.",
+    legFresh: "<1 ชม.", legAging: "1–3 ชม.", legStale: ">3 ชม.",
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
-    legIncident: "เหตุบนถนน", c_all: "ทั้งหมด", c_checkpoint: "ด่านตรวจ", c_incident: "เหตุบนถนน",
+    legIncident: "เหตุ", c_all: "ทั้งหมด", c_checkpoint: "ด่านตรวจ", c_incident: "เหตุบนถนน",
     incN: n => `เหตุ ${n} จุด`, tagCheckpoint: "ด่าน", tagIncident: "เหตุบนถนน",
     share: "แชร์", shareTitle: "ด่าน — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
     sharedGone: "รายงานนี้หมดอายุหรือถูกลบแล้ว", detected: x => `ตรวจพบ: ${x} ✓`,
-    destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "เช็คเส้นทาง",
+    destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "ดูเส้นทาง",
     routeHint: "จากตำแหน่งปัจจุบัน · หรือแตะบนแผนที่เพื่อปักหมุดปลายทาง",
     sheetTitle: "รายงาน", st1: "ถ่ายรูป", st2: "ประเภท", st3: "ตำแหน่ง", next: "ถัดไป", back: "ย้อนกลับ",
     photoDone: "ถ่ายแล้ว", fromYou: m => `ห่างจากคุณ ${m}`, pickHint: "เลื่อนแผนที่ให้หมุดตรงจุด", sheetHint: "ถ่ายรูปสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เกิดเหตุ",
     retake: "ถ่ายใหม่", passengerNote: "ให้ผู้โดยสารถ่าย — ห้ามใช้มือถือขณะขับรถ",
     camErr: "เปิดกล้องไม่ได้ — อนุญาตให้เบราว์เซอร์ใช้กล้อง แล้วลองอีกครั้ง",
-    needPhoto: "ถ่ายรูปด่านก่อนส่ง", needGps: "ต้องเปิดตำแหน่ง (GPS) เพื่อรายงาน", verifying: "กำลังส่ง…",
+    needPhoto: "ถ่ายรูปก่อนส่งรายงาน", needGps: "ต้องเปิดตำแหน่ง (GPS) เพื่อรายงาน", verifying: "กำลังส่ง…",
     checking: "กำลังตรวจรูป…", photoOk: "✓ รูปตรงกับประเภทที่เลือก", photoBad: "รูปไม่ตรงกับประเภทที่เลือก — ถ่ายใหม่ หรือเปลี่ยนประเภท",
     tooFar: "หมุดอยู่ไกลจากตำแหน่งของคุณเกิน 500 ม.", rateLimited: "รายงานถี่เกินไป ลองใหม่ภายหลัง",
-    photoRejected: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นด่านชัด ๆ", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
-    closeRoute: "ปิดเส้นทาง", f_all: "ทั้งหมด", f_toll: "ขึ้นทางด่วน", f_noToll: "ไม่ขึ้นทางด่วน",
+    photoRejected: "รูปไม่ตรงกับประเภทที่เลือก — ถ่ายใหม่", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
+    closeRoute: "ปิดเส้นทาง", f_all: "ทั้งหมด", f_toll: "มีทางด่วน", f_noToll: "ไม่ขึ้นทางด่วน",
     noRouteFilter: "ไม่มีเส้นทางแบบนี้ — ลองตัวกรองอื่น", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
     navNoteStops: n => `Google Maps: ใส่ด่าน ${n} จุดบนเส้นทางนี้เป็นจุดแวะ (เสียงนำทางจะแจ้งเมื่อถึงแต่ละจุด) · Apple Maps: ส่งเฉพาะปลายทาง`,
     typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "ชื่อสถานที่ (ไม่บังคับ) เช่น หน้าโลตัส พระราม 2",
     cancel: "ยกเลิก", submit: "ส่งรายงาน",
     justNow: "เมื่อสักครู่", minAgo: m => `${m} นาทีที่แล้ว`,
-    hMinAgo: (h, m) => `${h} ชม. ${m} นาทีที่แล้ว`, hAgo: h => `${h} ชม.ที่แล้ว`,
+    hMinAgo: (h, m) => `${h} ชม. ${m} นาทีที่แล้ว`, hAgo: h => `${h} ชม. ที่แล้ว`,
     m: "ม.", km: "กม.",
     lastConfirmed: a => `ยืนยันล่าสุด ${a}`, people: n => `✓ ${n} คน`, reportsN: n => `รายงาน ${n} ครั้ง`,
     confirmedBy: n => `✓ ยืนยัน ${n} คน`, mergedN: n => `รายงาน ${n} ครั้งรวมกัน`,
     stillThere: "ยังอยู่", gone: "ไม่อยู่แล้ว",
-    activeHead: n => `ยังเปิดอยู่ · เรียงตามระยะทาง (${n})`, noneNear: "ยังไม่มีด่านที่เปิดอยู่ใกล้คุณ 🎉",
-    staleHead: n => `เกิน 3 ชม. อาจเลิกแล้ว (${n} รายการ)`,
-    thanksConfirm: "ขอบคุณ! ยืนยันแล้ว ✓", thanksGone: "รับทราบ ถ้ามีคนยืนยันเพิ่มจะเอาออกให้",
+    activeHead: n => `รายงานล่าสุด · ใกล้สุดก่อน (${n})`, noneNear: "ยังไม่มีรายงานใกล้คุณ",
+    staleHead: n => `เกิน 3 ชม. อาจไม่อยู่แล้ว (${n})`,
+    thanksConfirm: "ขอบคุณ! ยืนยันแล้ว ✓", thanksGone: "รับทราบ หากมีผู้ยืนยันเพิ่มจะนำออกจากแผนที่",
     pinned: "หมุดที่ปักไว้", needDest: "พิมพ์ปลายทาง หรือแตะบนแผนที่", searching: "กำลังค้นหา…",
     notFound: "หาปลายทางไม่เจอ ลองแตะบนแผนที่แทน", calcRoute: "กำลังคำนวณเส้นทาง…",
     routeErr: "เชื่อมต่อบริการเส้นทางไม่ได้", noRoute: "หาเส้นทางไม่ได้",
     cpN: n => `ด่าน ${n} จุด`, cpNone: "ไม่มีด่าน", routeN: i => `เส้นทางที่ ${i}`,
     minKm: (mi, km) => `~${mi} นาที · ${km} กม.`, kmAt: k => `กม.ที่ ${k}`,
-    noCpOnRoute: "ไม่มีด่านที่ผู้ใช้แจ้งบนเส้นทางนี้", navWith: "นำทางต่อด้วย",
-    chooseRoute: "เลือกเส้นทาง", byTime: "เรียงตามเวลาเดินทาง", onRoute: i => `สิ่งที่อยู่บนเส้นทางที่ ${i}`,
+    noCpOnRoute: "ไม่มีรายงานบนเส้นทางนี้", navWith: "เปิดนำทางด้วย",
+    chooseRoute: "เลือกเส้นทาง", byTime: "เรียงตามเวลาเดินทาง", onRoute: i => `รายงานบนเส้นทางที่ ${i}`,
     merged: "มีคนรายงานจุดนี้แล้ว — นับเป็นการยืนยัน ✓", sent: "ส่งรายงานแล้ว ขอบคุณ! 🙏",
     noLabel: "ไม่ระบุตำแหน่ง", noResults: "ไม่พบสถานที่ — ลองพิมพ์ชื่ออื่น หรือแตะบนแผนที่", searchFor: q => `ค้นหา “${q}”`,
-    liveTraffic: "รวมสภาพจราจรตอนนี้", noTraffic: "ไม่รวมสภาพจราจร", delay: m => `รถติด +${m} นาที`, toll: "ทางด่วน/มีค่าผ่านทาง", noToll: "ไม่ขึ้นทางด่วน",
+    liveTraffic: "คิดจากสภาพจราจรจริง", noTraffic: "ยังไม่รวมสภาพจราจร", delay: m => `รถติด +${m} นาที`, toll: "มีทางด่วน", noToll: "ไม่ขึ้นทางด่วน",
   },
   en: {
-    title: "Daan — checkpoint alerts",
+    title: "Daan — checkpoints & road incidents",
     locating: "Locating…", locReal: "Current location", locDemo: "Victory Monument (demo)",
-    legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs",
+    legFresh: "<1 hr", legAging: "1–3 hrs", legStale: ">3 hrs",
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
-    legIncident: "Road incident", c_all: "All", c_checkpoint: "Checkpoints", c_incident: "Incidents",
+    legIncident: "Incident", c_all: "All", c_checkpoint: "Checkpoints", c_incident: "Incidents",
     incN: n => `${n} incident${n === 1 ? "" : "s"}`, tagCheckpoint: "Checkpoint", tagIncident: "Incident",
     share: "Share", shareTitle: "Daan — road report", copied: "Link copied", shareErr: "Couldn't share",
     sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
     destPh: "Where to? e.g. Siam Paragon", routeBtn: "Check",
     routeHint: "From your location · or tap the map to drop a pin",
-    sheetTitle: "Report", st1: "Photo", st2: "What is it", st3: "Location", next: "Next", back: "Back",
+    sheetTitle: "Report", st1: "Photo", st2: "Type", st3: "Location", next: "Next", back: "Back",
     photoDone: "Taken", fromYou: m => `${m} from you`, pickHint: "Move the map to put the pin on the spot", sheetHint: "Take a live photo, then move the map so the pin sits on the spot",
     retake: "Retake", passengerNote: "Passengers only — don't use your phone while driving",
     camErr: "Can't open the camera — allow camera access in your browser and try again",
@@ -591,37 +587,37 @@ const I18N = {
     lastConfirmed: a => `Last confirmed ${a}`, people: n => `✓ ${n} ${n === 1 ? "person" : "people"}`, reportsN: n => `${n} reports`,
     confirmedBy: n => `✓ ${n} confirmed`, mergedN: n => `${n} reports merged`,
     stillThere: "Still there", gone: "Gone",
-    activeHead: n => `Active · nearest first (${n})`, noneNear: "No active checkpoints near you 🎉",
-    staleHead: n => `Over 3 hrs, may be gone (${n})`,
+    activeHead: n => `Recent reports · nearest first (${n})`, noneNear: "No reports near you yet",
+    staleHead: n => `Over 3 hrs — may be gone (${n})`,
     thanksConfirm: "Thanks! Confirmed ✓", thanksGone: "Got it — it'll be removed if others agree",
     pinned: "Dropped pin", needDest: "Type a destination or tap the map", searching: "Searching…",
     notFound: "Destination not found — try tapping the map", calcRoute: "Calculating routes…",
     routeErr: "Couldn't reach the routing service", noRoute: "No route found",
     cpN: n => `${n} checkpoint${n === 1 ? "" : "s"}`, cpNone: "No checkpoints", routeN: i => `Route ${i}`,
     minKm: (mi, km) => `~${mi} min · ${km} km`, kmAt: k => `km ${k}`,
-    noCpOnRoute: "No reported checkpoints on this route", navWith: "Navigate with",
-    chooseRoute: "Choose a route", byTime: "sorted by travel time", onRoute: i => `On route ${i}`,
+    noCpOnRoute: "No reports on this route", navWith: "Navigate with",
+    chooseRoute: "Choose a route", byTime: "sorted by travel time", onRoute: i => `Reports on route ${i}`,
     merged: "Already reported here — counted as a confirmation ✓", sent: "Report sent, thank you! 🙏",
     noLabel: "Unnamed location", noResults: "No places found — try another name or tap the map", searchFor: q => `Search for “${q}”`,
     liveTraffic: "with live traffic", noTraffic: "without traffic", delay: m => `+${m} min traffic`, toll: "Tollway", noToll: "No tollway",
   },
 };
-// Report types are stored in the DB by their Thai name (the key); English is display-only.
-// Report types are stored in the DB by their Thai name (the key); English is display-only.
-// cat: which category the type belongs to; g: photo-check group in /static/clip_labels.json.
+// Report types: stable codes stored in the DB; th/en are display names.
+// Thai names follow police/news usage (e.g. "ตรวจวัดแอลกอฮอล์", not slang "เช็คลมปาก") and
+// Royal Institute spelling (หมวกกันน็อก). cat: category; g: photo-check group in clip_labels.json.
 const TYPES = {
-  "ตั้งแล้ว ระวังด้วย":      { en: "Checkpoint (general)", cat: "checkpoint", g: "checkpoint" },
-  "ใบขับขี่+หมวกกันน็อค":   { en: "License + helmet",     cat: "checkpoint", g: "checkpoint" },
-  "เช็คลมปาก":              { en: "Breath test",          cat: "checkpoint", g: "checkpoint" },
-  "ควันดำ":                 { en: "Black smoke",          cat: "checkpoint", g: "checkpoint" },
-  "เน้น 2 ล้อ":              { en: "Motorbikes",           cat: "checkpoint", g: "checkpoint" },
-  "ส่องความเร็ว":            { en: "Speed check",          cat: "checkpoint", g: "checkpoint" },
-  "ภาษี พ.ร.บ.":            { en: "Tax / insurance",      cat: "checkpoint", g: "checkpoint" },
-  "รถบรรทุก":               { en: "Trucks",               cat: "checkpoint", g: "checkpoint" },
-  "อุบัติเหตุ":               { en: "Accident",             cat: "incident",   g: "accident" },
-  "ทำถนน/ก่อสร้าง":          { en: "Roadworks",            cat: "incident",   g: "roadwork" },
-  "น้ำท่วม":                 { en: "Flooding",             cat: "incident",   g: "flood" },
-  "ถนนถูกปิด/สิ่งกีดขวาง":    { en: "Road blocked",         cat: "incident",   g: "blocked" },
+  general:        { th: "ด่านตรวจทั่วไป",          en: "General checkpoint",  cat: "checkpoint", g: "checkpoint" },
+  alcohol:        { th: "ตรวจวัดแอลกอฮอล์",        en: "Alcohol test",        cat: "checkpoint", g: "checkpoint" },
+  license_helmet: { th: "ใบขับขี่/หมวกกันน็อก",     en: "License & helmet",    cat: "checkpoint", g: "checkpoint" },
+  speed:          { th: "ตรวจจับความเร็ว",          en: "Speed check",         cat: "checkpoint", g: "checkpoint" },
+  motorbike:      { th: "ตรวจรถจักรยานยนต์",       en: "Motorcycles",         cat: "checkpoint", g: "checkpoint" },
+  tax_insurance:  { th: "ตรวจภาษี/พ.ร.บ.",         en: "Tax & insurance",     cat: "checkpoint", g: "checkpoint" },
+  black_smoke:    { th: "ตรวจควันดำ",              en: "Black smoke",         cat: "checkpoint", g: "checkpoint" },
+  truck:          { th: "ตรวจรถบรรทุก",            en: "Trucks",              cat: "checkpoint", g: "checkpoint" },
+  accident:       { th: "อุบัติเหตุ",                en: "Accident",            cat: "incident",   g: "accident" },
+  roadwork:       { th: "ซ่อมถนน/ก่อสร้าง",         en: "Roadworks",           cat: "incident",   g: "roadwork" },
+  flood:          { th: "น้ำท่วมขัง",                en: "Flooding",            cat: "incident",   g: "flood" },
+  blocked:        { th: "ปิดถนน/สิ่งกีดขวาง",        en: "Road closed",         cat: "incident",   g: "blocked" },
 };
 const TYPE_KEYS = Object.keys(TYPES);
 
@@ -629,7 +625,7 @@ let lang = "th";
 try { lang = localStorage.getItem("daan-lang") || "th"; } catch (e) {}
 if (!I18N[lang]) lang = "th";
 function t(key, ...a) { const v = I18N[lang][key]; return typeof v === "function" ? v(...a) : v; }
-function typeName(k) { return lang === "en" ? (TYPES[k] ? TYPES[k].en : k) : k; }
+function typeName(k) { return TYPES[k] ? TYPES[k][lang] : k; }
 function catOf(cp) { return (TYPES[cp.type] || {}).cat || "checkpoint"; }
 let catFilter = "all", reportCat = "checkpoint";
 function catShown(cp) { return catFilter === "all" || catOf(cp) === catFilter; }
@@ -859,7 +855,8 @@ function catTag(cp) {
   return `<span class="cat-tag ${inc ? "inc" : "cp"}">${t(inc ? "tagIncident" : "tagCheckpoint")}</span>`;
 }
 function popupHtml(cp) {
-  const conf = `${t("lastConfirmed", agoText(cp.age_minutes))} · ${t("people", cp.confirms)}${cp.reports > 1 ? ` · ${t("reportsN", cp.reports)}` : ""}`;
+  const nw = x => `<span class="nw">${x}</span>`;
+  const conf = `${nw(t("lastConfirmed", agoText(cp.age_minutes)))} · ${nw(t("people", cp.confirms))}${cp.reports > 1 ? ` · ${nw(t("reportsN", cp.reports))}` : ""}`;
   return `<div class="pin-pop"><b>${esc(labelName(cp.label))}</b>
     <div class="meta">${catTag(cp)}${esc(typeName(cp.type))}<br>${conf}</div>${voteBtns(cp, "vr")}${linkRow(cp, "vr")}</div>`;
 }
@@ -895,7 +892,7 @@ function cardHtml(cp, dist) {
     `<span class="badge dist ${dist > 5000 ? "far" : ""}">${distText(dist)}</span>`;
   return `<div class="card ${fresh ? "fresh" : ""}">
     <div class="card-top"><span class="card-title">${esc(labelName(cp.label))}</span>${distBadge}</div>
-    <div class="card-type">${catTag(cp)}${esc(typeName(cp.type))}${cp.reports > 1 ? ` · ${t("mergedN", cp.reports)}` : ""}</div>
+    <div class="card-type">${catTag(cp)}<span class="nw">${esc(typeName(cp.type))}</span>${cp.reports > 1 ? ` · <span class="nw">${t("mergedN", cp.reports)}</span>` : ""}</div>
     <div class="card-meta"><span>🕐 ${agoText(cp.age_minutes)}</span><span class="ok">${t("confirmedBy", cp.confirms)}</span></div>
     ${voteBtns(cp, "vote-row")}${linkRow(cp, "vote-row")}</div>`;
 }
@@ -1120,7 +1117,8 @@ function renderRouteSummary() {
     return `<div class="route-opt ${i === selRoute ? "sel" : ""}" onclick="selRoute=${i};drawRoutes();renderRouteSummary()">
         <div class="ro-main">
           <b>${t("routeN", i + 1)}</b>
-          <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}${r.delay > 0 ? ` · <span class="delay">${t("delay", r.delay)}</span>` : ""}${r.toll == null ? "" : ` · <span class="toll ${r.toll ? "yes" : "no"}">${t(r.toll ? "toll" : "noToll")}</span>`}</span>
+          <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}</span>
+          ${(r.delay > 0 || r.toll != null) ? `<span class="ro-tags">${r.delay > 0 ? `<span class="mini delay">${t("delay", r.delay)}</span>` : ""}${r.toll == null ? "" : `<span class="mini toll ${r.toll ? "yes" : "no"}">${t(r.toll ? "toll" : "noToll")}</span>`}</span>` : ""}
         </div>
         <div class="ro-badges"><span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span>${ni ? `<span class="cpcount inc-some">${t("incN", ni)}</span>` : ""}</div>
       </div>`;
@@ -1129,7 +1127,7 @@ function renderRouteSummary() {
   const sel = routeData[selRoute];
   const list = sel.hits.length
     ? sel.hits.map(h => `<div class="route-hit">
-          <div><b>${esc(labelName(h.cp.label))}</b><div class="t">${catTag(h.cp)}${esc(typeName(h.cp.type))} · ${t("lastConfirmed", agoText(h.cp.age_minutes))}</div></div>
+          <div><b>${esc(labelName(h.cp.label))}</b><div class="t">${catTag(h.cp)}<span class="nw">${esc(typeName(h.cp.type))}</span> · <span class="nw">${t("lastConfirmed", agoText(h.cp.age_minutes))}</span></div></div>
           <span class="badge dist">${t("kmAt", (h.along / 1000).toFixed(1))}</span>
         </div>`).join("")
     : `<div class="route-hit" style="color:var(--muted)">${t("noCpOnRoute")}</div>`;
@@ -1149,7 +1147,7 @@ function renderRouteSummary() {
       <a class="nav-btn a" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">Apple Maps ↗</a>
     </div>` : "";
 
-  sum.innerHTML = `<div class="rs-head"><h3>${t("chooseRoute")} <span style="font-weight:400;color:var(--muted);font-size:11.5px">· ${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</span></h3>
+  sum.innerHTML = `<div class="rs-head"><h3>${t("chooseRoute")}<span class="rs-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</span></h3>
       <button id="routeClose" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div>
     ${filterBar}
     ${opts}

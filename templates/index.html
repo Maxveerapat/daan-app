@@ -142,7 +142,7 @@
   .p-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
   .p-head > div:first-child { min-width: 0; }
   .p-head h2 { font-size: 24px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; }
-  .p-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .p-sub { font-size: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ibtns { display: flex; gap: 8px; flex-shrink: 0; }
   .ibtn {
     width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--s1); color: var(--text);
@@ -285,7 +285,6 @@
   #routeSummary .cta { margin-top: 10px; }
   .toll-filter { margin-bottom: 8px !important; }
   #routeSummary .cat-seg { margin-bottom: 8px; }
-  #routeSummary .p-head { align-items: flex-start; }
   .nav-row { display: grid; grid-template-columns: 1fr; }
   .nav-btn.g { composes: cta; }
 
@@ -493,7 +492,7 @@ const I18N = {
     share: "แชร์", shareTitle: "ด่าน — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
     sharedGone: "รายงานนี้หมดอายุหรือถูกลบแล้ว", detected: x => `ตรวจพบ: ${x} ✓`,
     destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "ดูเส้นทาง",
-    routeHint: "จากตำแหน่งปัจจุบัน · หรือแตะบนแผนที่เพื่อปักหมุดปลายทาง",
+    routeHint: "จากตำแหน่งคุณ · หรือแตะแผนที่",
     sheetTitle: "รายงาน", st1: "ถ่ายรูป", st2: "ประเภท", st3: "ตำแหน่ง", next: "ถัดไป", back: "ย้อนกลับ",
     photoDone: "ถ่ายแล้ว", fromYou: m => `ห่างจากคุณ ${m}`, pickHint: "เลื่อนแผนที่ให้หมุดตรงจุด", sheetHint: "ถ่ายรูปสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เกิดเหตุ",
     retake: "ถ่ายใหม่", passengerNote: "ให้ผู้โดยสารถ่าย — ห้ามใช้มือถือขณะขับรถ",
@@ -522,10 +521,10 @@ const I18N = {
     cpN: n => `ด่าน ${n} จุด`, cpNone: "ไม่มีด่าน", routeN: i => `เส้นทางที่ ${i}`,
     minKm: (mi, km) => `~${mi} นาที · ${km} กม.`, kmAt: k => `กม.ที่ ${k}`,
     noCpOnRoute: "ไม่มีรายงานบนเส้นทางนี้", navWith: "เปิดนำทางด้วย",
-    chooseRoute: "เลือกเส้นทาง", byTime: "เรียงตามเวลาเดินทาง", onRoute: i => `รายงานบนเส้นทางที่ ${i}`,
+    chooseRoute: "เลือกเส้นทาง", byTime: "เรียงตามเวลา", onRoute: i => `รายงานบนเส้นทางที่ ${i}`,
     merged: "มีคนรายงานจุดนี้แล้ว — นับเป็นการยืนยัน ✓", sent: "ส่งรายงานแล้ว ขอบคุณ! 🙏",
     noLabel: "ไม่ระบุตำแหน่ง", noResults: "ไม่พบสถานที่ — ลองพิมพ์ชื่ออื่น หรือแตะบนแผนที่", searchFor: q => `ค้นหา “${q}”`,
-    liveTraffic: "คิดจากสภาพจราจรจริง", noTraffic: "ยังไม่รวมสภาพจราจร", delay: m => `รถติด +${m} นาที`, toll: "มีทางด่วน", noToll: "ไม่ขึ้นทางด่วน",
+    liveTraffic: "รวมจราจรสด", noTraffic: "ยังไม่รวมสภาพจราจร", delay: m => `รถติด +${m} นาที`, toll: "มีทางด่วน", noToll: "ไม่ขึ้นทางด่วน",
   },
   en: {
     title: "Daan — checkpoints & road incidents",
@@ -541,7 +540,7 @@ const I18N = {
     share: "Share", shareTitle: "Daan — road report", copied: "Link copied", shareErr: "Couldn't share",
     sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
     destPh: "Where to? e.g. Siam Paragon", routeBtn: "Check",
-    routeHint: "From your location · or tap the map to drop a pin",
+    routeHint: "From your location · or tap the map",
     sheetTitle: "Report", st1: "Photo", st2: "Type", st3: "Location", next: "Next", back: "Back",
     photoDone: "Taken", fromYou: m => `${m} from you`, pickHint: "Move the map to put the pin on the spot", sheetHint: "Take a live photo, then move the map so the pin sits on the spot",
     retake: "Retake", passengerNote: "Passengers only — don't use your phone while driving",
@@ -570,10 +569,10 @@ const I18N = {
     cpN: n => `${n} checkpoint${n === 1 ? "" : "s"}`, cpNone: "No checkpoints", routeN: i => `Route ${i}`,
     minKm: (mi, km) => `~${mi} min · ${km} km`, kmAt: k => `km ${k}`,
     noCpOnRoute: "No reports on this route", navWith: "Navigate with",
-    chooseRoute: "Choose a route", byTime: "sorted by travel time", onRoute: i => `Reports on route ${i}`,
+    chooseRoute: "Choose a route", byTime: "By travel time", onRoute: i => `Reports on route ${i}`,
     merged: "Already reported here — counted as a confirmation ✓", sent: "Report sent, thank you! 🙏",
     noLabel: "Unnamed location", noResults: "No places found — try another name or tap the map", searchFor: q => `Search for “${q}”`,
-    liveTraffic: "with live traffic", noTraffic: "without traffic", delay: m => `+${m} min traffic`, toll: "Tollway", noToll: "No tollway",
+    liveTraffic: "live traffic", noTraffic: "without traffic", delay: m => `+${m} min traffic`, toll: "Tollway", noToll: "No tollway",
   },
 };
 const PIN_SHIELD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/></svg>';
@@ -931,6 +930,7 @@ function setPanel(st) {
   }
   p.classList.remove("fitdetail", "dt-scroll");
   st = st === "full" ? "full" : "collapsed";
+  if (panelView === "route" && !routeData.length) st = "collapsed"; // nothing to expand to
   p.classList.toggle("full", st === "full");
   updateCollapsed();
   document.body.classList.toggle("panel-full", st === "full");
@@ -1567,7 +1567,7 @@ let panelH0 = 0;
 const panelDragOpts = {
   enabled: () => !isWide(),
   locked: () => panelView === "detail" ? !$("panel").classList.contains("dt-scroll") : panelState() !== "full",
-  allowUp: () => panelState() !== "full",
+  allowUp: () => panelState() !== "full" && !(panelView === "route" && !routeData.length),
   begin: () => { panelH0 = $("panel").offsetHeight; $("panel").classList.add("dragging"); },
   move: dy => { $("panel").style.height = Math.max(150, Math.min(window.innerHeight - 80, panelH0 - dy)) + "px"; },
   end: (dy, v) => {

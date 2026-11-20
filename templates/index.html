@@ -283,7 +283,6 @@
   .cat-tag.inc { background: rgba(255,210,63,.13); color: var(--yellow); }
   .nav-note { font-size: 12.5px; color: var(--muted); margin: 2px 0 0; }
   #routeSummary .cta { margin-top: 10px; }
-  #routeSummary .p-head h2 { font-size: 22px; }
   .toll-filter { margin-bottom: 8px !important; }
   #routeSummary .cat-seg { margin-bottom: 8px; }
   #routeSummary .p-head { align-items: flex-start; }
@@ -1008,7 +1007,7 @@ function renderRouteEmpty() {
     if (panelView === "detail") { if (!moved || dy > 40) closeDetail(); else setPanel("detail"); return; }
     if (!moved) return setPanel(st === "full" ? "collapsed" : "full");
     if (dy < -40) setPanel("full");
-    else if (dy > 40) setPanel("collapsed");
+    else if (dy > 40) { if (st === "collapsed" && panelView === "route" && routeData.length) closeRoute(); else setPanel("collapsed"); }
   };
   zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
 })();
@@ -1576,7 +1575,7 @@ const panelDragOpts = {
     const st = panelState();
     if (panelView === "detail") { if (dy > 40 || v > 0.5) closeDetail(); else setPanel("detail"); return; }
     if (dy < -40 || v < -0.5) setPanel("full");
-    else if (dy > 40 || v > 0.5) setPanel("collapsed");
+    else if (dy > 40 || v > 0.5) { if (st === "collapsed" && panelView === "route" && routeData.length) closeRoute(); else setPanel("collapsed"); }
   },
 };
 document.querySelectorAll("#panel .pv").forEach(el => contentDrag(el, panelDragOpts));

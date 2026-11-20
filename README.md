@@ -39,8 +39,8 @@ The SQLite DB is reset on every restart/redeploy (seed data comes back fresh; te
 ## Stack
 
 - **Backend:** Flask + SQLite (`app.py`, ~184 lines). Seeds mock Bangkok checkpoints on first run.
-- **Frontend:** one page (`templates/index.html`, ~772 lines) — Leaflet + CARTO Dark Matter tiles,
-  Nominatim geocoding, OSRM/OpenRouteService routing. No build step.
+- **Frontend:** one page (`templates/index.html`) — Leaflet + OpenFreeMap vector basemap (MapLibre,
+  no API key, recoloured dark), TH/EN language switch, Nominatim geocoding. No build step.
 
 ## Structure
 
@@ -55,16 +55,18 @@ daan-app/
 
 ## Three tabs
 
-- **แผนที่ (Map):** recency-colored pins (red <1h, amber 1–3h, gray >3h), source filter chips.
+- **แผนที่ (Map):** recency-colored pins (red <1h, amber 1–3h, gray >3h).
 - **รายการ (Feed):** active checkpoints sorted by distance, 3h auto-expiry + collapse, confirm/clear votes.
-- **เส้นทาง (Route):** enter a destination → route options, each labeled with on-route checkpoint
-  count → hand off to Google/Apple Maps to drive.
+- **เส้นทาง (Route):** enter a destination → route options (with/without tolls), each labeled with
+  on-route checkpoint count → hand off to Google/Apple Maps to drive.
 
-## Routing backend (optional upgrade)
+## Routing (route options with / without tolls)
 
-By default routing uses the free OSRM demo (usually only 1 route). To get reliable 2–3
-alternatives, paste a free OpenRouteService token into `ORS_KEY` near the top of the
-`<script>` in `templates/index.html`. See `HANDOFF.md` for details.
+Routing runs server-side at `/api/routes`. With an `ORS_KEY` environment variable set (free
+OpenRouteService key: https://openrouteservice.org/dev/#/signup → Render → Environment), it returns
+the engine's normal options with tolls allowed **and** avoided (typically 2–5), each labeled
+Tollway / No tollway, ordered by travel time, with a checkpoint count shown for each.
+Without the key it falls back to the OSRM demo (usually 1 route, no toll info).
 
 ## ⚠️ Scope boundary
 

@@ -8,3 +8,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
+      - key: ORS_KEY        # free OpenRouteService key; enter it in Render → Environment
+        sync: false

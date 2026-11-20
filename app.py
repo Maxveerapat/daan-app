@@ -1,5 +1,8 @@
+import json
 import math
 import os
+import urllib.error
+import urllib.request
 import sqlite3
 import time
 from pathlib import Path
@@ -13,6 +16,12 @@ ACTIVE_SECONDS = 3 * 3600          # fresh window: last confirmed within 3h
 HIDE_AFTER_SECONDS = 12 * 3600     # drop from API entirely after 12h
 DEDUP_RADIUS_M = 300               # same type within this radius -> merge as confirmation
 DISMISS_THRESHOLD = 2              # this many "gone" votes clears a checkpoint
+
+# Free OpenRouteService key (https://openrouteservice.org/dev/#/signup). Set it as an
+# environment variable on the server (Render → Environment) so it never ships to the browser.
+ORS_KEY = os.environ.get("ORS_KEY", "").strip()
+ORS_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
+OSRM_URL = "https://router.project-osrm.org/route/v1/driving/{o_lng},{o_lat};{d_lng},{d_lat}?overview=full&geometries=geojson&alternatives=3"
 
 app = Flask(__name__, instance_path=str(APP_DIR / "instance"))
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -60,10 +69,11 @@ def init_db():
             source_name TEXT
         )"""
     )
+    db.execute("DELETE FROM checkpoints WHERE source = 'official'")  # legacy rows from older DBs
     if db.execute("SELECT COUNT(*) FROM checkpoints").fetchone()[0] == 0:
         now = int(time.time())
-        # source: user = crowdsourced in-app
-        #         official = government/agency open data (traffic, roadwork, weather)
+        # All checkpoints are crowdsourced in-app (source = 'user'). There is no public
+        # feed of Thai police checkpoints, so the old 'official' source was removed.
         seed = [
             # lat, lng, label, type, rep_min, conf_min, confirms, reports, source, source_name
             # coordinates snapped to the road network (OSRM /nearest) so pins sit on roads, not buildings
@@ -75,10 +85,6 @@ def init_db():
             (13.7097, 100.4601, "ถ.จรัญสนิทวงศ์ ซ.35", "ใบขับขี่+หมวกกันน็อค", 480, 470, 1, 1, "user", None),
             (13.8037, 100.55419, "ถ.กำแพงเพชร ใกล้ ม.เกษตร", "ภาษี พ.ร.บ.", 60, 35, 6, 4, "user", None),
             (13.74671, 100.53406, "แยกราชเทวี", "ตั้งแล้ว ระวังด้วย", 50, 20, 8, 5, "user", None),
-            # official open data — road conditions, NOT checkpoints
-            (13.75634, 100.50181, "ถ.ราชดำเนินกลาง หน้า รพ.กลาง", "จราจรติดขัด", 35, 10, 0, 1, "official", "iTIC / Longdo Traffic"),
-            (13.74395, 100.53299, "ถ.เพชรบุรีตัดใหม่ ช่วงสะพาน", "ทำถนน+ซ่อมแซม", 300, 30, 0, 1, "official", "กรมทางหลวง"),
-            (13.69004, 100.61011, "ถ.สุขุมวิท ซ.ปุณณวิถี", "ฝนตก", 45, 12, 0, 1, "official", "กรมอุตุนิยมวิทยา"),
         ]
         for lat, lng, label, typ, rep_m, conf_m, confirms, reports, source, sname in seed:
             db.execute(
@@ -177,6 +183,82 @@ def vote(cid):
             db.execute("UPDATE checkpoints SET cleared_at=? WHERE id=?", (now, cid))
     db.commit()
     return jsonify({"ok": True})
+
+
+# ---------- routing ----------
+# Returns the engine's normal route options (tolls allowed + tolls avoided), each tagged
+# with whether it uses a tollway. Routes are ordered by travel time only — checkpoints are
+# never used to pick, filter or rank routes (see HANDOFF.md, scope boundary).
+
+def _http_json(url, body=None, headers=None, timeout=15):
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(url, data=data, headers=headers or {}, method="POST" if data else "GET")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read())
+
+
+def _ors_routes(o, d, avoid_tolls):
+    body = {
+        "coordinates": [[o[1], o[0]], [d[1], d[0]]],
+        "alternative_routes": {"target_count": 3, "share_factor": 0.6, "weight_factor": 1.6},
+        "extra_info": ["tollways"],
+    }
+    if avoid_tolls:
+        body["options"] = {"avoid_features": ["tollways"]}
+    js = _http_json(ORS_URL, body, {"Authorization": ORS_KEY, "Content-Type": "application/json"})
+    out = []
+    for f in js.get("features", []):
+        summ = f["properties"].get("summary", {})
+        toll_vals = f["properties"].get("extras", {}).get("tollways", {}).get("summary", [])
+        uses_toll = any(v.get("value") == 1 and v.get("distance", 0) > 0 for v in toll_vals)
+        out.append({
+            "coords": [[c[1], c[0]] for c in f["geometry"]["coordinates"]],
+            "km": summ.get("distance", 0) / 1000,
+            "mins": round(summ.get("duration", 0) / 60),
+            "toll": uses_toll,
+        })
+    return out
+
+
+def _osrm_routes(o, d):
+    js = _http_json(OSRM_URL.format(o_lat=o[0], o_lng=o[1], d_lat=d[0], d_lng=d[1]))
+    return [{
+        "coords": [[c[1], c[0]] for c in rt["geometry"]["coordinates"]],
+        "km": rt["distance"] / 1000,
+        "mins": round(rt["duration"] / 60),
+        "toll": None,  # unknown on OSRM
+    } for rt in js.get("routes", [])]
+
+
+def _same_route(a, b):
+    return abs(a["km"] - b["km"]) < 0.3 and abs(a["mins"] - b["mins"]) <= 1
+
+
+@app.route("/api/routes")
+def routes():
+    try:
+        o = (float(request.args["olat"]), float(request.args["olng"]))
+        d = (float(request.args["dlat"]), float(request.args["dlng"]))
+    except (KeyError, ValueError):
+        return jsonify({"error": "bad coordinates"}), 400
+    found, engine = [], "osrm"
+    if ORS_KEY:
+        for avoid in (False, True):
+            try:
+                for r in _ors_routes(o, d, avoid):
+                    if not any(_same_route(r, x) for x in found):
+                        found.append(r)
+                engine = "ors"
+            except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as e:
+                app.logger.warning("ORS failed (avoid_tolls=%s): %s", avoid, e)
+    if not found:
+        try:
+            found = _osrm_routes(o, d)
+        except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as e:
+            app.logger.warning("OSRM failed: %s", e)
+            return jsonify({"error": "routing unavailable"}), 502
+    found.sort(key=lambda r: r["mins"])  # travel time only
+    return jsonify({"engine": engine, "routes": found})
 
 
 init_db()

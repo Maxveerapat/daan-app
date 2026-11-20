@@ -81,6 +81,21 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 
 ---
 
+## 0. Changes since this handoff was written (Nov 2026)
+
+- **Deployed on Render** (`render.yaml`, gunicorn). Free plan: DB resets on restart.
+- **Basemap:** CARTO now requires an API key off-localhost → switched to **OpenFreeMap** vector
+  tiles via MapLibre (`@maplibre/maplibre-gl-leaflet`), recoloured to a clean Apple-style dark palette.
+- **TH/EN language switch** (header button, saved in localStorage). Report types stay stored in Thai;
+  English is display-only (`TYPES` map). Map labels switch too (`name:th` / `name:en`).
+- **`official` source removed** (owner's call — no real public checkpoint feed exists, so the
+  user/official filter had no point). Road-condition types (traffic/rain/roadwork) removed too.
+- **Routing moved server-side** (`/api/routes`, key in `ORS_KEY` env var). Returns ORS options with
+  tolls allowed + tolls avoided, labeled Tollway/No tollway, **sorted by travel time only**. Owner asked
+  for a "no checkpoints" route option — declined per §7; the toll/no-toll split was the agreed alternative.
+
+---
+
 ## 5. Data model — where checkpoint data comes from (important)
 
 Each `checkpoints` row has a `source`:

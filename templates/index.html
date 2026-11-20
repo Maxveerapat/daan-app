@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ด่าน — แจ้งเตือนด่านตรวจ</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
   :root {
     --bg: #0B0B0F;
@@ -42,6 +43,12 @@
   }
   header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.02em; }
   header .sub { display: none; }
+  .hdr-right { display: flex; align-items: center; gap: 12px; }
+  #langBtn {
+    font-family: inherit; font-size: 12px; font-weight: 600; color: var(--text);
+    background: rgba(255,255,255,.1); border: 1px solid var(--hair); border-radius: 999px;
+    padding: 5px 11px; letter-spacing: .03em;
+  }
   #locBadge { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   #locBadge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 7px var(--blue); }
 
@@ -53,7 +60,6 @@
   #map, #routeMap { position: absolute; inset: 0; width: 100%; height: 100%; }
   #pickMap { position: absolute; inset: 0; }
   .leaflet-container { background: #0B0B0F; }
-  .dark-tiles { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9) saturate(.35); }
   .leaflet-control-attribution {
     background: rgba(11,11,15,.5) !important; color: #6a6a72 !important;
     font-size: 9px !important; padding: 1px 5px !important;
@@ -62,7 +68,7 @@
 
   /* map legend */
   .legend {
-    position: absolute; left: 14px; bottom: 108px; z-index: 1000;
+    position: absolute; left: 14px; top: calc(var(--topbar) + 12px); z-index: 1000;
     background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--hair); border-radius: 14px;
     padding: 10px 12px; font-size: 11.5px; line-height: 1.9; color: var(--text);
@@ -85,23 +91,6 @@
   .badge.dist { background: rgba(255,69,58,.16); color: #FF6961; }
   .badge.dist.far { background: rgba(255,159,10,.16); color: var(--amber); }
   .card-type { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
-  .src {
-    display: inline-block; font-size: 10.5px; padding: 3px 8px; border-radius: 7px;
-    margin-top: 8px; font-weight: 600;
-  }
-  .src.user { background: rgba(255,255,255,.08); color: #C7C7CE; }
-  .src.official { background: rgba(10,132,255,.16); color: #64B3FF; }
-  /* source filter pills floating on map */
-  .srcbar {
-    position: absolute; top: calc(var(--topbar) + 10px); left: 14px; right: 14px; z-index: 1000;
-    display: flex; gap: 8px;
-  }
-  .srcbar button {
-    flex: 1; font-size: 12px; padding: 9px 4px; border-radius: 999px; font-family: inherit; font-weight: 600;
-    border: 1px solid var(--hair); background: var(--glass); color: var(--muted);
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  }
-  .srcbar button.on { border-color: transparent; color: #fff; background: rgba(255,69,58,.9); }
   .card-meta { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
   .card-meta .ok { color: var(--green); }
   .vote-row { display: flex; gap: 8px; margin-top: 12px; }
@@ -161,7 +150,9 @@
   .cpcount { font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
   .cpcount.cp-some { background: rgba(255,69,58,.16); color: #FF6961; }
   .cpcount.cp-none { background: rgba(48,209,88,.16); color: var(--green); }
-  .cpcount.cond { background: rgba(10,132,255,.16); color: #64B3FF; font-weight: 500; }
+  .toll { font-weight: 600; }
+  .toll.yes { color: #FFD60A; }
+  .toll.no { color: var(--text); }
   .ro-listhead { font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
   .nav-row { display: flex; gap: 8px; margin: 6px 0 2px; }
   .nav-btn {
@@ -273,20 +264,19 @@
     <h1>ด่าน</h1>
     <div class="sub">แจ้งเตือนช่วยกันจ้าาา</div>
   </div>
-  <div id="locBadge">กำลังหาตำแหน่ง…</div>
+  <div class="hdr-right">
+    <div id="locBadge"></div>
+    <button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button>
+  </div>
 </header>
 
 <main>
   <div class="tab active" id="tab-map">
-    <div class="srcbar" id="srcbar">
-      <button data-src="user" class="on" onclick="toggleSrc('user',this)">👥 ผู้ใช้แจ้ง</button>
-      <button data-src="official" class="on" onclick="toggleSrc('official',this)">🏛️ ข้อมูลทางการ</button>
-    </div>
     <div id="map"></div>
     <div class="legend">
-      <div><span class="dot" style="background:var(--fresh)"></span>ไม่เกิน 1 ชม.</div>
-      <div><span class="dot" style="background:var(--aging)"></span>1–3 ชม.</div>
-      <div><span class="dot" style="background:var(--stale)"></span>เกิน 3 ชม.</div>
+      <div><span class="dot" style="background:var(--fresh)"></span><span data-i18n="legFresh"></span></div>
+      <div><span class="dot" style="background:var(--aging)"></span><span data-i18n="legAging"></span></div>
+      <div><span class="dot" style="background:var(--stale)"></span><span data-i18n="legStale"></span></div>
     </div>
   </div>
 
@@ -297,49 +287,49 @@
   <div class="tab" id="tab-route">
     <div id="routePanel">
       <div class="row">
-        <input id="destInput" placeholder="ไปไหน? เช่น สยามพารากอน" autocomplete="off">
-        <button id="routeBtn">เช็คเส้นทาง</button>
+        <input id="destInput" data-i18n-ph="destPh" autocomplete="off">
+        <button id="routeBtn" data-i18n="routeBtn"></button>
       </div>
-      <div id="routeHint">จากตำแหน่งปัจจุบัน · หรือแตะบนแผนที่เพื่อปักหมุดปลายทาง</div>
+      <div id="routeHint" data-i18n="routeHint"></div>
     </div>
     <div id="routeMap"></div>
     <div id="routeSummary"></div>
   </div>
 
-  <button id="fab" onclick="openSheet()">＋ รายงานด่าน</button>
+  <button id="fab" onclick="openSheet()">＋ <span data-i18n="fab"></span></button>
 
   <nav>
     <button data-tab="map" class="active" onclick="switchTab('map')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4l6 2 6-2v14l-6 2-6-2-6 2V6l6-2z"/><path d="M9 4v14M15 6v14"/></svg>
-      แผนที่
+      <span data-i18n="tabMap"></span>
     </button>
     <button data-tab="feed" onclick="switchTab('feed')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-      รายการ
+      <span data-i18n="tabFeed"></span>
     </button>
     <button data-tab="route" onclick="switchTab('route')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h6a4 4 0 0 0 0-8H10a4 4 0 0 1 0-8h6"/></svg>
-      เส้นทาง
+      <span data-i18n="tabRoute"></span>
     </button>
   </nav>
 
   <div id="sheet">
     <div id="sheetBody">
       <div class="grabber"></div>
-      <h2>รายงานด่านตรงนี้</h2>
-      <div class="hint">เลื่อนแผนที่ให้หมุดอยู่ตรงจุดที่เจอด่าน · เวลาใช้ตอนนี้อัตโนมัติ</div>
+      <h2 data-i18n="sheetTitle"></h2>
+      <div class="hint" data-i18n="sheetHint"></div>
       <div id="pickWrap">
         <div id="pickMap"></div>
         <div id="crosshair">📍</div>
       </div>
       <div class="sheet-form">
-        <label>ประเภทการตรวจ</label>
+        <label data-i18n="typeLabel"></label>
         <div class="chips" id="typeChips"></div>
-        <label>สถานที่ (ไม่บังคับ)</label>
-        <input id="labelInput" placeholder="เช่น หน้าโลตัส พระราม 2">
+        <label data-i18n="placeLabel"></label>
+        <input id="labelInput" data-i18n-ph="placePh">
         <div class="sheet-actions">
-          <button class="cancel" onclick="closeSheet()">ยกเลิก</button>
-          <button class="submit" onclick="submitReport()">＋ ส่งรายงาน</button>
+          <button class="cancel" onclick="closeSheet()" data-i18n="cancel"></button>
+          <button class="submit" onclick="submitReport()">＋ <span data-i18n="submit"></span></button>
         </div>
       </div>
     </div>
@@ -349,17 +339,118 @@
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script>
 <script>
-const TYPES = ["ตั้งแล้ว ระวังด้วย","ใบขับขี่+หมวกกันน็อค","เช็คลมปาก","ควันดำ","เน้น 2 ล้อ","ส่องความเร็ว","ภาษี พ.ร.บ.","รถบรรทุก","จราจรติดขัด","ฝนตก","ทำถนน+ซ่อมแซม"];
+/* ---------- i18n ---------- */
+const I18N = {
+  th: {
+    title: "ด่าน — แจ้งเตือนด่านตรวจ",
+    locating: "กำลังหาตำแหน่ง…", locReal: "ตำแหน่งปัจจุบัน", locDemo: "อนุสาวรีย์ชัยฯ (ตัวอย่าง)",
+    legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.",
+    tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงานด่าน",
+    destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "เช็คเส้นทาง",
+    routeHint: "จากตำแหน่งปัจจุบัน · หรือแตะบนแผนที่เพื่อปักหมุดปลายทาง",
+    sheetTitle: "รายงานด่านตรงนี้", sheetHint: "เลื่อนแผนที่ให้หมุดอยู่ตรงจุดที่เจอด่าน · เวลาใช้ตอนนี้อัตโนมัติ",
+    typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "เช่น หน้าโลตัส พระราม 2",
+    cancel: "ยกเลิก", submit: "ส่งรายงาน",
+    justNow: "เมื่อสักครู่", minAgo: m => `${m} นาทีที่แล้ว`,
+    hMinAgo: (h, m) => `${h} ชม. ${m} นาทีที่แล้ว`, hAgo: h => `${h} ชม.ที่แล้ว`,
+    m: "ม.", km: "กม.",
+    lastConfirmed: a => `ยืนยันล่าสุด ${a}`, people: n => `✓ ${n} คน`, reportsN: n => `รายงาน ${n} ครั้ง`,
+    confirmedBy: n => `✓ ยืนยัน ${n} คน`, mergedN: n => `รายงาน ${n} ครั้งรวมกัน`,
+    stillThere: "ยังอยู่", gone: "ไม่อยู่แล้ว",
+    activeHead: n => `ยังเปิดอยู่ · เรียงตามระยะทาง (${n})`, noneNear: "ยังไม่มีด่านที่เปิดอยู่ใกล้คุณ 🎉",
+    staleHead: n => `เกิน 3 ชม. อาจเลิกแล้ว (${n} รายการ)`,
+    thanksConfirm: "ขอบคุณ! ยืนยันแล้ว ✓", thanksGone: "รับทราบ ถ้ามีคนยืนยันเพิ่มจะเอาออกให้",
+    pinned: "หมุดที่ปักไว้", needDest: "พิมพ์ปลายทาง หรือแตะบนแผนที่", searching: "กำลังค้นหา…",
+    notFound: "หาปลายทางไม่เจอ ลองแตะบนแผนที่แทน", calcRoute: "กำลังคำนวณเส้นทาง…",
+    routeErr: "เชื่อมต่อบริการเส้นทางไม่ได้", noRoute: "หาเส้นทางไม่ได้",
+    cpN: n => `ด่าน ${n} จุด`, cpNone: "ไม่มีด่าน", routeN: i => `เส้นทางที่ ${i}`,
+    minKm: (mi, km) => `~${mi} นาที · ${km} กม.`, kmAt: k => `กม.ที่ ${k}`,
+    noCpOnRoute: "ไม่มีด่านที่ผู้ใช้แจ้งบนเส้นทางนี้", navWith: "นำทางต่อด้วย",
+    chooseRoute: "เลือกเส้นทาง", byTime: "เรียงตามเวลาเดินทาง", onRoute: i => `สิ่งที่อยู่บนเส้นทางที่ ${i}`,
+    merged: "มีคนรายงานจุดนี้แล้ว — นับเป็นการยืนยัน ✓", sent: "ส่งรายงานแล้ว ขอบคุณ! 🙏",
+    noLabel: "ไม่ระบุตำแหน่ง", toll: "ทางด่วน/มีค่าผ่านทาง", noToll: "ไม่ขึ้นทางด่วน",
+  },
+  en: {
+    title: "Daan — checkpoint alerts",
+    locating: "Locating…", locReal: "Current location", locDemo: "Victory Monument (demo)",
+    legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs",
+    tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
+    destPh: "Where to? e.g. Siam Paragon", routeBtn: "Check",
+    routeHint: "From your location · or tap the map to drop a pin",
+    sheetTitle: "Report a checkpoint here", sheetHint: "Move the map so the pin sits on the checkpoint · time is set to now",
+    typeLabel: "Type", placeLabel: "Place (optional)", placePh: "e.g. in front of Lotus, Rama 2",
+    cancel: "Cancel", submit: "Send report",
+    justNow: "just now", minAgo: m => `${m} min ago`,
+    hMinAgo: (h, m) => `${h} hr ${m} min ago`, hAgo: h => `${h} hr ago`,
+    m: "m", km: "km",
+    lastConfirmed: a => `Last confirmed ${a}`, people: n => `✓ ${n} ${n === 1 ? "person" : "people"}`, reportsN: n => `${n} reports`,
+    confirmedBy: n => `✓ ${n} confirmed`, mergedN: n => `${n} reports merged`,
+    stillThere: "Still there", gone: "Gone",
+    activeHead: n => `Active · nearest first (${n})`, noneNear: "No active checkpoints near you 🎉",
+    staleHead: n => `Over 3 hrs, may be gone (${n})`,
+    thanksConfirm: "Thanks! Confirmed ✓", thanksGone: "Got it — it'll be removed if others agree",
+    pinned: "Dropped pin", needDest: "Type a destination or tap the map", searching: "Searching…",
+    notFound: "Destination not found — try tapping the map", calcRoute: "Calculating routes…",
+    routeErr: "Couldn't reach the routing service", noRoute: "No route found",
+    cpN: n => `${n} checkpoint${n === 1 ? "" : "s"}`, cpNone: "No checkpoints", routeN: i => `Route ${i}`,
+    minKm: (mi, km) => `~${mi} min · ${km} km`, kmAt: k => `km ${k}`,
+    noCpOnRoute: "No reported checkpoints on this route", navWith: "Navigate with",
+    chooseRoute: "Choose a route", byTime: "sorted by travel time", onRoute: i => `On route ${i}`,
+    merged: "Already reported here — counted as a confirmation ✓", sent: "Report sent, thank you! 🙏",
+    noLabel: "Unnamed location", toll: "Tollway", noToll: "No tollway",
+  },
+};
+// Report types are stored in the DB by their Thai name (the key); English is display-only.
+const TYPES = {
+  "ตั้งแล้ว ระวังด้วย": "Checkpoint (general)",
+  "ใบขับขี่+หมวกกันน็อค": "License + helmet",
+  "เช็คลมปาก": "Breath test",
+  "ควันดำ": "Black smoke",
+  "เน้น 2 ล้อ": "Motorbikes",
+  "ส่องความเร็ว": "Speed check",
+  "ภาษี พ.ร.บ.": "Tax / insurance",
+  "รถบรรทุก": "Trucks",
+};
+const TYPE_KEYS = Object.keys(TYPES);
+
+let lang = "th";
+try { lang = localStorage.getItem("daan-lang") || "th"; } catch (e) {}
+if (!I18N[lang]) lang = "th";
+function t(key, ...a) { const v = I18N[lang][key]; return typeof v === "function" ? v(...a) : v; }
+function typeName(k) { return lang === "en" ? (TYPES[k] || k) : k; }
+function labelName(l) { return l === "ไม่ระบุตำแหน่ง" ? t("noLabel") : l; }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.title = t("title");
+  document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  $("langBtn").textContent = lang === "th" ? "EN" : "ไทย";
+  $("locBadge").textContent = userLoc ? t(locReal ? "locReal" : "locDemo") : t("locating");
+  renderChips();
+  baseMaps.forEach(setMapLabels);
+}
+function toggleLang() {
+  lang = lang === "th" ? "en" : "th";
+  try { localStorage.setItem("daan-lang", lang); } catch (e) {}
+  applyLang();
+  renderMap();
+  renderFeed();
+  if (routeData.length) { drawRoutes(); renderRouteSummary(); }
+}
+
+/* ---------- config ---------- */
 const DEFAULT_LOC = [13.7649, 100.5383]; // อนุสาวรีย์ชัยฯ fallback
 const ROUTE_BUFFER_M = 400;
-// Paste a free OpenRouteService token here to enable reliable 2–3 route options.
-// Empty = automatic fallback to the OSRM demo (usually returns only 1 route).
-const ORS_KEY = "";
+// Routing runs server-side: set ORS_KEY on the server for 2–3 options with/without tolls.
 
-let userLoc = null;
+let userLoc = null, locReal = false;
 let checkpoints = [];
-let selType = TYPES[0];
+let selType = TYPE_KEYS[0];
 let map, routeMap, pickMap;
 let mapLayer = L.layerGroup(), routeCpLayer = L.layerGroup(), routeLines = L.layerGroup(), destMarker = null, userMarkers = [];
 let destLatLng = null;
@@ -367,26 +458,71 @@ let routeData = [], selRoute = 0, lastDest = null;
 let pinsAnimated = false;
 
 const $ = id => document.getElementById(id);
-// OpenStreetMap standard tiles (no API key; Thai labels), darkened via CSS (.dark-tiles).
-// CARTO dark_all was dropped: it now requires an API key on non-localhost domains.
-const tileURL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const tileAttr = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-const tileOpts = { attribution: tileAttr, maxZoom: 19, className: "dark-tiles" };
+
+/* ---------- basemap ----------
+   OpenFreeMap vector tiles (free, no API key) rendered by MapLibre inside Leaflet.
+   Its "dark" style is recoloured below into a cleaner, Apple-Maps-like dark palette. */
+const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+const MAP_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+const PALETTE = {
+  background: "#1C1D21", landuse_residential: "#1F2024", landcover_wood: "#1D2A22", landuse_park: "#1D2A22",
+  water: "#14222F", waterway: "#14222F", building: "#25262B",
+  highway_path: "#2C2D33", highway_minor: "#3A3B42", highway_major_casing: "#2A2B30", highway_major_inner: "#4E5059",
+  highway_major_subtle: "#4E5059", highway_motorway_casing: "#2A2B30", highway_motorway_inner: "#6B6E78",
+  highway_motorway_subtle: "#6B6E78", railway_transit: "#33343A", railway_minor: "#33343A", railway: "#33343A",
+};
+const baseMaps = [];
+
+function tuneStyle(gl) {
+  for (const [id, color] of Object.entries(PALETTE)) {
+    const l = gl.getLayer(id); if (!l) continue;
+    const prop = l.type === "background" ? "background-color" : l.type === "fill" ? "fill-color" : "line-color";
+    gl.setPaintProperty(id, prop, color);
+    if (l.type === "fill") gl.setPaintProperty(id, "fill-opacity", 1);
+  }
+  ["highway_minor", "highway_major_inner", "highway_motorway_inner"].forEach(id => gl.getLayer(id) && gl.setPaintProperty(id, "line-opacity", 1));
+  gl.getStyle().layers.filter(l => l.type === "symbol").forEach(l => {
+    if (!gl.getLayoutProperty(l.id, "text-field")) return;
+    const major = l.id.startsWith("place_city") || l.id === "place_town";
+    gl.setPaintProperty(l.id, "text-color", major ? "#E4E4E8" : l.id.startsWith("highway") ? "#9C9EA6" : "#B4B6BE");
+    gl.setPaintProperty(l.id, "text-halo-color", "rgba(20,20,24,.9)");
+    gl.setPaintProperty(l.id, "text-halo-width", 1.2);
+  });
+}
+function setMapLabels(gl) {
+  if (!gl || !gl.isStyleLoaded()) return;
+  const field = lang === "en"
+    ? ["coalesce", ["get", "name:en"], ["get", "name_en"], ["get", "name:latin"], ["get", "name"]]
+    : ["coalesce", ["get", "name:th"], ["get", "name"]];
+  gl.getStyle().layers.filter(l => l.type === "symbol").forEach(l => {
+    if (gl.getLayoutProperty(l.id, "text-field")) gl.setLayoutProperty(l.id, "text-field", field);
+  });
+}
+function addBasemap(lmap) {
+  const layer = L.maplibreGL({ style: STYLE_URL, attribution: MAP_ATTR }).addTo(lmap);
+  const gl = layer.getMaplibreMap();
+  baseMaps.push(gl);
+  gl.on("styleimagemissing", e => { // quiet missing pattern sprites
+    if (!gl.hasImage(e.id)) gl.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
+  });
+  gl.on("load", () => { tuneStyle(gl); setMapLabels(gl); });
+  return layer;
+}
 
 function initMaps() {
   map = L.map("map", { zoomControl: false }).setView(DEFAULT_LOC, 12);
-  L.tileLayer(tileURL, tileOpts).addTo(map);
+  addBasemap(map);
   mapLayer.addTo(map);
 
   routeMap = L.map("routeMap", { zoomControl: false }).setView(DEFAULT_LOC, 12);
-  L.tileLayer(tileURL, tileOpts).addTo(routeMap);
+  addBasemap(routeMap);
   routeLines.addTo(routeMap);
   routeCpLayer.addTo(routeMap);
   new ResizeObserver(() => routeMap.invalidateSize()).observe($("routeMap"));
   new ResizeObserver(() => map.invalidateSize()).observe($("map"));
   routeMap.on("click", e => {
     destLatLng = e.latlng;
-    $("destInput").value = "หมุดที่ปักไว้";
+    $("destInput").value = t("pinned");
     if (destMarker) destMarker.remove();
     destMarker = L.marker(e.latlng).addTo(routeMap);
     buildRoute();
@@ -403,7 +539,8 @@ function locate() {
 }
 
 function onLocated(real) {
-  $("locBadge").textContent = real ? "ตำแหน่งปัจจุบัน" : "อนุสาวรีย์ชัยฯ (ตัวอย่าง)";
+  locReal = real;
+  $("locBadge").textContent = t(real ? "locReal" : "locDemo");
   userMarkers.forEach(m => m.remove());
   userMarkers = [map, routeMap].map(m =>
     L.circleMarker(userLoc, { radius: 7, color: "#fff", weight: 2.5, fillColor: "#0A84FF", fillOpacity: 1 }).addTo(m)
@@ -421,31 +558,17 @@ function haversineM(a, b) {
 }
 
 function agoText(min) {
-  if (min < 1) return "เมื่อสักครู่";
-  if (min < 60) return `${min} นาทีที่แล้ว`;
+  if (min < 1) return t("justNow");
+  if (min < 60) return t("minAgo", min);
   const h = Math.floor(min/60), m = min%60;
-  return m ? `${h} ชม. ${m} นาทีที่แล้ว` : `${h} ชม.ที่แล้ว`;
+  return m ? t("hMinAgo", h, m) : t("hAgo", h);
 }
-function distText(m) { return m < 1000 ? `${Math.round(m)} ม.` : `${(m/1000).toFixed(1)} กม.`; }
-
-const SRC = {
-  user:    { label: "ผู้ใช้แจ้ง",    ring: "#FFFFFF" },
-  official:{ label: "ข้อมูลทางการ", ring: "#0A84FF" },
-};
-let srcOn = { user: true, official: true };
+function distText(m) { return m < 1000 ? `${Math.round(m)} ${t("m")}` : `${(m/1000).toFixed(1)} ${t("km")}`; }
 
 function styleFor(cp) {
-  const ring = (SRC[cp.source] || SRC.user).ring;
-  const w = cp.source === "user" ? 2 : 3;
-  if (cp.age_minutes <= 60) return { color: ring, fillColor: "#FF453A", fillOpacity: 1, radius: 11, weight: w };
-  if (cp.age_minutes <= 180) return { color: ring, fillColor: "#FF9F0A", fillOpacity: .9, radius: 9, weight: w };
-  return { color: ring, fillColor: "#8E8E93", fillOpacity: .7, radius: 7, weight: w };
-}
-
-function srcBadge(cp) {
-  const s = SRC[cp.source] || SRC.user;
-  const name = cp.source === "official" ? (cp.source_name || s.label) : s.label;
-  return `<span class="src ${cp.source}">${name}</span>`;
+  if (cp.age_minutes <= 60) return { color: "#fff", fillColor: "#FF453A", fillOpacity: 1, radius: 11, weight: 2 };
+  if (cp.age_minutes <= 180) return { color: "#fff", fillColor: "#FF9F0A", fillOpacity: .9, radius: 9, weight: 2 };
+  return { color: "#fff", fillColor: "#8E8E93", fillOpacity: .7, radius: 7, weight: 2 };
 }
 
 async function loadCheckpoints() {
@@ -456,21 +579,20 @@ async function loadCheckpoints() {
   renderFeed();
 }
 
+function voteBtns(cp, cls) {
+  return `<div class="${cls}"><button onclick="vote(${cp.id},true)">${t("stillThere")}</button><button onclick="vote(${cp.id},false)">${t("gone")}</button></div>`;
+}
+
 function popupHtml(cp) {
-  const conf = cp.source === "official"
-    ? `อัปเดต ${agoText(cp.age_minutes)}`
-    : `ยืนยันล่าสุด ${agoText(cp.age_minutes)} · ✓ ${cp.confirms} คน${cp.reports>1?` · รายงาน ${cp.reports} ครั้ง`:""}`;
-  const votes = cp.source === "official" ? "" :
-    `<div class="vr"><button onclick="vote(${cp.id},true)">ยังอยู่</button><button onclick="vote(${cp.id},false)">ไม่อยู่แล้ว</button></div>`;
-  return `<div class="pin-pop"><b>${cp.label}</b>
-    <div class="meta">${cp.type}<br>${conf}</div>${srcBadge(cp)}${votes}</div>`;
+  const conf = `${t("lastConfirmed", agoText(cp.age_minutes))} · ${t("people", cp.confirms)}${cp.reports > 1 ? ` · ${t("reportsN", cp.reports)}` : ""}`;
+  return `<div class="pin-pop"><b>${esc(labelName(cp.label))}</b>
+    <div class="meta">${esc(typeName(cp.type))}<br>${conf}</div>${voteBtns(cp, "vr")}</div>`;
 }
 
 function renderMap() {
   mapLayer.clearLayers();
-  const shown = checkpoints.filter(cp => srcOn[cp.source]);
-  const animate = !pinsAnimated && shown.length > 0;
-  shown.forEach(cp => {
+  const animate = !pinsAnimated && checkpoints.length > 0;
+  checkpoints.forEach(cp => {
     L.circleMarker([cp.lat, cp.lng], { ...styleFor(cp), className: animate ? "pin" : "" })
       .bindPopup(popupHtml(cp)).addTo(mapLayer);
   });
@@ -482,31 +604,15 @@ function renderMap() {
   }
 }
 
-function toggleSrc(src, el) {
-  srcOn[src] = !srcOn[src];
-  el.classList.toggle("on", srcOn[src]);
-  renderMap();
-}
-
 function cardHtml(cp, dist) {
   const fresh = cp.age_minutes <= 60;
-  const official = cp.source === "official";
   const distBadge = dist == null ? "" :
     `<span class="badge dist ${dist > 5000 ? "far" : ""}">${distText(dist)}</span>`;
-  const meta = official
-    ? `<span>🕐 อัปเดต ${agoText(cp.age_minutes)}</span>`
-    : `<span>🕐 ${agoText(cp.age_minutes)}</span><span class="ok">✓ ยืนยัน ${cp.confirms} คน</span>`;
-  const votes = official ? "" :
-    `<div class="vote-row">
-      <button onclick="vote(${cp.id},true)">ยังอยู่</button>
-      <button onclick="vote(${cp.id},false)">ไม่อยู่แล้ว</button>
-    </div>`;
   return `<div class="card ${fresh ? "fresh" : ""}">
-    <div class="card-top"><span class="card-title">${cp.label}</span>${distBadge}</div>
-    <div class="card-type">${cp.type}${cp.reports > 1 && !official ? ` · รายงาน ${cp.reports} ครั้งรวมกัน` : ""}</div>
-    <div>${srcBadge(cp)}</div>
-    <div class="card-meta">${meta}</div>
-    ${votes}</div>`;
+    <div class="card-top"><span class="card-title">${esc(labelName(cp.label))}</span>${distBadge}</div>
+    <div class="card-type">${esc(typeName(cp.type))}${cp.reports > 1 ? ` · ${t("mergedN", cp.reports)}` : ""}</div>
+    <div class="card-meta"><span>🕐 ${agoText(cp.age_minutes)}</span><span class="ok">${t("confirmedBy", cp.confirms)}</span></div>
+    ${voteBtns(cp, "vote-row")}</div>`;
 }
 
 let staleOpen = false;
@@ -520,12 +626,12 @@ function renderFeed() {
   const stale = withDist.filter(x => x.cp.status === "stale")
     .sort((a,b) => a.cp.age_minutes - b.cp.age_minutes);
 
-  let html = `<div class="section-label">ยังเปิดอยู่ · เรียงตามระยะทาง (${active.length})</div>`;
+  let html = `<div class="section-label">${t("activeHead", active.length)}</div>`;
   html += active.length
     ? active.map(x => cardHtml(x.cp, x.dist)).join("")
-    : `<div class="card" style="text-align:center;color:var(--muted)">ยังไม่มีด่านที่เปิดอยู่ใกล้คุณ 🎉</div>`;
+    : `<div class="card" style="text-align:center;color:var(--muted)">${t("noneNear")}</div>`;
   html += `<div class="collapse-bar" onclick="staleOpen=!staleOpen;renderFeed()">
-      <span>เกิน 3 ชม. อาจเลิกแล้ว (${stale.length} รายการ)</span><span>${staleOpen ? "▲" : "▼"}</span></div>`;
+      <span>${t("staleHead", stale.length)}</span><span>${staleOpen ? "▲" : "▼"}</span></div>`;
   if (staleOpen) html += stale.map(x => cardHtml(x.cp, x.dist)).join("");
   el.innerHTML = html;
 }
@@ -535,7 +641,7 @@ async function vote(id, still) {
     method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify({ still })
   });
-  toast(still ? "ขอบคุณ! ยืนยันแล้ว ✓" : "รับทราบ ถ้ามีคนยืนยันเพิ่มจะเอาออกให้");
+  toast(still ? t("thanksConfirm") : t("thanksGone"));
   loadCheckpoints();
 }
 
@@ -546,10 +652,10 @@ function ptSegDistM(p, a, b) {
   const px = (p[1]-a[1])*mPerLng, py = (p[0]-a[0])*mPerLat;
   const bx = (b[1]-a[1])*mPerLng, by = (b[0]-a[0])*mPerLat;
   const len2 = bx*bx + by*by;
-  let t = len2 ? (px*bx + py*by)/len2 : 0;
-  t = Math.max(0, Math.min(1, t));
-  const dx = px - t*bx, dy = py - t*by;
-  return { d: Math.sqrt(dx*dx + dy*dy), t };
+  let tt = len2 ? (px*bx + py*by)/len2 : 0;
+  tt = Math.max(0, Math.min(1, tt));
+  const dx = px - tt*bx, dy = py - tt*by;
+  return { d: Math.sqrt(dx*dx + dy*dy), t: tt };
 }
 
 function distToRoute(cp, coords) {
@@ -567,63 +673,38 @@ async function geocode(q) {
   const c = userLoc || DEFAULT_LOC;
   const vb = `${c[1]-0.4},${c[0]-0.4},${c[1]+0.4},${c[0]+0.4}`;
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=th&viewbox=${vb}&q=${encodeURIComponent(q)}`;
-  const res = await fetch(url, { headers: { "Accept-Language": "th" } });
+  const res = await fetch(url, { headers: { "Accept-Language": lang } });
   const js = await res.json();
   return js.length ? L.latLng(+js[0].lat, +js[0].lon) : null;
 }
 
-// Returns [{coords:[[lat,lng]...], km, mins}] in the ENGINE's order (by travel time).
-// Uses OpenRouteService when ORS_KEY is set (reliable 2–3 alternatives), else the
-// OSRM demo. Never orders by checkpoints — that happens nowhere.
+// Route options come from our backend (/api/routes), which asks the routing engine for its
+// normal options with tolls allowed AND with tolls avoided, then orders them by travel time.
+// Each: {coords:[[lat,lng]...], km, mins, toll: true|false|null}. Checkpoints never affect
+// which routes are returned or their order — we only count what lies on each one.
 async function fetchRoutes(o, dest) {
-  if (ORS_KEY) {
-    try {
-      const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car/geojson", {
-        method: "POST",
-        headers: { "Authorization": ORS_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          coordinates: [[o[1], o[0]], [dest.lng, dest.lat]],
-          alternative_routes: { target_count: 3, share_factor: 0.6, weight_factor: 1.6 },
-        }),
-      });
-      if (res.ok) {
-        const js = await res.json();
-        if (js.features && js.features.length) {
-          return js.features.map(f => ({
-            coords: f.geometry.coordinates.map(c => [c[1], c[0]]),
-            km: f.properties.summary.distance / 1000,
-            mins: Math.round(f.properties.summary.duration / 60),
-          }));
-        }
-      }
-    } catch (e) { /* fall through to OSRM */ }
-  }
-  const url = `https://router.project-osrm.org/route/v1/driving/${o[1]},${o[0]};${dest.lng},${dest.lat}?overview=full&geometries=geojson&alternatives=3`;
-  const js = await (await fetch(url)).json();
-  if (!js.routes || !js.routes.length) return [];
-  return js.routes.map(rt => ({
-    coords: rt.geometry.coordinates.map(c => [c[1], c[0]]),
-    km: rt.distance / 1000,
-    mins: Math.round(rt.duration / 60),
-  }));
+  const q = `olat=${o[0]}&olng=${o[1]}&dlat=${dest.lat}&dlng=${dest.lng}`;
+  const res = await fetch(`/api/routes?${q}`);
+  if (!res.ok) throw new Error("routing");
+  return (await res.json()).routes || [];
 }
 
 async function buildRoute() {
   if (!destLatLng) {
     const q = $("destInput").value.trim();
-    if (!q) return toast("พิมพ์ปลายทาง หรือแตะบนแผนที่");
-    toast("กำลังค้นหา…");
+    if (!q) return toast(t("needDest"));
+    toast(t("searching"));
     destLatLng = await geocode(q);
-    if (!destLatLng) return toast("หาปลายทางไม่เจอ ลองแตะบนแผนที่แทน");
+    if (!destLatLng) return toast(t("notFound"));
     if (destMarker) destMarker.remove();
     destMarker = L.marker(destLatLng).addTo(routeMap);
   }
   const o = userLoc || DEFAULT_LOC;
-  toast("กำลังคำนวณเส้นทาง…");
+  toast(t("calcRoute"));
   let raw;
   try { raw = await fetchRoutes(o, destLatLng); }
-  catch { return toast("เชื่อมต่อบริการเส้นทางไม่ได้"); }
-  if (!raw.length) return toast("หาเส้นทางไม่ได้");
+  catch { return toast(t("routeErr")); }
+  if (!raw.length) return toast(t("noRoute"));
 
   // Routes come from the engine in its own order (by travel time). We annotate each
   // with the checkpoints that fall on it — we never reorder by checkpoint count or
@@ -636,7 +717,7 @@ async function buildRoute() {
       if (r.dist <= ROUTE_BUFFER_M) hits.push({ cp, along: r.along });
     });
     hits.sort((a, b) => a.along - b.along);
-    return { coords: rt.coords, hits, km: rt.km, mins: rt.mins };
+    return { coords: rt.coords, hits, km: rt.km, mins: rt.mins, toll: rt.toll };
   });
   selRoute = 0;
   lastDest = { lat: destLatLng.lat, lng: destLatLng.lng };
@@ -675,40 +756,36 @@ function renderRouteSummary() {
   const sum = $("routeSummary");
   sum.style.display = "block";
   const opts = routeData.map((r, i) => {
-    const nCp = r.hits.filter(h => h.cp.source !== "official").length;
-    const nCond = r.hits.filter(h => h.cp.source === "official").length;
-    const cpTxt = nCp ? `ด่าน ${nCp} จุด` : "ไม่มีด่าน";
-    const cpCls = nCp ? "cp-some" : "cp-none";
-    const condPill = nCond ? `<span class="cpcount cond">สภาพถนน ${nCond}</span>` : "";
+    const n = r.hits.length;
     return `<div class="route-opt ${i === selRoute ? "sel" : ""}" onclick="selRoute=${i};drawRoutes();renderRouteSummary()">
         <div class="ro-main">
-          <b>เส้นทางที่ ${i + 1}</b>
-          <span class="ro-sub">~${r.mins} นาที · ${r.km.toFixed(1)} กม.</span>
+          <b>${t("routeN", i + 1)}</b>
+          <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}${r.toll == null ? "" : ` · <span class="toll ${r.toll ? "yes" : "no"}">${t(r.toll ? "toll" : "noToll")}</span>`}</span>
         </div>
-        <div class="ro-badges"><span class="cpcount ${cpCls}">${cpTxt}</span>${condPill}</div>
+        <div class="ro-badges"><span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span></div>
       </div>`;
   }).join("");
 
   const sel = routeData[selRoute];
   const list = sel.hits.length
     ? sel.hits.map(h => `<div class="route-hit">
-          <div><b>${h.cp.label}</b> ${srcBadge(h.cp)}<div class="t">${h.cp.type} · ${h.cp.source === "official" ? "อัปเดต" : "ยืนยันล่าสุด"} ${agoText(h.cp.age_minutes)}</div></div>
-          <span class="badge dist">กม.ที่ ${(h.along / 1000).toFixed(1)}</span>
+          <div><b>${esc(labelName(h.cp.label))}</b><div class="t">${esc(typeName(h.cp.type))} · ${t("lastConfirmed", agoText(h.cp.age_minutes))}</div></div>
+          <span class="badge dist">${t("kmAt", (h.along / 1000).toFixed(1))}</span>
         </div>`).join("")
-    : `<div class="route-hit" style="color:var(--muted)">ไม่มีด่านที่ผู้ใช้แจ้งบนเส้นทางนี้</div>`;
+    : `<div class="route-hit" style="color:var(--muted)">${t("noCpOnRoute")}</div>`;
 
   // Hand off to Google/Apple Maps for turn-by-turn. Destination only — the nav app
   // uses the phone's live GPS as the start. We pass destination, not our route
   // geometry (deep links can't carry a full path), so the nav app routes its own way.
-  const navBtns = lastDest ? `<div class="ro-listhead">นำทางต่อด้วย</div>
+  const navBtns = lastDest ? `<div class="ro-listhead">${t("navWith")}</div>
     <div class="nav-row">
       <a class="nav-btn g" href="https://www.google.com/maps/dir/?api=1&destination=${lastDest.lat},${lastDest.lng}&travelmode=driving" target="_blank" rel="noopener">Google Maps ↗</a>
       <a class="nav-btn a" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">Apple Maps ↗</a>
     </div>` : "";
 
-  sum.innerHTML = `<h3>เลือกเส้นทาง <span style="font-weight:400;color:var(--muted);font-size:11.5px">· เรียงตามเวลาเดินทาง</span></h3>
+  sum.innerHTML = `<h3>${t("chooseRoute")} <span style="font-weight:400;color:var(--muted);font-size:11.5px">· ${t("byTime")}</span></h3>
     ${opts}
-    <div class="ro-listhead">สิ่งที่อยู่บนเส้นทางที่ ${selRoute + 1}</div>
+    <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>
     ${list}
     ${navBtns}`;
 }
@@ -718,7 +795,7 @@ function openSheet() {
   $("sheet").classList.add("open");
   if (!pickMap) {
     pickMap = L.map("pickMap", { zoomControl: false }).setView(userLoc || DEFAULT_LOC, 16);
-    L.tileLayer(tileURL, tileOpts).addTo(pickMap);
+    addBasemap(pickMap);
   } else {
     pickMap.setView(userLoc || DEFAULT_LOC, 16);
   }
@@ -735,19 +812,19 @@ async function submitReport() {
   const js = await res.json();
   closeSheet();
   $("labelInput").value = "";
-  toast(js.merged ? "มีคนรายงานจุดนี้แล้ว — นับเป็นการยืนยัน ✓" : "ส่งรายงานแล้ว ขอบคุณ! 🙏");
+  toast(js.merged ? t("merged") : t("sent"));
   loadCheckpoints();
 }
 
 function toast(msg) {
-  const t = $("toast");
-  t.textContent = msg; t.style.display = "block";
-  clearTimeout(t._h);
-  t._h = setTimeout(() => t.style.display = "none", 2600);
+  const el = $("toast");
+  el.textContent = msg; el.style.display = "block";
+  clearTimeout(el._h);
+  el._h = setTimeout(() => el.style.display = "none", 2600);
 }
 
 function switchTab(name) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + name));
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x.id === "tab-" + name));
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   $("fab").style.display = name === "route" ? "none" : "flex";
   setTimeout(() => {
@@ -756,17 +833,16 @@ function switchTab(name) {
   }, 60);
 }
 
-$("typeChips").innerHTML = TYPES.map(t =>
-  `<button class="chip ${t===selType?"sel":""}" onclick="pickType(this,'${t}')">${t}</button>`).join("");
-function pickType(el, t) {
-  selType = t;
-  document.querySelectorAll(".chip").forEach(c => c.classList.remove("sel"));
-  el.classList.add("sel");
+function renderChips() {
+  $("typeChips").innerHTML = TYPE_KEYS.map((k, i) =>
+    `<button class="chip ${k === selType ? "sel" : ""}" onclick="pickType(${i})">${esc(typeName(k))}</button>`).join("");
 }
+function pickType(i) { selType = TYPE_KEYS[i]; renderChips(); }
 $("routeBtn").onclick = () => { destLatLng = null; buildRoute(); };
 $("destInput").addEventListener("keydown", e => { if (e.key === "Enter") { destLatLng = null; buildRoute(); } });
 
 initMaps();
+applyLang();
 locate();
 loadCheckpoints();
 setInterval(loadCheckpoints, 60000);

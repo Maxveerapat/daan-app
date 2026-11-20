@@ -118,13 +118,12 @@
   /* ---- persistent bottom panel ---- */
   #panel {
     position: absolute; left: var(--panel-gap); right: var(--panel-gap); bottom: calc(env(safe-area-inset-bottom) + var(--panel-gap)); z-index: 1000;
-    height: 44%; display: flex; flex-direction: column;
+    height: var(--collapsed, 210px); display: flex; flex-direction: column;
     background: var(--sheet); border-radius: 34px; border: 1px solid var(--line);
     box-shadow: 0 -6px 30px rgba(0,0,0,.35); transition: height .32s cubic-bezier(.32,.72,0,1);
   }
   #panel.full { height: calc(100% - env(safe-area-inset-top) - 76px); }
-  #panel.mini { height: 172px; }
-  #panel.fit { height: auto; max-height: 60%; }
+
   /* Not full: content drags the panel (no scrolling, no browser overscroll). Full: content scrolls. */
   #panel .pv { overscroll-behavior: contain; }
   #panel:not(.full) .pv { touch-action: none; overflow: hidden; }
@@ -134,7 +133,7 @@
   #panel.tint-inc { background: radial-gradient(120% 60% at 0% 0%, rgba(255,200,60,.14), transparent 60%), var(--sheet); }
   .grab { padding: 8px 0 2px; touch-action: none; cursor: grab; flex-shrink: 0; }
   .grabber { width: 40px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.22); margin: 0 auto; }
-  .pv { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 18px 12px; display: none; }
+  .pv { position: relative; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 18px 12px; display: none; }
   .pv.on { display: block; }
 
   .p-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
@@ -343,7 +342,7 @@
   @media (min-width: 700px) {
     body { max-width: none; }
     #panel:not(.full) .pv { touch-action: auto; overflow-y: auto; }
-    #panel, #panel.full, #panel.mini, #panel.fit {
+    #panel, #panel.full {
       left: 12px; right: auto; top: calc(env(safe-area-inset-top) + 12px); bottom: calc(env(safe-area-inset-bottom) + 12px);
       width: min(420px, 42vw); height: auto; max-height: none; border-radius: 30px;
     }
@@ -876,18 +875,36 @@ function renderFeed() {
     if (staleOpen) html += stale.map(x => rowHtml(x.cp, x.dist)).join("");
   }
   $("feedScroll").innerHTML = html;
+  if (panelView === "near") updateCollapsed();
 }
 
 /* ---------- bottom panel: views (near / detail / route) and heights (mini / peek / full) ---------- */
-let panelView = "near", prevView = "near", prevPanelState = "peek";
-function panelState() { const p = $("panel"); return p.classList.contains("full") ? "full" : p.classList.contains("mini") ? "mini" : p.classList.contains("fit") ? "fit" : "peek"; }
+let panelView = "near", prevView = "near", prevPanelState = "collapsed";
+// Two states only: "collapsed" (default) and "full". Collapsed height is measured per view so it
+// ends right below the useful header: Nearby → the filter; Route → the first route option.
+function panelState() { return $("panel").classList.contains("full") ? "full" : "collapsed"; }
+function updateCollapsed() {
+  const p = $("panel"), pv = $("pv-" + panelView);
+  if (!pv || panelView === "detail") return;
+  let anchor = panelView === "near" ? $("catbar")
+    : (document.querySelector("#routeSummary .route-opt") || $("routeSummary").lastElementChild);
+  if (!anchor) return;
+  const grab = $("panelDrag").offsetHeight, nav = p.querySelector("nav");
+  const navH = nav.offsetHeight + parseFloat(getComputedStyle(nav).marginTop) + parseFloat(getComputedStyle(nav).marginBottom);
+  const padTop = parseFloat(getComputedStyle(pv).paddingTop);
+  const h = Math.round(grab + padTop + anchor.offsetTop + anchor.offsetHeight + 12 + navH + 2);
+  p.style.setProperty("--collapsed", Math.min(h, window.innerHeight * 0.6) + "px");
+}
 function setPanel(st) {
-  const p = $("panel"); p.classList.remove("full", "mini", "fit"); if (st !== "peek") p.classList.add(st);
+  st = st === "full" ? "full" : "collapsed";
+  const p = $("panel"); p.classList.toggle("full", st === "full");
+  updateCollapsed();
   document.body.classList.toggle("panel-full", st === "full");
 }
 function showView(v) {
   panelView = v;
   ["near", "detail", "route"].forEach(x => $("pv-" + x).classList.toggle("on", x === v));
+  updateCollapsed();
   if (v !== "detail") $("panel").classList.remove("tint-cp", "tint-inc");
 }
 // Foldables unfolded / tablets: two-pane layout (panel on the left, map on the right).
@@ -953,9 +970,9 @@ function renderRouteEmpty() {
     const dy = e.clientY - y0; y0 = null;
     p.classList.remove("dragging"); p.style.height = "";
     const st = panelState();
-    if (!moved) return setPanel(st === "full" ? "peek" : "full");
-    if (dy < -40) setPanel(st === "mini" || st === "fit" ? "peek" : "full");
-    else if (dy > 40) setPanel(st === "full" ? "peek" : st === "fit" ? "fit" : "mini");
+    if (!moved) return setPanel(st === "full" ? "collapsed" : "full");
+    if (dy < -40) setPanel("full");
+    else if (dy > 40) setPanel("collapsed");
   };
   zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
 })();
@@ -1097,7 +1114,7 @@ async function buildRoute() {
   destLatLng = null;
   drawRoutes();
   renderRouteSummary();
-  showView("route"); setPanel("peek");
+  showView("route"); setPanel("collapsed");
   setTimeout(() => {
     routeMap.invalidateSize();
     const b = L.latLngBounds(routeData.flatMap(r => r.coords));
@@ -1111,7 +1128,7 @@ function closeRoute() {
   routeData = []; selRoute = 0; lastDest = null; destLatLng = null;
   routeLines.clearLayers();
   if (destMarker) { destMarker.remove(); destMarker = null; }
-  renderRouteEmpty(); setPanel("fit");
+  renderRouteEmpty(); setPanel("collapsed");
   $("destInput").value = ""; $("clearBtn").style.display = "none"; suggestions = []; closeSuggest();
   renderRouteCps();
   if (userLoc) routeMap.setView(userLoc, 12);
@@ -1194,6 +1211,7 @@ function renderRouteSummary() {
     <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>
     ${list}
     ${navBtns}`;
+  if (panelView === "route") updateCollapsed();
 }
 
 /* ---------- report sheet ----------
@@ -1441,10 +1459,10 @@ function switchTab(name) {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x.id === "tab-" + name));
   document.querySelectorAll("#panel nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   selectedId = null;
-  if (name === "map") { showView("near"); setPanel("peek"); }
+  if (name === "map") { showView("near"); setPanel("collapsed"); }
   if (name === "route") {
     showView("route");
-    if (routeData.length) { renderRouteSummary(); setPanel("peek"); } else { renderRouteEmpty(); setPanel("fit"); }
+    if (routeData.length) { renderRouteSummary(); setPanel("collapsed"); } else { renderRouteEmpty(); setPanel("collapsed"); }
   }
   setTimeout(() => {
     if (name === "map") map.invalidateSize();
@@ -1519,8 +1537,8 @@ const panelDragOpts = {
   end: (dy, v) => {
     const p = $("panel"); p.classList.remove("dragging"); p.style.height = "";
     const st = panelState();
-    if (dy < -40 || v < -0.5) setPanel(st === "mini" || st === "fit" ? "peek" : "full");
-    else if (dy > 40 || v > 0.5) setPanel(st === "full" ? "peek" : st === "fit" ? "fit" : "mini");
+    if (dy < -40 || v < -0.5) setPanel("full");
+    else if (dy > 40 || v > 0.5) setPanel("collapsed");
   },
 };
 document.querySelectorAll("#panel .pv").forEach(el => contentDrag(el, panelDragOpts));

@@ -143,6 +143,11 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Legend + category encoding** (owner wanted both back after the JodNai redesign): pin STYLE = category
   (🛡 shield = checkpoint; yellow border + ⚠ = incident), dot COLOUR = recency (red <1h, orange 1–3h,
   grey >3h, stale pins faded). Legend card on both maps; list rows show a category tag + recency dot.
+- Legend now lives in the panel: recency dots beside the title, category icons inside the filter segments
+  (filter = category legend), one-line legend in the route panel. Language button moved to the brand pill.
+- **Foldables / tablets (≥700px wide):** two-pane layout — panel becomes a full-height left pane
+  (`min(420px, 42vw)`), map on the right, report sheet as centred dialog; map focus/fitBounds offset by
+  the pane width (`isWide()`). Below zoom 13 pins collapse to dots (`COMPACT_BELOW_ZOOM`) to avoid pile-ups.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

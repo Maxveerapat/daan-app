@@ -77,19 +77,19 @@
     border: 1px solid rgba(160,180,255,.22); box-shadow: 0 6px 20px rgba(0,0,0,.35);
   }
   #panel.full .mapctl { display: none; }
-  body.panel-full .legend { display: none; }
   .mapctl button { width: 52px; height: 52px; border: none; background: none; display: flex; align-items: center; justify-content: center; color: #fff; }
   .mapctl button + button { border-top: 1px solid rgba(255,255,255,.14); }
   .mapctl svg { width: 22px; height: 22px; }
 
-  /* ---- legend ---- */
-  .legend {
-    position: absolute; left: 12px; top: calc(env(safe-area-inset-top) + 72px); z-index: 800;
-    display: flex; flex-direction: column; gap: 7px; padding: 9px 11px; border-radius: 18px;
-    background: var(--glass); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid var(--line-2); font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.3);
-  }
-  .lg-row { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
+  /* ---- legend (inside the panel) ---- */
+  .rec-legend { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; font-size: 12.5px; color: #C9CCD3; }
+  .rec-legend > span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .rec-legend i { width: 9px; height: 9px; border-radius: 50%; }
+  .leg-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -2px 0 12px; font-size: 12px; }
+  .seg-ic { display: inline-flex; width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
+  .seg-ic svg { width: 100%; height: 100%; }
+  .seg-ic.cp { color: #FF8A7E; } .seg-ic.inc { color: var(--yellow); }
+  .brand #langBtn { margin-left: 4px; height: 30px; padding: 0 11px; border-radius: 999px; border: none; background: rgba(255,255,255,.12); font-size: 12.5px; font-weight: 700; }
   .lg-i { display: flex; align-items: center; gap: 5px; color: #D7DAE4; }
   .lg-i i { width: 9px; height: 9px; border-radius: 50%; }
   .mk-s { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 6px; border-radius: 999px; background: #1E1F23; font-weight: 700; font-size: 12px; border: 1.5px solid rgba(255,255,255,.16); }
@@ -111,6 +111,9 @@
   .mk.stale { opacity: .6; }
   .mk.big, .mk.sel { border-color: #fff; transform: translate(-50%, -50%) scale(1.08); z-index: 2; }
   .mk.ghost { opacity: .45; }
+  .mk.dot { padding: 0; width: 18px; height: 18px; justify-content: center; border-width: 2px; }
+  .mk.dot i { width: 8px; height: 8px; }
+  .mk.dot.inc { border-radius: 4px; transform: translate(-50%, -50%) rotate(45deg); }
 
   /* ---- persistent bottom panel ---- */
   #panel {
@@ -120,7 +123,7 @@
     box-shadow: 0 -6px 30px rgba(0,0,0,.35); transition: height .32s cubic-bezier(.32,.72,0,1);
   }
   #panel.full { height: calc(100% - env(safe-area-inset-top) - 76px); }
-  #panel.mini { height: 196px; }
+  #panel.mini { height: auto; max-height: 60%; }
   #panel.dragging { transition: none; }
   #panel.tint-cp { background: radial-gradient(120% 60% at 0% 0%, rgba(255,90,78,.16), transparent 60%), var(--sheet); }
   #panel.tint-inc { background: radial-gradient(120% 60% at 0% 0%, rgba(255,200,60,.14), transparent 60%), var(--sheet); }
@@ -129,7 +132,8 @@
   .pv { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 18px 12px; display: none; }
   .pv.on { display: block; }
 
-  .p-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 12px; }
+  .p-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 12px; }
+  .p-head > div:first-child { min-width: 0; }
   .p-head h2 { font-size: 27px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; }
   .p-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
   .ibtns { display: flex; gap: 8px; flex-shrink: 0; }
@@ -330,6 +334,25 @@
 
   #toast { position: absolute; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 72px); z-index: 1400; display: none; width: max-content; max-width: calc(100% - 32px); text-align: center; color: #fff; font-size: 14.5px; font-weight: 500; padding: 13px 20px; border-radius: 999px; background: rgba(40,44,58,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid var(--line-2); box-shadow: 0 8px 26px rgba(0,0,0,.4); }
 
+  /* ===== Wide screens: unfolded foldables, tablets, desktop ===== */
+  @media (min-width: 700px) {
+    body { max-width: none; }
+    #panel, #panel.full, #panel.mini {
+      left: 12px; right: auto; top: calc(env(safe-area-inset-top) + 12px); bottom: calc(env(safe-area-inset-bottom) + 12px);
+      width: min(420px, 42vw); height: auto; max-height: none; border-radius: 30px;
+    }
+    .grab { display: none; }
+    .pv { padding-top: 20px; }
+    #panel .mapctl, #panel.full .mapctl { display: flex; position: fixed; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 20px); top: auto; }
+    .brand { left: calc(min(420px, 42vw) + 28px); }
+    #routePanel { left: calc(min(420px, 42vw) + 28px); right: 16px; max-width: 620px; }
+    #toast { left: calc(50% + min(420px, 42vw) / 2 + 6px); }
+    #sheet { align-items: center; justify-content: center; padding: 24px; }
+    #sheetBody { max-width: 560px; max-height: calc(100% - 48px); }
+    #pickWrap { height: clamp(220px, calc(100dvh - 520px), 440px); }
+    #camWrap { height: clamp(260px, calc(100dvh - 420px), 520px); }
+  }
+
   @keyframes sheetUp { from { transform: translateY(105%); } to { transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   #sheet.open { animation: fadeIn .18s ease; }
@@ -342,7 +365,7 @@
 <main>
   <div class="tab active" id="tab-map">
     <div id="map"></div>
-    <div class="brand"><i>ด</i><span>ด่าน</span></div>
+    <div class="brand"><i>ด</i><span>ด่าน</span><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
   </div>
 
   <div class="tab" id="tab-route">
@@ -361,19 +384,6 @@
     <div id="routeMap"></div>
   </div>
 
-  <!-- Legend: pin style = category, dot colour = how recent -->
-  <div class="legend" id="legend">
-    <div class="lg-row">
-      <span class="mk-s cp"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/></svg></span><span data-i18n="c_checkpoint"></span></span>
-      <span class="mk-s inc"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg></span><span data-i18n="c_incident"></span></span>
-    </div>
-    <div class="lg-row">
-      <span class="lg-i"><i style="background:var(--fresh)"></i><span data-i18n="legFresh"></span></span>
-      <span class="lg-i"><i style="background:var(--aging)"></i><span data-i18n="legAging"></span></span>
-      <span class="lg-i"><i style="background:var(--stale)"></i><span data-i18n="legStale"></span></span>
-    </div>
-  </div>
-
   <!-- Persistent bottom panel: nearby list / report detail / route options + tab bar -->
   <section id="panel">
     <div class="mapctl"><button onclick="recenter()" aria-label="My location"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></button></div>
@@ -381,7 +391,11 @@
     <div class="pv on" id="pv-near">
       <div class="p-head">
         <div><h2 id="nearTitle"></h2><div class="p-sub" id="locBadge"></div></div>
-        <div class="ibtns"><button class="ibtn" id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
+        <div class="rec-legend">
+          <span><i style="background:var(--fresh)"></i><span data-i18n="legFresh"></span></span>
+          <span><i style="background:var(--aging)"></i><span data-i18n="legAging"></span></span>
+          <span><i style="background:var(--stale)"></i><span data-i18n="legStale"></span></span>
+        </div>
       </div>
       <div class="seg" id="catbar"></div>
       <div id="feedScroll" class="rows"></div>
@@ -453,7 +467,7 @@ const I18N = {
   th: {
     title: "ด่าน — ด่านตรวจและเหตุบนถนน",
     locating: "กำลังหาตำแหน่ง…", locReal: "รอบตำแหน่งปัจจุบันของคุณ", locDemo: "รอบอนุสาวรีย์ชัยฯ (ตำแหน่งตัวอย่าง)",
-    legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.",
+    legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.", legFreshS: "<1 ชม.", legAgingS: "1–3 ชม.", legStaleS: ">3 ชม.",
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
     legIncident: "เหตุ", c_all: "ทั้งหมด", c_checkpoint: "ด่านตรวจ", c_incident: "เหตุบนถนน",
     incN: n => `เหตุ ${n} จุด`, tagCheckpoint: "ด่าน", tagIncident: "เหตุบนถนน",
@@ -501,7 +515,7 @@ const I18N = {
   en: {
     title: "Daan — checkpoints & road incidents",
     locating: "Locating…", locReal: "Around your current location", locDemo: "Around Victory Monument (demo location)",
-    legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs",
+    legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs", legFreshS: "<1 hr", legAgingS: "1–3 hrs", legStaleS: ">3 hrs",
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
     legIncident: "Incident", c_all: "All", c_checkpoint: "Checkpoints", c_incident: "Incidents",
     incN: n => `${n} incident${n === 1 ? "" : "s"}`, tagCheckpoint: "Checkpoint", tagIncident: "Incident",
@@ -547,6 +561,8 @@ const I18N = {
     liveTraffic: "with live traffic", noTraffic: "without traffic", delay: m => `+${m} min traffic`, toll: "Tollway", noToll: "No tollway",
   },
 };
+const PIN_SHIELD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/></svg>';
+const PIN_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg>';
 // Report types: stable codes stored in the DB; th/en are display names.
 // Thai names follow police/news usage (e.g. "ตรวจวัดแอลกอฮอล์", not slang "เช็คลมปาก") and
 // Royal Institute spelling (หมวกกันน็อก). cat: category; g: photo-check group in clip_labels.json.
@@ -577,7 +593,16 @@ let catFilter = "all", reportCat = "checkpoint";
 function catShown(cp) { return catFilter === "all" || catOf(cp) === catFilter; }
 function setCat(c) { catFilter = c; renderCatBars(); renderMap(); renderFeed(); renderRouteCps(); }
 function catButtons(cur, fn) {
-  return ["all", "checkpoint", "incident"].map(c => `<button class="${cur === c ? "on" : ""}" onclick="${fn}('${c}')">${t("c_" + c)}</button>`).join("");
+  const ic = { all: "", checkpoint: `<span class="seg-ic cp">${PIN_SHIELD}</span>`, incident: `<span class="seg-ic inc">${PIN_WARN}</span>` };
+  return ["all", "checkpoint", "incident"].map(c => `<button class="${cur === c ? "on" : ""}" onclick="${fn}('${c}')">${ic[c]}${t("c_" + c)}</button>`).join("");
+}
+// One-line legend (used in the route panel): category pin styles + recency dots.
+function legendInline() {
+  return `<div class="leg-line"><span class="mk-s cp"><span class="ic">${PIN_SHIELD}</span>${t("tagCheckpoint")}</span>
+    <span class="mk-s inc"><span class="ic">${PIN_WARN}</span>${t("tagIncident")}</span>
+    <span class="lg-i"><i style="background:var(--fresh)"></i>${t("legFreshS")}</span>
+    <span class="lg-i"><i style="background:var(--aging)"></i>${t("legAgingS")}</span>
+    <span class="lg-i"><i style="background:var(--stale)"></i>${t("legStaleS")}</span></div>`;
 }
 function renderCatBars() { $("catbar").innerHTML = catButtons(catFilter, "setCat"); }
 function labelName(l) { return l === "ไม่ระบุตำแหน่ง" ? t("noLabel") : l; }
@@ -681,6 +706,8 @@ function initMaps() {
   mapLayer.addTo(map);
 
   routeMap = L.map("routeMap", { zoomControl: false }).setView(DEFAULT_LOC, 12);
+  map.on("zoomend", () => renderMap());
+  routeMap.on("zoomend", () => renderRouteCps());
   addBasemap(routeMap);
   routeLines.addTo(routeMap);
   routeCpLayer.addTo(routeMap);
@@ -734,13 +761,17 @@ function distText(m) { return m < 1000 ? `${Math.round(m)} ${t("m")}` : `${(m/10
 
 // Map pins: pill style shows the CATEGORY (shield = checkpoint; yellow border + warning = incident),
 // the dot shows RECENCY (red <1h, orange 1–3h, grey >3h). Same encoding as the legend.
-const PIN_SHIELD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/></svg>';
-const PIN_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg>';
 function pinColor(cp) {
   return cp.age_minutes <= 60 ? "var(--fresh)" : cp.age_minutes <= 180 ? "var(--aging)" : "var(--stale)";
 }
-function makeMarker(cp, big = false) {
+const COMPACT_BELOW_ZOOM = 13; // below this, pins shrink to dots so they don't pile up
+function makeMarker(cp, big = false, onMap = map) {
   const inc = catOf(cp) === "incident";
+  if (onMap.getZoom() < COMPACT_BELOW_ZOOM && !big && cp.id !== selectedId) {
+    const icon = L.divIcon({ className: "mk-wrap", iconSize: [0, 0],
+      html: `<div class="mk dot ${inc ? "inc" : "cp"} ${cp.age_minutes > 180 ? "stale" : ""}"><i style="background:${pinColor(cp)}"></i></div>` });
+    return L.marker([cp.lat, cp.lng], { icon, zIndexOffset: cp.age_minutes <= 60 ? 500 : 0 }).on("click", () => openDetail(cp.id));
+  }
   const cls = ["mk", inc ? "inc" : "cp", cp.age_minutes > 180 ? "stale" : "", big || cp.id === selectedId ? "sel" : ""].join(" ");
   const icon = L.divIcon({ className: "mk-wrap", iconSize: [0, 0],
     html: `<div class="${cls}"><span class="ic">${inc ? PIN_WARN : PIN_SHIELD}</span>${esc(shortName(cp.type))}<i style="background:${pinColor(cp)}"></i></div>` });
@@ -853,6 +884,10 @@ function showView(v) {
   ["near", "detail", "route"].forEach(x => $("pv-" + x).classList.toggle("on", x === v));
   if (v !== "detail") $("panel").classList.remove("tint-cp", "tint-inc");
 }
+// Foldables unfolded / tablets: two-pane layout (panel on the left, map on the right).
+const WIDE_MQ = window.matchMedia("(min-width: 700px)");
+function isWide() { return WIDE_MQ.matches; }
+WIDE_MQ.addEventListener("change", () => setTimeout(() => { map.invalidateSize(); routeMap.invalidateSize(); }, 50));
 function activeMap() { return $("tab-route").classList.contains("active") ? routeMap : map; }
 function recenter() { activeMap().setView(userLoc || DEFAULT_LOC, 15); }
 
@@ -884,6 +919,7 @@ function openDetail(id) {
   setPanel("full");
   const m = activeMap();
   m.setView([cp.lat, cp.lng], Math.max(m.getZoom(), 15), { animate: false });
+  if (isWide()) m.panBy([-($("panel").offsetWidth + 12) / 2, 0], { animate: false });
   renderMap(); renderRouteCps();
   $("pv-detail").scrollTop = 0;
 }
@@ -893,7 +929,7 @@ function closeDetail() {
   renderMap(); renderRouteCps();
 }
 function renderRouteEmpty() {
-  $("routeSummary").innerHTML = `<div class="p-head"><div><h2>${t("routeTitle")}</h2><div class="p-sub">${t("routeHint")}</div></div></div>`;
+  $("routeSummary").innerHTML = `<div class="p-head"><div><h2>${t("routeTitle")}</h2><div class="p-sub">${t("routeHint")}</div></div></div>${legendInline()}`;
 }
 
 // Drag the grabber: up = expand, down = shrink; tap toggles peek/full.
@@ -1059,7 +1095,9 @@ async function buildRoute() {
   setTimeout(() => {
     routeMap.invalidateSize();
     const b = L.latLngBounds(routeData.flatMap(r => r.coords));
-    routeMap.fitBounds(b, { paddingTopLeft: [30, 90], paddingBottomRight: [30, $("panel").offsetHeight + 30] });
+    routeMap.fitBounds(b, isWide()
+      ? { paddingTopLeft: [$("panel").offsetWidth + 40, 90], paddingBottomRight: [40, 40] }
+      : { paddingTopLeft: [30, 90], paddingBottomRight: [30, $("panel").offsetHeight + 30] });
   }, 380);
 }
 
@@ -1093,7 +1131,7 @@ function renderRouteCps() {
   routeCpLayer.clearLayers();
   const onSel = new Set(routeData.length ? routeData[selRoute].hits.map(h => h.cp.id) : []);
   checkpoints.filter(cp => catShown(cp) || onSel.has(cp.id)).forEach(cp => {
-    makeMarker(cp, onSel.has(cp.id)).addTo(routeCpLayer);
+    makeMarker(cp, onSel.has(cp.id), routeMap).addTo(routeCpLayer);
   });
 }
 
@@ -1138,12 +1176,13 @@ function renderRouteSummary() {
   const navBtns = lastDest ? `<div class="ro-listhead">${t("navWith")}</div>
     <div class="nav-note">${cpStops.length ? t("navNoteStops", cpStops.length) : t("navNote")}</div>
     <div class="nav-row">
-      <a class="cta" href="https://www.google.com/maps/dir/?api=1&destination=${lastDest.lat},${lastDest.lng}${gWaypoints}&travelmode=driving" target="_blank" rel="noopener">Google Maps ↗</a>
-      <a class="btn-outline" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">Apple Maps ↗</a>
+      <a class="cta" href="https://www.google.com/maps/dir/?api=1&destination=${lastDest.lat},${lastDest.lng}${gWaypoints}&travelmode=driving" target="_blank" rel="noopener">${ICON_GO}${t("openG")}</a>
+      <a class="btn-outline" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">${t("openA")}</a>
     </div>` : "";
 
   sum.innerHTML = `<div class="p-head"><div><h2>${t("chooseRoute")}</h2><div class="p-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>
       <button class="ibtn" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div>
+    ${legendInline()}
     ${filterBar}
     ${opts}
     <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>

@@ -116,6 +116,10 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   checkpoint and incident counts per route, category switch in the report sheet.
 - Photo check now has label groups per type (`static/clip_labels.json`: labels, groups, embeds) —
   pass rule `1-P(neg) >= 0.5 && P(type) >= 0.15`, auto-detect type at `P >= 0.6`.
+- **Google Maps handoff adds the selected route's CHECKPOINTS as stops** (`waypoints=`, driving order,
+  max 3 = mobile URL limit). Incidents are never sent as stops; a route with 0 checkpoints sends the
+  destination only. Apple Maps URLs can't carry stops → destination only. Agreed compromise after
+  exact-route transfer was declined: stops can only make navigation pass checkpoints, not avoid them.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

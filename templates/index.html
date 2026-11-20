@@ -487,6 +487,7 @@ const I18N = {
     photoRejected: "รูปนี้ดูไม่เหมือนด่าน — ถ่ายใหม่ให้เห็นด่านชัด ๆ", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
     closeRoute: "ปิดเส้นทาง", f_all: "ทั้งหมด", f_toll: "ขึ้นทางด่วน", f_noToll: "ไม่ขึ้นทางด่วน",
     noRouteFilter: "ไม่มีเส้นทางแบบนี้ — ลองตัวกรองอื่น", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
+    navNoteStops: n => `Google Maps: ใส่ด่าน ${n} จุดบนเส้นทางนี้เป็นจุดแวะ (เสียงนำทางจะแจ้งเมื่อถึงแต่ละจุด) · Apple Maps: ส่งเฉพาะปลายทาง`,
     typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "เช่น หน้าโลตัส พระราม 2",
     cancel: "ยกเลิก", submit: "ส่งรายงาน",
     justNow: "เมื่อสักครู่", minAgo: m => `${m} นาทีที่แล้ว`,
@@ -527,6 +528,7 @@ const I18N = {
     photoRejected: "This photo doesn't look like a checkpoint — retake it so the checkpoint is visible", sendErr: "Couldn't send the report — try again",
     closeRoute: "Close route", f_all: "All", f_toll: "Tollway", f_noToll: "No tollway",
     noRouteFilter: "No routes of this kind — try another filter", navNote: "The navigation app picks its own route using live traffic",
+    navNoteStops: n => `Google Maps: ${n === 1 ? "the checkpoint on this route is added as a stop" : `the ${n} checkpoints on this route are added as stops`} (voice will announce each one) · Apple Maps: destination only`,
     typeLabel: "Type", placeLabel: "Place (optional)", placePh: "e.g. in front of Lotus, Rama 2",
     cancel: "Cancel", submit: "Send report",
     justNow: "just now", minAgo: m => `${m} min ago`,
@@ -617,6 +619,7 @@ let selType = TYPE_KEYS[0];
 let map, routeMap, pickMap;
 let mapLayer = L.layerGroup(), routeCpLayer = L.layerGroup(), routeLines = L.layerGroup(), destMarker = null, userMarkers = [];
 let destLatLng = null;
+const MAX_NAV_STOPS = 3;
 let routeData = [], selRoute = 0, lastDest = null, routeTraffic = false, tollFilter = "all";
 function routeMatches(r) { return tollFilter === "all" || (tollFilter === "toll" ? r.toll === true : r.toll === false); }
 function setTollFilter(k) { tollFilter = k; renderRouteSummary(); drawRoutes(); }
@@ -1033,13 +1036,18 @@ function renderRouteSummary() {
         </div>`).join("")
     : `<div class="route-hit" style="color:var(--muted)">${t("noCpOnRoute")}</div>`;
 
-  // Hand off to Google/Apple Maps for turn-by-turn. Destination only — the nav app
-  // uses the phone's live GPS as the start. We pass destination, not our route
-  // geometry (deep links can't carry a full path), so the nav app routes its own way.
+  // Hand off to Google/Apple Maps for turn-by-turn; the nav app starts from live GPS.
+  // Google: the CHECKPOINTS on the selected route (never incidents) are added as stops, in
+  // driving order, so navigation passes through them. Max 3 — the mobile-app limit for URL
+  // stops. A route with no checkpoints sends the destination only and Google picks its own way.
+  // Apple Maps URLs don't support stops, so Apple always gets the destination only.
+  const cpStops = sel.hits.filter(h => catOf(h.cp) === "checkpoint").slice(0, MAX_NAV_STOPS);
+  const gWaypoints = cpStops.length
+    ? "&waypoints=" + cpStops.map(h => `${h.cp.lat.toFixed(6)},${h.cp.lng.toFixed(6)}`).join("%7C") : "";
   const navBtns = lastDest ? `<div class="ro-listhead">${t("navWith")}</div>
-    <div class="nav-note">${t("navNote")}</div>
+    <div class="nav-note">${cpStops.length ? t("navNoteStops", cpStops.length) : t("navNote")}</div>
     <div class="nav-row">
-      <a class="nav-btn g" href="https://www.google.com/maps/dir/?api=1&destination=${lastDest.lat},${lastDest.lng}&travelmode=driving" target="_blank" rel="noopener">Google Maps ↗</a>
+      <a class="nav-btn g" href="https://www.google.com/maps/dir/?api=1&destination=${lastDest.lat},${lastDest.lng}${gWaypoints}&travelmode=driving" target="_blank" rel="noopener">Google Maps ↗</a>
       <a class="nav-btn a" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">Apple Maps ↗</a>
     </div>` : "";
 

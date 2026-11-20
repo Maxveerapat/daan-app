@@ -110,11 +110,43 @@
     position: absolute; top: calc(var(--topbar) + 10px); left: 14px; right: 14px; z-index: 1000;
   }
   #routePanel .row { display: flex; gap: 8px; }
-  #destInput {
-    flex: 1; font-size: 15px; padding: 12px 15px; border: 1px solid var(--hair);
-    border-radius: 13px; font-family: inherit; color: var(--text);
+  .search-wrap {
+    flex: 1; position: relative; display: flex; align-items: center; min-width: 0;
+    border: 1px solid var(--hair); border-radius: 13px;
     background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   }
+  .s-ico { width: 17px; height: 17px; color: var(--muted); margin-left: 12px; flex-shrink: 0; }
+  #destInput {
+    flex: 1; min-width: 0; font-size: 16px; padding: 12px 8px; border: none; outline: none;
+    font-family: inherit; color: var(--text); background: transparent;
+  }
+  #clearBtn {
+    display: none; border: none; background: rgba(255,255,255,.14); color: var(--text);
+    width: 22px; height: 22px; border-radius: 50%; font-size: 11px; margin-right: 10px; flex-shrink: 0;
+  }
+  #suggest {
+    display: none; margin-top: 8px; max-height: 55vh; overflow-y: auto;
+    background: rgba(28,29,34,.97); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--hair); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  #suggest.open { display: block; }
+  .sg {
+    display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer;
+    border-bottom: 1px solid var(--hair);
+  }
+  .sg:last-child { border-bottom: none; }
+  .sg:active, .sg.hi { background: rgba(255,255,255,.07); }
+  .sg-pin {
+    width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.1); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; color: var(--muted);
+  }
+  .sg-pin svg { width: 15px; height: 15px; }
+  .sg-txt { flex: 1; min-width: 0; }
+  .sg-name { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sg-addr { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .sg-dist { font-size: 11.5px; color: var(--muted); flex-shrink: 0; }
+  .sg-empty { padding: 14px; font-size: 13px; color: var(--muted); text-align: center; }
+  .delay { color: var(--amber); font-weight: 600; }
   #destInput::placeholder { color: var(--muted); }
   #routeBtn {
     background: var(--accent); color: #fff; border: none; border-radius: 13px;
@@ -287,9 +319,14 @@
   <div class="tab" id="tab-route">
     <div id="routePanel">
       <div class="row">
-        <input id="destInput" data-i18n-ph="destPh" autocomplete="off">
+        <div class="search-wrap">
+          <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="destInput" data-i18n-ph="destPh" autocomplete="off" enterkeyhint="search">
+          <button id="clearBtn" aria-label="Clear" onclick="clearSearch()">✕</button>
+        </div>
         <button id="routeBtn" data-i18n="routeBtn"></button>
       </div>
+      <div id="suggest"></div>
       <div id="routeHint" data-i18n="routeHint"></div>
     </div>
     <div id="routeMap"></div>
@@ -371,7 +408,8 @@ const I18N = {
     noCpOnRoute: "ไม่มีด่านที่ผู้ใช้แจ้งบนเส้นทางนี้", navWith: "นำทางต่อด้วย",
     chooseRoute: "เลือกเส้นทาง", byTime: "เรียงตามเวลาเดินทาง", onRoute: i => `สิ่งที่อยู่บนเส้นทางที่ ${i}`,
     merged: "มีคนรายงานจุดนี้แล้ว — นับเป็นการยืนยัน ✓", sent: "ส่งรายงานแล้ว ขอบคุณ! 🙏",
-    noLabel: "ไม่ระบุตำแหน่ง", toll: "ทางด่วน/มีค่าผ่านทาง", noToll: "ไม่ขึ้นทางด่วน",
+    noLabel: "ไม่ระบุตำแหน่ง", noResults: "ไม่พบสถานที่ — ลองพิมพ์ชื่ออื่น หรือแตะบนแผนที่", searchFor: q => `ค้นหา “${q}”`,
+    liveTraffic: "รวมสภาพจราจรตอนนี้", noTraffic: "ไม่รวมสภาพจราจร", delay: m => `รถติด +${m} นาที`, toll: "ทางด่วน/มีค่าผ่านทาง", noToll: "ไม่ขึ้นทางด่วน",
   },
   en: {
     title: "Daan — checkpoint alerts",
@@ -400,7 +438,8 @@ const I18N = {
     noCpOnRoute: "No reported checkpoints on this route", navWith: "Navigate with",
     chooseRoute: "Choose a route", byTime: "sorted by travel time", onRoute: i => `On route ${i}`,
     merged: "Already reported here — counted as a confirmation ✓", sent: "Report sent, thank you! 🙏",
-    noLabel: "Unnamed location", toll: "Tollway", noToll: "No tollway",
+    noLabel: "Unnamed location", noResults: "No places found — try another name or tap the map", searchFor: q => `Search for “${q}”`,
+    liveTraffic: "with live traffic", noTraffic: "without traffic", delay: m => `+${m} min traffic`, toll: "Tollway", noToll: "No tollway",
   },
 };
 // Report types are stored in the DB by their Thai name (the key); English is display-only.
@@ -440,6 +479,7 @@ function toggleLang() {
   applyLang();
   renderMap();
   renderFeed();
+  renderRouteCps();
   if (routeData.length) { drawRoutes(); renderRouteSummary(); }
 }
 
@@ -454,7 +494,7 @@ let selType = TYPE_KEYS[0];
 let map, routeMap, pickMap;
 let mapLayer = L.layerGroup(), routeCpLayer = L.layerGroup(), routeLines = L.layerGroup(), destMarker = null, userMarkers = [];
 let destLatLng = null;
-let routeData = [], selRoute = 0, lastDest = null;
+let routeData = [], selRoute = 0, lastDest = null, routeTraffic = false;
 let pinsAnimated = false;
 
 const $ = id => document.getElementById(id);
@@ -523,6 +563,7 @@ function initMaps() {
   routeMap.on("click", e => {
     destLatLng = e.latlng;
     $("destInput").value = t("pinned");
+    $("clearBtn").style.display = "block"; suggestions = []; closeSuggest();
     if (destMarker) destMarker.remove();
     destMarker = L.marker(e.latlng).addTo(routeMap);
     buildRoute();
@@ -577,6 +618,7 @@ async function loadCheckpoints() {
   checkpoints = data.checkpoints.filter(c => c.status !== "cleared");
   renderMap();
   renderFeed();
+  renderRouteCps();
 }
 
 function voteBtns(cp, cls) {
@@ -669,13 +711,70 @@ function distToRoute(cp, coords) {
   return { dist: best, along };
 }
 
-async function geocode(q) {
+/* ---------- place search (Google-Maps-style autocomplete via /api/search) ---------- */
+let suggestions = [], suggestTimer = null, suggestSeq = 0;
+const PIN_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>';
+
+async function searchPlaces(q, final = false) {
   const c = userLoc || DEFAULT_LOC;
-  const vb = `${c[1]-0.4},${c[0]-0.4},${c[1]+0.4},${c[0]+0.4}`;
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=th&viewbox=${vb}&q=${encodeURIComponent(q)}`;
-  const res = await fetch(url, { headers: { "Accept-Language": lang } });
-  const js = await res.json();
-  return js.length ? L.latLng(+js[0].lat, +js[0].lon) : null;
+  const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&lat=${c[0]}&lng=${c[1]}&lang=${lang}${final ? "&final=1" : ""}`);
+  return res.ok ? (await res.json()).results || [] : [];
+}
+function renderSuggest(q, submitted = false) {
+  const el = $("suggest");
+  if (!q || q.length < 2) { el.classList.remove("open"); $("routeHint").style.display = ""; return; }
+  el.innerHTML = suggestions.length
+    ? suggestions.map((r, i) => `<div class="sg" onmousedown="event.preventDefault()" onclick="pickPlace(${i})">
+        <div class="sg-pin">${PIN_SVG}</div>
+        <div class="sg-txt"><div class="sg-name">${esc(r.name)}</div>${r.address ? `<div class="sg-addr">${esc(r.address)}</div>` : ""}</div>
+        ${r.dist_m != null ? `<div class="sg-dist">${distText(r.dist_m)}</div>` : ""}
+      </div>`).join("")
+    : (submitted ? `<div class="sg-empty">${t("noResults")}</div>`
+      : `<div class="sg" onmousedown="event.preventDefault()" onclick="submitSearch()">
+          <div class="sg-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+          <div class="sg-txt"><div class="sg-name">${t("searchFor", esc(q))}</div></div></div>`);
+  el.classList.add("open");
+  $("routeHint").style.display = "none";
+}
+function onSearchInput() {
+  const q = $("destInput").value.trim();
+  $("clearBtn").style.display = q ? "block" : "none";
+  clearTimeout(suggestTimer);
+  if (q.length < 2) { suggestions = []; renderSuggest(""); return; }
+  suggestTimer = setTimeout(async () => {
+    const seq = ++suggestSeq;
+    const res = await searchPlaces(q).catch(() => []);
+    if (seq !== suggestSeq) return; // a newer keystroke won
+    suggestions = res;
+    renderSuggest(q);
+  }, 280);
+}
+function closeSuggest() { $("suggest").classList.remove("open"); $("routeHint").style.display = ""; }
+function pickPlace(i) {
+  const r = suggestions[i]; if (!r) return;
+  $("destInput").value = r.name;
+  $("destInput").blur();
+  closeSuggest();
+  destLatLng = L.latLng(r.lat, r.lng);
+  if (destMarker) destMarker.remove();
+  destMarker = L.marker(destLatLng).addTo(routeMap);
+  buildRoute();
+}
+async function submitSearch() {
+  const q = $("destInput").value.trim();
+  if (!q) return toast(t("needDest"));
+  clearTimeout(suggestTimer);
+  if (!suggestions.length) {
+    const seq = ++suggestSeq;
+    suggestions = await searchPlaces(q, true).catch(() => []);
+    if (seq !== suggestSeq) return;
+  }
+  if (!suggestions.length) { renderSuggest(q, true); return; }
+  pickPlace(0);
+}
+function clearSearch() {
+  $("destInput").value = ""; suggestions = []; closeSuggest();
+  $("clearBtn").style.display = "none"; $("destInput").focus();
 }
 
 // Route options come from our backend (/api/routes), which asks the routing engine for its
@@ -686,23 +785,15 @@ async function fetchRoutes(o, dest) {
   const q = `olat=${o[0]}&olng=${o[1]}&dlat=${dest.lat}&dlng=${dest.lng}`;
   const res = await fetch(`/api/routes?${q}`);
   if (!res.ok) throw new Error("routing");
-  return (await res.json()).routes || [];
+  return await res.json();
 }
 
 async function buildRoute() {
-  if (!destLatLng) {
-    const q = $("destInput").value.trim();
-    if (!q) return toast(t("needDest"));
-    toast(t("searching"));
-    destLatLng = await geocode(q);
-    if (!destLatLng) return toast(t("notFound"));
-    if (destMarker) destMarker.remove();
-    destMarker = L.marker(destLatLng).addTo(routeMap);
-  }
+  if (!destLatLng) return submitSearch();
   const o = userLoc || DEFAULT_LOC;
   toast(t("calcRoute"));
   let raw;
-  try { raw = await fetchRoutes(o, destLatLng); }
+  try { const js = await fetchRoutes(o, destLatLng); raw = js.routes || []; routeTraffic = !!js.traffic; }
   catch { return toast(t("routeErr")); }
   if (!raw.length) return toast(t("noRoute"));
 
@@ -717,7 +808,7 @@ async function buildRoute() {
       if (r.dist <= ROUTE_BUFFER_M) hits.push({ cp, along: r.along });
     });
     hits.sort((a, b) => a.along - b.along);
-    return { coords: rt.coords, hits, km: rt.km, mins: rt.mins, toll: rt.toll };
+    return { coords: rt.coords, hits, km: rt.km, mins: rt.mins, toll: rt.toll, delay: rt.delay_mins || 0 };
   });
   selRoute = 0;
   lastDest = { lat: destLatLng.lat, lng: destLatLng.lng };
@@ -729,7 +820,8 @@ async function buildRoute() {
   setTimeout(() => {
     routeMap.invalidateSize();
     const b = L.latLngBounds(routeData.flatMap(r => r.coords));
-    routeMap.fitBounds(b, { padding: [30, 30] });
+    const sheetH = $("routeSummary").offsetHeight || 0;
+    routeMap.fitBounds(b, { paddingTopLeft: [30, 150], paddingBottomRight: [30, sheetH + 20] });
   }, 250);
 }
 
@@ -745,10 +837,17 @@ function drawRoutes() {
   const sel = routeData[selRoute];
   L.polyline(sel.coords, { color: "#0A84FF", weight: 6, opacity: .95 }).addTo(routeLines);
 
+  renderRouteCps();
+}
+
+// Every checkpoint is always shown on the route map; ones on the selected route are drawn larger.
+function renderRouteCps() {
   routeCpLayer.clearLayers();
-  sel.hits.forEach(h => {
-    L.circleMarker([h.cp.lat, h.cp.lng], { ...styleFor(h.cp), radius: 13, weight: 3 })
-      .bindPopup(popupHtml(h.cp)).addTo(routeCpLayer);
+  const onSel = new Set(routeData.length ? routeData[selRoute].hits.map(h => h.cp.id) : []);
+  checkpoints.forEach(cp => {
+    const st = styleFor(cp);
+    const opts = onSel.has(cp.id) ? { ...st, radius: 13, weight: 3 } : st;
+    L.circleMarker([cp.lat, cp.lng], opts).bindPopup(popupHtml(cp)).addTo(routeCpLayer);
   });
 }
 
@@ -760,7 +859,7 @@ function renderRouteSummary() {
     return `<div class="route-opt ${i === selRoute ? "sel" : ""}" onclick="selRoute=${i};drawRoutes();renderRouteSummary()">
         <div class="ro-main">
           <b>${t("routeN", i + 1)}</b>
-          <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}${r.toll == null ? "" : ` · <span class="toll ${r.toll ? "yes" : "no"}">${t(r.toll ? "toll" : "noToll")}</span>`}</span>
+          <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}${r.delay > 0 ? ` · <span class="delay">${t("delay", r.delay)}</span>` : ""}${r.toll == null ? "" : ` · <span class="toll ${r.toll ? "yes" : "no"}">${t(r.toll ? "toll" : "noToll")}</span>`}</span>
         </div>
         <div class="ro-badges"><span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span></div>
       </div>`;
@@ -783,7 +882,7 @@ function renderRouteSummary() {
       <a class="nav-btn a" href="https://maps.apple.com/?daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">Apple Maps ↗</a>
     </div>` : "";
 
-  sum.innerHTML = `<h3>${t("chooseRoute")} <span style="font-weight:400;color:var(--muted);font-size:11.5px">· ${t("byTime")}</span></h3>
+  sum.innerHTML = `<h3>${t("chooseRoute")} <span style="font-weight:400;color:var(--muted);font-size:11.5px">· ${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</span></h3>
     ${opts}
     <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>
     ${list}
@@ -838,8 +937,11 @@ function renderChips() {
     `<button class="chip ${k === selType ? "sel" : ""}" onclick="pickType(${i})">${esc(typeName(k))}</button>`).join("");
 }
 function pickType(i) { selType = TYPE_KEYS[i]; renderChips(); }
-$("routeBtn").onclick = () => { destLatLng = null; buildRoute(); };
-$("destInput").addEventListener("keydown", e => { if (e.key === "Enter") { destLatLng = null; buildRoute(); } });
+$("routeBtn").onclick = () => { destLatLng = null; submitSearch(); };
+$("destInput").addEventListener("input", () => { destLatLng = null; onSearchInput(); });
+$("destInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); destLatLng = null; submitSearch(); } });
+$("destInput").addEventListener("focus", () => { if ($("destInput").value.trim().length >= 2 && suggestions.length) renderSuggest($("destInput").value.trim()); });
+$("destInput").addEventListener("blur", () => setTimeout(closeSuggest, 150));
 
 initMaps();
 applyLang();

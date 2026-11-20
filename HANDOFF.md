@@ -93,6 +93,11 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Routing moved server-side** (`/api/routes`, key in `ORS_KEY` env var). Returns ORS options with
   tolls allowed + tolls avoided, labeled Tollway/No tollway, **sorted by travel time only**. Owner asked
   for a "no checkpoints" route option — declined per §7; the toll/no-toll split was the agreed alternative.
+- **TomTom** is now the primary routing + search provider (`TOMTOM_KEY`): live traffic, `maxAlternatives=2`,
+  `avoid=tollRoads` for the no-toll set, `sectionType=tollRoad` to label tolls. ORS → OSRM fallbacks remain.
+- **Search** is Google-Maps-style autocomplete (`/api/search`): TomTom fuzzy search → Photon → Nominatim
+  (Nominatim only on explicit submit, per its no-autocomplete policy).
+- **Route map always shows every checkpoint**; ones on the selected route are drawn larger.
 
 ---
 

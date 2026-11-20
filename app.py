@@ -2,6 +2,7 @@ import json
 import math
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 import sqlite3
 import time
@@ -17,7 +18,15 @@ HIDE_AFTER_SECONDS = 12 * 3600     # drop from API entirely after 12h
 DEDUP_RADIUS_M = 300               # same type within this radius -> merge as confirmation
 DISMISS_THRESHOLD = 2              # this many "gone" votes clears a checkpoint
 
-# Free OpenRouteService key (https://openrouteservice.org/dev/#/signup). Set it as an
+# TomTom key (https://developer.tomtom.com → Dashboard → Keys). Free tier ~2,500 requests/day.
+# Used for live-traffic routing + place search. Set it in Render → Environment as TOMTOM_KEY.
+TOMTOM_KEY = os.environ.get("TOMTOM_KEY", "").strip()
+TOMTOM_ROUTE_URL = "https://api.tomtom.com/routing/1/calculateRoute/{o_lat},{o_lng}:{d_lat},{d_lng}/json"
+TOMTOM_SEARCH_URL = "https://api.tomtom.com/search/2/search/{q}.json"
+PHOTON_URL = "https://photon.komoot.io/api/"
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+
+# Optional fallback: free OpenRouteService key (https://openrouteservice.org/dev/#/signup). Set it as an
 # environment variable on the server (Render → Environment) so it never ships to the browser.
 ORS_KEY = os.environ.get("ORS_KEY", "").strip()
 ORS_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
@@ -230,8 +239,34 @@ def _osrm_routes(o, d):
     } for rt in js.get("routes", [])]
 
 
+def _tomtom_routes(o, d, avoid_tolls):
+    params = {
+        "key": TOMTOM_KEY, "traffic": "true", "travelMode": "car", "routeType": "fastest",
+        "maxAlternatives": 2, "sectionType": "tollRoad", "routeRepresentation": "polyline",
+    }
+    if avoid_tolls:
+        params["avoid"] = "tollRoads"
+    url = TOMTOM_ROUTE_URL.format(o_lat=o[0], o_lng=o[1], d_lat=d[0], d_lng=d[1])
+    js = _http_json(url + "?" + urllib.parse.urlencode(params))
+    out = []
+    for rt in js.get("routes", []):
+        summ = rt.get("summary", {})
+        coords = [[p["latitude"], p["longitude"]] for leg in rt.get("legs", []) for p in leg.get("points", [])]
+        out.append({
+            "coords": coords,
+            "km": summ.get("lengthInMeters", 0) / 1000,
+            "mins": round(summ.get("travelTimeInSeconds", 0) / 60),
+            "delay_mins": round(summ.get("trafficDelayInSeconds", 0) / 60),
+            "toll": any(sec.get("sectionType") == "TOLL_ROAD" for sec in rt.get("sections", [])),
+        })
+    return out
+
+
 def _same_route(a, b):
     return abs(a["km"] - b["km"]) < 0.3 and abs(a["mins"] - b["mins"]) <= 1
+
+
+NET_ERRORS = (urllib.error.URLError, TimeoutError, ValueError, KeyError)
 
 
 @app.route("/api/routes")
@@ -241,25 +276,133 @@ def routes():
         d = (float(request.args["dlat"]), float(request.args["dlng"]))
     except (KeyError, ValueError):
         return jsonify({"error": "bad coordinates"}), 400
-    found, engine = [], "osrm"
+
+    # Providers in order of preference. Each is asked for its normal options with tolls
+    # allowed AND with tolls avoided.
+    providers = []
+    if TOMTOM_KEY:
+        providers.append(("tomtom", _tomtom_routes))
     if ORS_KEY:
+        providers.append(("ors", _ors_routes))
+
+    found, engine = [], "osrm"
+    for name, fn in providers:
         for avoid in (False, True):
             try:
-                for r in _ors_routes(o, d, avoid):
-                    if not any(_same_route(r, x) for x in found):
+                for r in fn(o, d, avoid):
+                    if r["coords"] and not any(_same_route(r, x) for x in found):
                         found.append(r)
-                engine = "ors"
-            except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as e:
-                app.logger.warning("ORS failed (avoid_tolls=%s): %s", avoid, e)
+            except NET_ERRORS as e:
+                app.logger.warning("%s failed (avoid_tolls=%s): %s", name, avoid, e)
+        if found:
+            engine = name
+            break
     if not found:
         try:
             found = _osrm_routes(o, d)
-        except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as e:
+        except NET_ERRORS as e:
             app.logger.warning("OSRM failed: %s", e)
             return jsonify({"error": "routing unavailable"}), 502
     found.sort(key=lambda r: r["mins"])  # travel time only
-    return jsonify({"engine": engine, "routes": found})
+    return jsonify({"engine": engine, "traffic": engine == "tomtom", "routes": found})
 
+
+# ---------- place search (autocomplete) ----------
+# TomTom fuzzy search (typo-tolerant, typeahead) when TOMTOM_KEY is set, else Photon (free).
+
+def _tomtom_search(q, lat, lng, lang):
+    params = {
+        "key": TOMTOM_KEY, "typeahead": "true", "limit": 7, "countrySet": "TH",
+        "language": "th-TH" if lang == "th" else "en-US",
+    }
+    if lat is not None:
+        params.update(lat=lat, lon=lng)
+    url = TOMTOM_SEARCH_URL.format(q=urllib.parse.quote(q, safe="")) + "?" + urllib.parse.urlencode(params)
+    out = []
+    for r in _http_json(url).get("results", []):
+        addr = r.get("address", {})
+        name = (r.get("poi") or {}).get("name") or addr.get("streetName") or addr.get("freeformAddress", "")
+        out.append({
+            "name": name,
+            "address": addr.get("freeformAddress", ""),
+            "lat": r["position"]["lat"],
+            "lng": r["position"]["lon"],
+            "dist_m": r.get("dist"),
+        })
+    return out
+
+
+def _photon_search(q, lat, lng, lang):
+    params = {"q": q, "limit": 7}
+    if lat is not None:
+        params.update(lat=lat, lon=lng, location_bias_scale=0.3)
+    if lang == "en":
+        params["lang"] = "en"
+    js = _http_json(PHOTON_URL + "?" + urllib.parse.urlencode(params),
+                    headers={"User-Agent": "daan-app-prototype"})
+    out = []
+    for f in js.get("features", []):
+        p = f.get("properties", {})
+        if p.get("countrycode") and p["countrycode"] != "TH":
+            continue
+        street = " ".join(x for x in (p.get("housenumber"), p.get("street")) if x)
+        parts = [street, p.get("locality") or p.get("district"), p.get("city")]
+        name = p.get("name") or street or p.get("city", "")
+        lng_, lat_ = f["geometry"]["coordinates"]
+        out.append({
+            "name": name,
+            "address": ", ".join(x for x in parts if x and x != name),
+            "lat": lat_, "lng": lng_,
+            "dist_m": haversine_m(lat, lng, lat_, lng_) if lat is not None else None,
+        })
+    return out
+
+
+def _nominatim_search(q, lat, lng, lang):
+    # Nominatim's usage policy forbids autocomplete, so this is only used on an explicit
+    # submit (Enter / Check) — it handles Thai-script queries that Photon misses.
+    params = {"format": "jsonv2", "limit": 5, "countrycodes": "th", "q": q, "accept-language": lang}
+    if lat is not None:
+        params.update(viewbox=f"{lng-0.5},{lat+0.5},{lng+0.5},{lat-0.5}")
+    js = _http_json(NOMINATIM_URL + "?" + urllib.parse.urlencode(params),
+                    headers={"User-Agent": "daan-app-prototype"})
+    out = []
+    for r in js:
+        lat_, lng_ = float(r["lat"]), float(r["lon"])
+        name = r.get("name") or r["display_name"].split(",")[0]
+        addr = ", ".join(x.strip() for x in r["display_name"].split(",")[1:4])
+        out.append({"name": name, "address": addr, "lat": lat_, "lng": lng_,
+                    "dist_m": haversine_m(lat, lng, lat_, lng_) if lat is not None else None})
+    return out
+
+
+@app.route("/api/search")
+def search():
+    q = (request.args.get("q") or "").strip()[:120]
+    if len(q) < 2:
+        return jsonify({"results": []})
+    lang = "en" if request.args.get("lang") == "en" else "th"
+    try:
+        lat, lng = float(request.args["lat"]), float(request.args["lng"])
+    except (KeyError, ValueError):
+        lat = lng = None
+    results = []
+    if TOMTOM_KEY:
+        try:
+            results = _tomtom_search(q, lat, lng, lang)
+        except NET_ERRORS as e:
+            app.logger.warning("TomTom search failed: %s", e)
+    if not results:
+        try:
+            results = _photon_search(q, lat, lng, lang)
+        except NET_ERRORS as e:
+            app.logger.warning("Photon search failed: %s", e)
+    if not results and request.args.get("final") == "1":
+        try:
+            results = _nominatim_search(q, lat, lng, lang)
+        except NET_ERRORS as e:
+            app.logger.warning("Nominatim search failed: %s", e)
+    return jsonify({"results": results})
 
 init_db()
 

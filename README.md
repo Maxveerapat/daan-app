@@ -60,13 +60,17 @@ daan-app/
 - **เส้นทาง (Route):** enter a destination → route options (with/without tolls), each labeled with
   on-route checkpoint count → hand off to Google/Apple Maps to drive.
 
-## Routing (route options with / without tolls)
+## Routing & search
 
-Routing runs server-side at `/api/routes`. With an `ORS_KEY` environment variable set (free
-OpenRouteService key: https://openrouteservice.org/dev/#/signup → Render → Environment), it returns
-the engine's normal options with tolls allowed **and** avoided (typically 2–5), each labeled
-Tollway / No tollway, ordered by travel time, with a checkpoint count shown for each.
-Without the key it falls back to the OSRM demo (usually 1 route, no toll info).
+Both run server-side, keys come from environment variables (Render → Environment):
+
+- **`TOMTOM_KEY`** (recommended, free at https://developer.tomtom.com, ~2,500 requests/day):
+  live-traffic route options with tolls allowed **and** avoided, each labeled Tollway / No tollway with
+  traffic delay, ordered by travel time; plus typo-tolerant place autocomplete.
+- `ORS_KEY` (optional fallback): OpenRouteService routes, no live traffic.
+- No keys: OSRM demo (usually 1 route) + Photon autocomplete, Nominatim on submit for Thai queries.
+
+Checkpoints are only *counted* per route — they never influence which routes are returned or their order.
 
 ## ⚠️ Scope boundary
 

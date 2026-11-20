@@ -81,6 +81,15 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 
 ---
 
+## 0a. Product name & business model (owner's decisions, Nov 2026)
+
+- **Name: glubdd** (owner is buying the domain). Repo/Render service still called `daan-app`;
+  point the new domain at Render via Settings → Custom Domains.
+- **Monetization: no ads.** Free during testing. Later: pay-per-use **daily pass** first, then a
+  **monthly subscription**. A permanent **free tier without the map** — static report list only
+  (like the original "ด่าน" app); the map, routing and route counts are the paid features.
+  Not built yet — no auth/payments exist. Gate should be server-enforced when added.
+
 ## 0. Changes since this handoff was written (Nov 2026)
 
 - **Deployed on Render** (`render.yaml`, gunicorn). Free plan: DB resets on restart.

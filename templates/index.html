@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ด่าน — แจ้งเตือนด่านตรวจ</title>
+<title>glubdd — ด่านตรวจและเหตุบนถนน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap">
@@ -391,7 +391,7 @@
 <main>
   <div class="tab active" id="tab-map">
     <div id="map"></div>
-    <div class="brand"><i>ด</i><span>ด่าน</span><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
+    <div class="brand"><i>g</i><span>glubdd</span><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
   </div>
 
   <div class="tab" id="tab-route">
@@ -495,7 +495,7 @@
 /* ---------- i18n ---------- */
 const I18N = {
   th: {
-    title: "ด่าน — ด่านตรวจและเหตุบนถนน",
+    title: "glubdd — ด่านตรวจและเหตุบนถนน",
     locating: "กำลังหาตำแหน่ง…", locReal: "รอบตำแหน่งปัจจุบันของคุณ", locDemo: "รอบอนุสาวรีย์ชัยฯ (ตำแหน่งตัวอย่าง)",
     legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.", legFreshS: "<1 ชม.", legAgingS: "1–3 ชม.", legStaleS: ">3 ชม.",
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
@@ -505,7 +505,7 @@ const I18N = {
     secStatus: "สถานะ", secStill: "ยังอยู่ไหม?", confirmedL: "ยืนยันแล้ว", peopleN: n => `${n} คน`,
     lastL: "ยืนยันล่าสุด", reportsL: "รายงานรวม", timesN: n => `${n} ครั้ง`, distL: "ห่างจากคุณ",
     openG: "เปิด Google Maps", openA: "เปิด Apple Maps", routeTitle: "เส้นทาง",
-    share: "แชร์", shareTitle: "ด่าน — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
+    share: "แชร์", shareTitle: "glubdd — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
     sharedGone: "รายงานนี้หมดอายุหรือถูกลบแล้ว", detected: x => `ตรวจพบ: ${x} ✓`,
     destPh: "ไปไหน? เช่น สยามพารากอน", origPh: "ตำแหน่งของคุณ", myLoc: "ตำแหน่งของคุณ", needOrig: "เลือกจุดเริ่มต้น", routeBtn: "ดูเส้นทาง",
     routeHint: "ตั้งจุดเริ่ม–ปลายทาง · หรือแตะแผนที่",
@@ -543,7 +543,7 @@ const I18N = {
     liveTraffic: "รวมจราจรสด", noTraffic: "ยังไม่รวมสภาพจราจร", delay: m => `รถติด +${m} นาที`, toll: "มีทางด่วน", noToll: "ไม่ขึ้นทางด่วน",
   },
   en: {
-    title: "Daan — checkpoints & road incidents",
+    title: "glubdd — checkpoints & road incidents",
     locating: "Locating…", locReal: "Around your current location", locDemo: "Around Victory Monument (demo location)",
     legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs", legFreshS: "<1 hr", legAgingS: "1–3 hrs", legStaleS: ">3 hrs",
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
@@ -553,7 +553,7 @@ const I18N = {
     secStatus: "Status", secStill: "Still there?", confirmedL: "Confirmed by", peopleN: n => `${n} ${n === 1 ? "person" : "people"}`,
     lastL: "Last confirmed", reportsL: "Reports merged", timesN: n => `${n}`, distL: "From you",
     openG: "Open Google Maps", openA: "Open Apple Maps", routeTitle: "Route",
-    share: "Share", shareTitle: "Daan — road report", copied: "Link copied", shareErr: "Couldn't share",
+    share: "Share", shareTitle: "glubdd — road report", copied: "Link copied", shareErr: "Couldn't share",
     sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
     destPh: "Where to? e.g. Siam Paragon", origPh: "Your location", myLoc: "Your location", needOrig: "Choose a starting point", routeBtn: "Check",
     routeHint: "Set start & destination · or tap the map",

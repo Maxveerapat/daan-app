@@ -1,4 +1,4 @@
-# ด่าน — checkpoint alert (prototype)
+# glubdd — checkpoint & road-incident alerts (prototype)
 
 A Thai crowdsourced road-awareness app — checkpoints ("ด่าน") plus ad-hoc road incidents
 (accidents, roadworks, flooding, blocked roads) — — a modern rebuild of the

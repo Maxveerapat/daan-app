@@ -122,6 +122,9 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   exact-route transfer was declined: stops can only make navigation pass checkpoints, not avoid them.
 - **Per-report Share / Google Maps / Apple Maps** buttons (popup + list card). Share uses the native share
   sheet (fallback: copy) with a deep link `/?r=<id>` that opens the app focused on that report.
+- **Report sheet is a 3-step accordion: 1 type → 2 location → 3 photo** (owner's order; `STEPS` array in
+  index.html). One step open at a time, ✓ summaries on done steps, tap a header to go back, fixed
+  Back/Next/Send bar. Camera only runs on the photo step; Send enables once the photo check passes.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

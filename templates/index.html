@@ -253,6 +253,7 @@
     display: none; align-items: flex-end;
   }
   #sheet.open { display: flex; }
+  #sheetBody { height: 92%; }
   #sheetBody {
     background: var(--surface); border-radius: 24px 24px 0 0; width: 100%;
     max-height: 92%; display: flex; flex-direction: column; overflow: hidden;
@@ -261,9 +262,35 @@
   .grabber { width: 38px; height: 5px; border-radius: 999px; background: rgba(255,255,255,.22); margin: 10px auto 2px; flex-shrink: 0; }
   #sheetBody h2 { font-size: 18px; font-weight: 600; padding: 8px 18px 4px; }
   #sheetBody .hint { font-size: 12.5px; color: var(--muted); padding: 0 18px 12px; }
-  .sheet-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-  #pickWrap { position: relative; height: 170px; flex-shrink: 0; }
-  #camWrap { position: relative; height: 260px; background: #000; margin: 0 0 2px; overflow: hidden; }
+  .sh-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 14px 8px 0; }
+  .sh-head h2 { padding-bottom: 0 !important; }
+  .sh-x { width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: var(--text); font-size: 14px; }
+  .steps { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+  .step { border-top: 1px solid var(--hair); display: flex; flex-direction: column; flex-shrink: 0; }
+  .step.open { flex: 1 0 auto; min-height: 0; }
+  .step-h {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 13px 18px; background: none; border: none;
+    color: var(--text); font-family: inherit; text-align: left; flex-shrink: 0;
+  }
+  .step-h:disabled { opacity: .4; }
+  .step-n {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 700; background: var(--surface-2); color: var(--muted); border: 1px solid var(--hair);
+  }
+  .step.open .step-n { background: var(--accent); color: #fff; border-color: transparent; }
+  .step.done:not(.open) .step-n { background: var(--green); color: #04210E; border-color: transparent; }
+  .step-t { font-size: 15px; font-weight: 600; flex-shrink: 0; }
+  .step-s { flex: 1; text-align: right; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step.open .step-s { display: none; }
+  .step-b { display: none; }
+  .step.open .step-b { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .step-b.pad, .step-b .pad { padding: 0 18px 12px; }
+  #pickWrap { position: relative; flex: 1; min-height: 200px; }
+  #pickHint {
+    position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 1000; font-size: 12px; white-space: nowrap;
+    background: rgba(0,0,0,.6); color: #fff; padding: 5px 11px; border-radius: 999px; pointer-events: none;
+  }
+  #camWrap { position: relative; flex: 1; min-height: 240px; background: #000; overflow: hidden; }
   #camVideo, #camShot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   #camShot { display: none; }
   #camWrap.shot #camShot { display: block; }
@@ -313,8 +340,8 @@
     z-index: 1000; pointer-events: none; font-size: 30px; line-height: 1;
     filter: drop-shadow(0 2px 3px rgba(0,0,0,.6));
   }
-  .sheet-form { padding: 14px 18px 18px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+  .sheet-actions { padding: 12px 18px calc(env(safe-area-inset-bottom) + 14px); border-top: 1px solid var(--hair); flex-shrink: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
   .chip {
     font-size: 12.5px; padding: 8px 14px; border-radius: 999px;
     border: 1px solid var(--hair); background: var(--surface-2); font-family: inherit; color: var(--text);
@@ -323,7 +350,7 @@
   .sheet-form label { font-size: 13px; font-weight: 600; color: var(--muted); }
   #labelInput {
     width: 100%; font-size: 15px; padding: 12px 14px; border: 1px solid var(--hair);
-    border-radius: 12px; font-family: inherit; margin: 10px 0 16px; background: var(--surface-2); color: var(--text);
+    border-radius: 12px; font-family: inherit; margin: 12px 0 0; background: var(--surface-2); color: var(--text);
   }
   #labelInput::placeholder { color: var(--muted); }
   .sheet-actions { display: flex; gap: 10px; }
@@ -435,33 +462,45 @@
   <div id="sheet">
     <div id="sheetBody">
       <div class="grabber"></div>
-      <h2 data-i18n="sheetTitle"></h2>
-      <div class="hint" data-i18n="sheetHint"></div>
-      <div class="sheet-scroll">
-      <div id="camWrap">
-        <video id="camVideo" playsinline muted autoplay></video>
-        <img id="camShot" alt="">
-        <div id="camMsg"></div>
-        <div id="camCheck"></div>
-        <button id="shutter" onclick="capturePhoto()" aria-label="Take photo"></button>
-        <button id="retake" onclick="startCamera()" data-i18n="retake"></button>
-        <div class="cam-note" data-i18n="passengerNote"></div>
+      <div class="sh-head"><h2 data-i18n="sheetTitle"></h2><button class="sh-x" onclick="closeSheet()" aria-label="Close">✕</button></div>
+      <!-- Stepper (type → location → photo): one step open at a time; finished steps collapse to a ✓ summary and can be reopened. -->
+      <div class="steps">
+        <section class="step" data-step="type">
+          <button class="step-h" onclick="goStep(0)"><span class="step-n">1</span><span class="step-t" data-i18n="st2"></span><span class="step-s" id="sum2"></span></button>
+          <div class="step-b pad">
+            <div class="seg" id="catSeg"></div>
+            <div class="chips" id="typeChips"></div>
+          </div>
+        </section>
+        <section class="step" data-step="where">
+          <button class="step-h" onclick="goStep(1)"><span class="step-n">2</span><span class="step-t" data-i18n="st3"></span><span class="step-s" id="sum3"></span></button>
+          <div class="step-b">
+            <div id="pickWrap">
+              <div id="pickMap"></div>
+              <div id="crosshair">📍</div>
+              <div id="pickHint" data-i18n="pickHint"></div>
+            </div>
+            <div class="pad"><input id="labelInput" data-i18n-ph="placePh"></div>
+          </div>
+        </section>
+        <section class="step" data-step="photo">
+          <button class="step-h" onclick="goStep(2)"><span class="step-n">3</span><span class="step-t" data-i18n="st1"></span><span class="step-s" id="sum1"></span></button>
+          <div class="step-b">
+            <div id="camWrap">
+              <video id="camVideo" playsinline muted autoplay></video>
+              <img id="camShot" alt="">
+              <div id="camMsg"></div>
+              <div id="camCheck"></div>
+              <button id="shutter" onclick="capturePhoto()" aria-label="Take photo"></button>
+              <button id="retake" onclick="startCamera()" data-i18n="retake"></button>
+              <div class="cam-note" data-i18n="passengerNote"></div>
+            </div>
+          </div>
+        </section>
       </div>
-      <div id="pickWrap">
-        <div id="pickMap"></div>
-        <div id="crosshair">📍</div>
-      </div>
-      <div class="sheet-form">
-        <div class="seg" id="catSeg"></div>
-        <label data-i18n="typeLabel"></label>
-        <div class="chips" id="typeChips"></div>
-        <label data-i18n="placeLabel"></label>
-        <input id="labelInput" data-i18n-ph="placePh">
-        <div class="sheet-actions">
-          <button class="cancel" onclick="closeSheet()" data-i18n="cancel"></button>
-          <button class="submit" id="submitBtn" onclick="submitReport()">＋ <span data-i18n="submit"></span></button>
-        </div>
-      </div>
+      <div class="sheet-actions">
+        <button class="cancel" id="backBtn" onclick="stepBack()"></button>
+        <button class="submit" id="nextBtn" onclick="stepNext()"></button>
       </div>
     </div>
   </div>
@@ -486,7 +525,8 @@ const I18N = {
     sharedGone: "รายงานนี้หมดอายุหรือถูกลบแล้ว", detected: x => `ตรวจพบ: ${x} ✓`,
     destPh: "ไปไหน? เช่น สยามพารากอน", routeBtn: "เช็คเส้นทาง",
     routeHint: "จากตำแหน่งปัจจุบัน · หรือแตะบนแผนที่เพื่อปักหมุดปลายทาง",
-    sheetTitle: "รายงานตรงนี้", sheetHint: "ถ่ายรูปสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เกิดเหตุ",
+    sheetTitle: "รายงาน", st1: "ถ่ายรูป", st2: "ประเภท", st3: "ตำแหน่ง", next: "ถัดไป", back: "ย้อนกลับ",
+    photoDone: "ถ่ายแล้ว", fromYou: m => `ห่างจากคุณ ${m}`, pickHint: "เลื่อนแผนที่ให้หมุดตรงจุด", sheetHint: "ถ่ายรูปสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เกิดเหตุ",
     retake: "ถ่ายใหม่", passengerNote: "ให้ผู้โดยสารถ่าย — ห้ามใช้มือถือขณะขับรถ",
     camErr: "เปิดกล้องไม่ได้ — อนุญาตให้เบราว์เซอร์ใช้กล้อง แล้วลองอีกครั้ง",
     needPhoto: "ถ่ายรูปด่านก่อนส่ง", needGps: "ต้องเปิดตำแหน่ง (GPS) เพื่อรายงาน", verifying: "กำลังส่ง…",
@@ -496,7 +536,7 @@ const I18N = {
     closeRoute: "ปิดเส้นทาง", f_all: "ทั้งหมด", f_toll: "ขึ้นทางด่วน", f_noToll: "ไม่ขึ้นทางด่วน",
     noRouteFilter: "ไม่มีเส้นทางแบบนี้ — ลองตัวกรองอื่น", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
     navNoteStops: n => `Google Maps: ใส่ด่าน ${n} จุดบนเส้นทางนี้เป็นจุดแวะ (เสียงนำทางจะแจ้งเมื่อถึงแต่ละจุด) · Apple Maps: ส่งเฉพาะปลายทาง`,
-    typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "เช่น หน้าโลตัส พระราม 2",
+    typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "ชื่อสถานที่ (ไม่บังคับ) เช่น หน้าโลตัส พระราม 2",
     cancel: "ยกเลิก", submit: "ส่งรายงาน",
     justNow: "เมื่อสักครู่", minAgo: m => `${m} นาทีที่แล้ว`,
     hMinAgo: (h, m) => `${h} ชม. ${m} นาทีที่แล้ว`, hAgo: h => `${h} ชม.ที่แล้ว`,
@@ -529,7 +569,8 @@ const I18N = {
     sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
     destPh: "Where to? e.g. Siam Paragon", routeBtn: "Check",
     routeHint: "From your location · or tap the map to drop a pin",
-    sheetTitle: "Report here", sheetHint: "Take a live photo, then move the map so the pin sits on the spot",
+    sheetTitle: "Report", st1: "Photo", st2: "What is it", st3: "Location", next: "Next", back: "Back",
+    photoDone: "Taken", fromYou: m => `${m} from you`, pickHint: "Move the map to put the pin on the spot", sheetHint: "Take a live photo, then move the map so the pin sits on the spot",
     retake: "Retake", passengerNote: "Passengers only — don't use your phone while driving",
     camErr: "Can't open the camera — allow camera access in your browser and try again",
     needPhoto: "Take a photo of the checkpoint first", needGps: "Turn on location (GPS) to report", verifying: "Sending…",
@@ -539,7 +580,7 @@ const I18N = {
     closeRoute: "Close route", f_all: "All", f_toll: "Tollway", f_noToll: "No tollway",
     noRouteFilter: "No routes of this kind — try another filter", navNote: "The navigation app picks its own route using live traffic",
     navNoteStops: n => `Google Maps: ${n === 1 ? "the checkpoint on this route is added as a stop" : `the ${n} checkpoints on this route are added as stops`} (voice will announce each one) · Apple Maps: destination only`,
-    typeLabel: "Type", placeLabel: "Place (optional)", placePh: "e.g. in front of Lotus, Rama 2",
+    typeLabel: "Type", placeLabel: "Place (optional)", placePh: "Place name (optional), e.g. in front of Lotus, Rama 2",
     cancel: "Cancel", submit: "Send report",
     justNow: "just now", minAgo: m => `${m} min ago`,
     hMinAgo: (h, m) => `${h} hr ${m} min ago`, hAgo: h => `${h} hr ago`,
@@ -606,6 +647,7 @@ function applyLang() {
   $("locBadge").textContent = userLoc ? t(locReal ? "locReal" : "locDemo") : t("locating");
   renderChips();
   renderCatBars();
+  if ($("sheet").classList.contains("open")) renderSteps();
   baseMaps.forEach(setMapLabels);
 }
 function toggleLang() {
@@ -1219,23 +1261,63 @@ function evalPhoto(detected) {
   chk.className = "show " + (photoOk ? "good" : "bad");
   updateSubmit();
 }
-function updateSubmit() { $("submitBtn").disabled = !(photoData && photoOk); }
+/* Report stepper: 1 type → 2 location → 3 photo → send. */
+const STEPS = ["type", "where", "photo"];
+let step = 0, maxStep = 0;
+function updateSubmit() { renderSteps(); }
+function renderSteps() {
+  const last = STEPS.length - 1;
+  document.querySelectorAll(".step").forEach(el => {
+    const i = STEPS.indexOf(el.dataset.step);
+    el.classList.toggle("open", i === step);
+    el.classList.toggle("done", i < maxStep || (el.dataset.step === "photo" && photoOk));
+    el.querySelector(".step-h").disabled = i > maxStep;
+  });
+  $("sum1").textContent = photoData && photoOk ? "✓ " + t("photoDone") : "";
+  $("sum2").textContent = (maxStep > STEPS.indexOf("type") ? "✓ " : "") + typeName(selType);
+  $("sum3").textContent = reportPos && pickMap ? t("fromYou", distText(haversineM(reportPos, [pickMap.getCenter().lat, pickMap.getCenter().lng]))) : "";
+  $("backBtn").textContent = step === 0 ? t("cancel") : t("back");
+  $("nextBtn").textContent = step === last ? "＋ " + t("submit") : t("next");
+  $("nextBtn").disabled = STEPS[step] === "photo" ? !(photoData && photoOk) : false;
+}
+function goStep(i) {
+  if (i > maxStep) return;
+  step = i;
+  renderSteps();
+  const name = STEPS[i];
+  if (name === "photo" && !photoData && !camStream) startCamera();
+  if (name !== "photo" && camStream && !photoData) stopCamera(); // camera only runs on the photo step
+  if (name === "where" && pickMap) setTimeout(() => { pickMap.invalidateSize(); renderSteps(); }, 60);
+}
+function stepNext() {
+  if (STEPS[step] === "photo") {
+    if (!(photoData && photoOk)) return toast(t(photoData ? "photoBad" : "needPhoto"));
+    return submitReport();
+  }
+  maxStep = Math.max(maxStep, step + 1);
+  goStep(step + 1);
+}
+function stepBack() { step === 0 ? closeSheet() : goStep(step - 1); }
 
 function openSheet() {
   $("sheet").classList.add("open");
+  step = 0; maxStep = 0;
   if (!pickMap) {
     pickMap = L.map("pickMap", { zoomControl: false }).setView(userLoc || DEFAULT_LOC, 16);
     addBasemap(pickMap);
+    pickMap.on("moveend", renderSteps);
   } else {
     pickMap.setView(userLoc || DEFAULT_LOC, 16);
   }
   setTimeout(() => pickMap.invalidateSize(), 150);
-  startCamera();
+  photoData = null; photoOk = false; photoProbs = undefined; $("camWrap").classList.remove("shot", "err"); $("camCheck").className = "";
+  renderChips();
+  renderSteps();
   loadClip().catch(() => {}); // warm up the model while the user aims
   // Fresh high-accuracy fix: the pin starts here and the server checks the pin is near it.
   reportPos = null;
   navigator.geolocation && navigator.geolocation.getCurrentPosition(
-    p => { reportPos = [p.coords.latitude, p.coords.longitude]; pickMap.setView(reportPos, 17); },
+    p => { reportPos = [p.coords.latitude, p.coords.longitude]; pickMap.setView(reportPos, 17); renderSteps(); },
     () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
   );
 }
@@ -1249,7 +1331,7 @@ async function submitReport() {
   if (!photoOk) return toast(t("photoBad"));
   if (!reportPos) return toast(t("needGps"));
   const c = pickMap.getCenter();
-  $("submitBtn").disabled = true;
+  $("nextBtn").disabled = true;
   toast(t("verifying"));
   let res, js = {};
   try {

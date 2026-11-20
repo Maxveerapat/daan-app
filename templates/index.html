@@ -123,7 +123,12 @@
     box-shadow: 0 -6px 30px rgba(0,0,0,.35); transition: height .32s cubic-bezier(.32,.72,0,1);
   }
   #panel.full { height: calc(100% - env(safe-area-inset-top) - 76px); }
-  #panel.mini { height: auto; max-height: 60%; }
+  #panel.mini { height: 172px; }
+  #panel.fit { height: auto; max-height: 60%; }
+  /* Not full: content drags the panel (no scrolling, no browser overscroll). Full: content scrolls. */
+  #panel .pv { overscroll-behavior: contain; }
+  #panel:not(.full) .pv { touch-action: none; overflow: hidden; }
+  html, body { overscroll-behavior: none; }
   #panel.dragging { transition: none; }
   #panel.tint-cp { background: radial-gradient(120% 60% at 0% 0%, rgba(255,90,78,.16), transparent 60%), var(--sheet); }
   #panel.tint-inc { background: radial-gradient(120% 60% at 0% 0%, rgba(255,200,60,.14), transparent 60%), var(--sheet); }
@@ -337,7 +342,8 @@
   /* ===== Wide screens: unfolded foldables, tablets, desktop ===== */
   @media (min-width: 700px) {
     body { max-width: none; }
-    #panel, #panel.full, #panel.mini {
+    #panel:not(.full) .pv { touch-action: auto; overflow-y: auto; }
+    #panel, #panel.full, #panel.mini, #panel.fit {
       left: 12px; right: auto; top: calc(env(safe-area-inset-top) + 12px); bottom: calc(env(safe-area-inset-bottom) + 12px);
       width: min(420px, 42vw); height: auto; max-height: none; border-radius: 30px;
     }
@@ -874,9 +880,9 @@ function renderFeed() {
 
 /* ---------- bottom panel: views (near / detail / route) and heights (mini / peek / full) ---------- */
 let panelView = "near", prevView = "near", prevPanelState = "peek";
-function panelState() { const p = $("panel"); return p.classList.contains("full") ? "full" : p.classList.contains("mini") ? "mini" : "peek"; }
+function panelState() { const p = $("panel"); return p.classList.contains("full") ? "full" : p.classList.contains("mini") ? "mini" : p.classList.contains("fit") ? "fit" : "peek"; }
 function setPanel(st) {
-  const p = $("panel"); p.classList.remove("full", "mini"); if (st !== "peek") p.classList.add(st);
+  const p = $("panel"); p.classList.remove("full", "mini", "fit"); if (st !== "peek") p.classList.add(st);
   document.body.classList.toggle("panel-full", st === "full");
 }
 function showView(v) {
@@ -948,8 +954,8 @@ function renderRouteEmpty() {
     p.classList.remove("dragging"); p.style.height = "";
     const st = panelState();
     if (!moved) return setPanel(st === "full" ? "peek" : "full");
-    if (dy < -40) setPanel(st === "mini" ? "peek" : "full");
-    else if (dy > 40) setPanel(st === "full" ? "peek" : "mini");
+    if (dy < -40) setPanel(st === "mini" || st === "fit" ? "peek" : "full");
+    else if (dy > 40) setPanel(st === "full" ? "peek" : st === "fit" ? "fit" : "mini");
   };
   zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
 })();
@@ -1105,7 +1111,7 @@ function closeRoute() {
   routeData = []; selRoute = 0; lastDest = null; destLatLng = null;
   routeLines.clearLayers();
   if (destMarker) { destMarker.remove(); destMarker = null; }
-  renderRouteEmpty(); setPanel("mini");
+  renderRouteEmpty(); setPanel("fit");
   $("destInput").value = ""; $("clearBtn").style.display = "none"; suggestions = []; closeSuggest();
   renderRouteCps();
   if (userLoc) routeMap.setView(userLoc, 12);
@@ -1438,7 +1444,7 @@ function switchTab(name) {
   if (name === "map") { showView("near"); setPanel("peek"); }
   if (name === "route") {
     showView("route");
-    if (routeData.length) { renderRouteSummary(); setPanel("peek"); } else { renderRouteEmpty(); setPanel("mini"); }
+    if (routeData.length) { renderRouteSummary(); setPanel("peek"); } else { renderRouteEmpty(); setPanel("fit"); }
   }
   setTimeout(() => {
     if (name === "map") map.invalidateSize();
@@ -1481,12 +1487,12 @@ function contentDrag(el, o) {
     const x = e.touches[0].clientX, y = e.touches[0].clientY;
     if (mode === null) {
       const dx = x - sx, dy = y - sy;
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      if (Math.abs(dx) > Math.abs(dy)) { mode = "skip"; return; }
-      if (dy > 0 && el.scrollTop <= 0) mode = "drag";
-      else if (dy < 0 && o.allowUp && o.allowUp()) mode = "drag";
+      if (dx === 0 && dy === 0) return;
+      if (Math.abs(dx) > Math.abs(dy) * 1.5) { mode = "skip"; return; }
+      const locked = o.locked && o.locked(); // content can't scroll in this state: every vertical drag moves the sheet
+      if (locked || (dy > 0 && el.scrollTop <= 0) || (dy < 0 && o.allowUp && o.allowUp())) mode = "drag";
       else { mode = "skip"; return; }
-      sy = y; t0 = performance.now(); o.begin();
+      t0 = performance.now(); o.begin();
     }
     e.preventDefault();
     o.move(y - sy);
@@ -1506,14 +1512,15 @@ function contentDrag(el, o) {
 let panelH0 = 0;
 const panelDragOpts = {
   enabled: () => !isWide(),
+  locked: () => panelState() !== "full",
   allowUp: () => panelState() !== "full",
   begin: () => { panelH0 = $("panel").offsetHeight; $("panel").classList.add("dragging"); },
   move: dy => { $("panel").style.height = Math.max(150, Math.min(window.innerHeight - 80, panelH0 - dy)) + "px"; },
   end: (dy, v) => {
     const p = $("panel"); p.classList.remove("dragging"); p.style.height = "";
     const st = panelState();
-    if (dy < -40 || v < -0.5) setPanel(st === "mini" ? "peek" : "full");
-    else if (dy > 40 || v > 0.5) setPanel(st === "full" ? "peek" : "mini");
+    if (dy < -40 || v < -0.5) setPanel(st === "mini" || st === "fit" ? "peek" : "full");
+    else if (dy > 40 || v > 0.5) setPanel(st === "full" ? "peek" : st === "fit" ? "fit" : "mini");
   },
 };
 document.querySelectorAll("#panel .pv").forEach(el => contentDrag(el, panelDragOpts));

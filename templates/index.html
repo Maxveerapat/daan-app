@@ -522,7 +522,7 @@ const I18N = {
     photoRejected: "รูปไม่ตรงกับประเภทที่เลือก — ถ่ายใหม่", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
     closeRoute: "ปิดเส้นทาง", f_all: "ทั้งหมด", f_toll: "มีทางด่วน", f_noToll: "ไม่ขึ้นทางด่วน",
     noRouteFilter: "ไม่มีเส้นทางแบบนี้ — ลองตัวกรองอื่น", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
-    navNoteStops: n => `Google Maps: ใส่ด่าน ${n} จุดบนเส้นทางนี้เป็นจุดแวะ (เสียงนำทางจะแจ้งเมื่อถึงแต่ละจุด) · Apple Maps: ส่งเฉพาะปลายทาง`,
+    navNoteShape: n => `มีจุดแวะ ${n} จุดเพื่อให้วิ่งตามเส้นทางนี้ — ขับผ่านได้เลย ไม่ต้องจอด`,
     typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "ชื่อสถานที่ (ไม่บังคับ) เช่น หน้าโลตัส พระราม 2",
     cancel: "ยกเลิก", submit: "ส่งรายงาน",
     justNow: "เมื่อสักครู่", minAgo: m => `${m} นาทีที่แล้ว`,
@@ -570,7 +570,7 @@ const I18N = {
     photoRejected: "This photo doesn't look like a checkpoint — retake it so the checkpoint is visible", sendErr: "Couldn't send the report — try again",
     closeRoute: "Close route", f_all: "All", f_toll: "Tollway", f_noToll: "No tollway",
     noRouteFilter: "No routes of this kind — try another filter", navNote: "The navigation app picks its own route using live traffic",
-    navNoteStops: n => `Google Maps: ${n === 1 ? "the checkpoint on this route is added as a stop" : `the ${n} checkpoints on this route are added as stops`} (voice will announce each one) · Apple Maps: destination only`,
+    navNoteShape: n => `${n} stop${n === 1 ? "" : "s"} added to keep you on this route — just drive through them`,
     typeLabel: "Type", placeLabel: "Place (optional)", placePh: "Place name (optional), e.g. in front of Lotus, Rama 2",
     cancel: "Cancel", submit: "Send report",
     justNow: "just now", minAgo: m => `${m} min ago`,
@@ -687,7 +687,12 @@ let selType = TYPE_KEYS[0];
 let map, routeMap, pickMap;
 let mapLayer = L.layerGroup(), routeCpLayer = L.layerGroup(), routeLines = L.layerGroup(), destMarker = null, userMarkers = [];
 let destLatLng = null;
-const MAX_NAV_STOPS = 3;
+// Nav hand-off: route points keep Google/Apple Maps on the selected route.
+const NAV_WP_MAX = 3;      // stop cap (Google app allows 9, mobile browsers 3)
+const DIVERGE_M = 120;     // farther than this from every alternative = unique to the selected route
+const MIN_STRETCH_M = 300; // ignore tiny wiggles
+const WP_EDGE_M = 600;     // no route points near origin/destination
+const CLEAR_M = 60;        // minimum gap from any tollway/motorway (covers stacked roads)
 let lastOrig = null;
 let routeData = [], selRoute = 0, lastDest = null, routeTraffic = false, tollFilter = "all";
 function routeMatches(r) { return tollFilter === "all" || (tollFilter === "toll" ? r.toll === true : r.toll === false); }
@@ -1074,6 +1079,119 @@ function distToRoute(cp, coords) {
   return { dist: best, along };
 }
 
+/* ---------- nav hand-off: route points ("shape waypoints") ----------
+   Points from the selected route's own geometry, placed where it splits from the other options,
+   so Google/Apple Maps follow the chosen route. Rules: never on a tollway/motorway, never within
+   CLEAR_M of one on ANY option (stacked roads), none near start/end, max NAV_WP_MAX, and none
+   at all when tollway/motorway data is missing. They show as stops in the nav apps. */
+function minDistToLine(p, coords) {
+  let best = Infinity;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const d = ptSegDistM(p, coords[i], coords[i + 1]).d;
+    if (d < best) best = d;
+  }
+  return best;
+}
+function isRestrictedSeg(route, i) {
+  return route.restricted.some(([s, e]) => i >= s && i < e);
+}
+function restrictedSegs(route) {
+  const segs = [];
+  route.restricted.forEach(([s, e]) => {
+    for (let i = Math.max(0, s); i < e && i < route.coords.length - 1; i++) segs.push([route.coords[i], route.coords[i + 1]]);
+  });
+  return segs;
+}
+function resampleRoute(coords, stepM = 50) {
+  const out = [{ p: coords[0], along: 0, seg: 0 }];
+  let acc = 0, next = stepM;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const a = coords[i], b = coords[i + 1], len = haversineM(a, b);
+    while (len > 0 && acc + len >= next) {
+      const f = (next - acc) / len;
+      out.push({ p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], along: next, seg: i });
+      next += stepM;
+    }
+    acc += len;
+  }
+  out.push({ p: coords[coords.length - 1], along: acc, seg: Math.max(0, coords.length - 2) });
+  return out;
+}
+function shapeWaypoints(selIdx) {
+  // Fail-safe: without tollway/motorway data we can't prove a point is safe → add none.
+  if (routeData.some(r => !Array.isArray(r.restricted))) return [];
+  const sel = routeData[selIdx];
+  if (!sel || sel.coords.length < 2) return [];
+  const others = routeData.filter((_, i) => i !== selIdx);
+  const blocked = routeData.flatMap(restrictedSegs);
+  const pts = resampleRoute(sel.coords);
+  const total = pts[pts.length - 1].along;
+
+  pts.forEach(x => {
+    x.ok = x.along > WP_EDGE_M && x.along < total - WP_EDGE_M
+      && !isRestrictedSeg(sel, x.seg)
+      && blocked.every(([a, b]) => ptSegDistM(x.p, a, b).d >= CLEAR_M);
+  });
+
+  // 1) Forks: stretches unique to the selected route → safe point nearest each stretch's middle
+  const stretches = [];
+  let cur = null;
+  for (const x of pts) {
+    const unique = others.length > 0 && others.every(o => minDistToLine(x.p, o.coords) > DIVERGE_M);
+    if (unique) { if (!cur) stretches.push(cur = []); cur.push(x); } else cur = null;
+  }
+  const lenOf = s => s[s.length - 1].along - s[0].along;
+  const forkPicks = stretches
+    .filter(s => lenOf(s) >= MIN_STRETCH_M)
+    .sort((a, b) => lenOf(b) - lenOf(a))
+    .map(s => {
+      const mid = (s[0].along + s[s.length - 1].along) / 2;
+      return s.filter(x => x.ok).sort((a, b) => Math.abs(a.along - mid) - Math.abs(b.along - mid))[0];
+    })
+    .filter(Boolean);
+
+  // 2) Exit points: first safe point after each tollway/motorway section ends
+  const exitPicks = sel.restricted.map(([, e]) => pts.find(x => x.seg >= e && x.ok)).filter(Boolean);
+
+  // 3) Fallback: two evenly spaced safe points on longer routes
+  let picks = [...forkPicks, ...exitPicks];
+  if (!picks.length && total > 3000) {
+    const safe = pts.filter(x => x.ok);
+    if (safe.length > 2) picks = [1, 2].map(k => safe[Math.floor((safe.length * k) / 3)]);
+  }
+
+  // At least 500 m apart, max NAV_WP_MAX, in driving order
+  const chosen = [];
+  for (const x of picks) {
+    if (chosen.length >= NAV_WP_MAX) break;
+    if (chosen.every(c => Math.abs(c.along - x.along) >= 500)) chosen.push(x);
+  }
+  return chosen.sort((a, b) => a.along - b.along).map(x => x.p);
+}
+
+const encLL = p => `${(+p[0]).toFixed(6)}%2C${(+p[1]).toFixed(6)}`;
+// orig: [lat, lng] of a chosen start point, or null = the phone's live location.
+function googleNavUrl(dest, wps, route, orig) {
+  let u = `https://www.google.com/maps/dir/?api=1${orig ? `&origin=${encLL(orig)}` : ""}&destination=${encLL(dest)}&travelmode=driving`;
+  if (wps.length) u += `&waypoints=${wps.map(encLL).join("%7C")}`;
+  if (route && route.toll === false) u += `&avoid=tolls`;
+  return u;
+}
+// Apple's unified Maps URLs (waypoints, avoid) need iOS 18.4+; older iPhones get the classic link.
+function appleUnifiedOk() {
+  const m = navigator.userAgent.match(/(?:iPhone|iPad|iPod).*? OS (\d+)_(\d+)/);
+  if (!m) return true;
+  const maj = +m[1], min = +m[2];
+  return maj > 18 || (maj === 18 && min >= 4);
+}
+function appleNavUrl(dest, wps, route, orig) {
+  if (!appleUnifiedOk()) return `https://maps.apple.com/?${orig ? `saddr=${encLL(orig)}&` : ""}daddr=${encLL(dest)}&dirflg=d`;
+  let u = `https://maps.apple.com/directions?${orig ? `source=${encLL(orig)}&` : ""}destination=${encLL(dest)}&mode=driving`;
+  u += wps.map(p => `&waypoint=${encLL(p)}`).join("");
+  if (route && route.toll === false) u += `&avoid=tolls`;
+  return u;
+}
+
 /* ---------- trip search: start (A) + destination (B), Google-Maps-style ----------
    tripOrig null = the user's live location; any other value is a chosen place, so users can
    preview trips from somewhere they aren't yet. Autocomplete via /api/search for either field. */
@@ -1205,7 +1323,8 @@ async function buildRoute() {
       if (r.dist <= ROUTE_BUFFER_M) hits.push({ cp, along: r.along });
     });
     hits.sort((a, b) => a.along - b.along);
-    return { coords: rt.coords, hits, km: rt.km, mins: rt.mins, toll: rt.toll, delay: rt.delay_mins || 0 };
+    return { coords: rt.coords, hits, km: rt.km, mins: rt.mins, toll: rt.toll, delay: rt.delay_mins || 0,
+             restricted: Array.isArray(rt.restricted) ? rt.restricted : null };
   });
   selRoute = 0;
   lastDest = { lat: tripDest.lat, lng: tripDest.lng };
@@ -1287,19 +1406,16 @@ function renderRouteSummary() {
         </div>`).join("")
     : `<div class="route-hit" style="color:var(--muted)">${t("noCpOnRoute")}</div>`;
 
-  // Hand off to Google/Apple Maps for turn-by-turn; the nav app starts from live GPS.
-  // Google: the CHECKPOINTS on the selected route (never incidents) are added as stops, in
-  // driving order, so navigation passes through them. Max 3 — the mobile-app limit for URL
-  // stops. A route with no checkpoints sends the destination only and Google picks its own way.
-  // Apple Maps URLs don't support stops, so Apple always gets the destination only.
-  const cpStops = sel.hits.filter(h => catOf(h.cp) === "checkpoint").slice(0, MAX_NAV_STOPS);
-  const gWaypoints = cpStops.length
-    ? "&waypoints=" + cpStops.map(h => `${h.cp.lat.toFixed(6)},${h.cp.lng.toFixed(6)}`).join("%7C") : "";
+  // Hand off to Google/Apple Maps for turn-by-turn: from the chosen start point, or live GPS.
+  // Route points (see shapeWaypoints) keep the nav app on the selected route. They never sit on
+  // or near a tollway/motorway, and checkpoints are not sent as stops.
+  const wps = sel.wp || (sel.wp = shapeWaypoints(selRoute));
+  const navOrig = lastOrig ? [lastOrig.lat, lastOrig.lng] : null;
   const navBtns = lastDest ? `<div class="ro-listhead">${t("navWith")}</div>
-    <div class="nav-note">${cpStops.length ? t("navNoteStops", cpStops.length) : t("navNote")}</div>
+    <div class="nav-note">${wps.length ? t("navNoteShape", wps.length) : t("navNote")}</div>
     <div class="nav-row">
-      <a class="cta" href="https://www.google.com/maps/dir/?api=1${lastOrig ? `&origin=${lastOrig.lat},${lastOrig.lng}` : ""}&destination=${lastDest.lat},${lastDest.lng}${gWaypoints}&travelmode=driving" target="_blank" rel="noopener">${ICON_GO}${t("openG")}</a>
-      <a class="btn-outline" href="https://maps.apple.com/?${lastOrig ? `saddr=${lastOrig.lat},${lastOrig.lng}&` : ""}daddr=${lastDest.lat},${lastDest.lng}&dirflg=d" target="_blank" rel="noopener">${t("openA")}</a>
+      <a class="cta" href="${googleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig)}" target="_blank" rel="noopener">${ICON_GO}${t("openG")}</a>
+      <a class="btn-outline" href="${appleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig)}" target="_blank" rel="noopener">${t("openA")}</a>
     </div>` : "";
 
   sum.innerHTML = `<div class="p-head"><div><h2>${t("chooseRoute")}</h2><div class="p-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>${recLegendHtml()}

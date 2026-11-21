@@ -271,7 +271,7 @@ def _ors_routes(o, d, avoid_tolls):
     body = {
         "coordinates": [[o[1], o[0]], [d[1], d[0]]],
         "alternative_routes": {"target_count": 3, "share_factor": 0.6, "weight_factor": 1.6},
-        "extra_info": ["tollways"],
+        "extra_info": ["tollways", "waycategory"],
     }
     if avoid_tolls:
         body["options"] = {"avoid_features": ["tollways"]}
@@ -281,11 +281,15 @@ def _ors_routes(o, d, avoid_tolls):
         summ = f["properties"].get("summary", {})
         toll_vals = f["properties"].get("extras", {}).get("tollways", {}).get("summary", [])
         uses_toll = any(v.get("value") == 1 and v.get("distance", 0) > 0 for v in toll_vals)
+        wc = f["properties"].get("extras", {}).get("waycategory", {}).get("values")
+        # tollway/motorway sections as [start, end] indices into coords; None = unknown
+        restricted = [[s, e] for s, e, v in wc if v & 3] if wc is not None else None
         out.append({
             "coords": [[c[1], c[0]] for c in f["geometry"]["coordinates"]],
             "km": summ.get("distance", 0) / 1000,
             "mins": round(summ.get("duration", 0) / 60),
             "toll": uses_toll,
+            "restricted": restricted,
         })
     return out
 
@@ -297,28 +301,37 @@ def _osrm_routes(o, d):
         "km": rt["distance"] / 1000,
         "mins": round(rt["duration"] / 60),
         "toll": None,  # unknown on OSRM
+        "restricted": None,  # unknown on OSRM → no route points
     } for rt in js.get("routes", [])]
 
 
 def _tomtom_routes(o, d, avoid_tolls):
     params = {
         "key": TOMTOM_KEY, "traffic": "true", "travelMode": "car", "routeType": "fastest",
-        "maxAlternatives": 2, "sectionType": "tollRoad", "routeRepresentation": "polyline",
+        "maxAlternatives": 2, "routeRepresentation": "polyline",
+        # `tollRoad` is deprecated by TomTom (may return HTTP 400) → `toll`. `motorway` is
+        # requested so the app can keep route points off motorways.
+        "sectionType": ["toll", "motorway"],
     }
     if avoid_tolls:
         params["avoid"] = "tollRoads"
     url = TOMTOM_ROUTE_URL.format(o_lat=o[0], o_lng=o[1], d_lat=d[0], d_lng=d[1])
-    js = _http_json(url + "?" + urllib.parse.urlencode(params))
+    js = _http_json(url + "?" + urllib.parse.urlencode(params, doseq=True))
     out = []
     for rt in js.get("routes", []):
         summ = rt.get("summary", {})
+        secs = rt.get("sections", [])
         coords = [[p["latitude"], p["longitude"]] for leg in rt.get("legs", []) for p in leg.get("points", [])]
         out.append({
             "coords": coords,
             "km": summ.get("lengthInMeters", 0) / 1000,
             "mins": round(summ.get("travelTimeInSeconds", 0) / 60),
             "delay_mins": round(summ.get("trafficDelayInSeconds", 0) / 60),
-            "toll": any(sec.get("sectionType") == "TOLL_ROAD" for sec in rt.get("sections", [])),
+            "toll": any(sec.get("sectionType") == "TOLL" for sec in secs),
+            # [startPointIndex, endPointIndex] of tollway/motorway sections (indices into coords)
+            "restricted": [[sec["startPointIndex"], sec["endPointIndex"]] for sec in secs
+                           if sec.get("sectionType") in ("TOLL", "MOTORWAY")
+                           and "startPointIndex" in sec and "endPointIndex" in sec],
         })
     return out
 

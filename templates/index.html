@@ -274,6 +274,19 @@
   .sg-empty { padding: 16px; font-size: 14px; color: var(--muted); text-align: center; }
   #routeHint { display: none; }
   .note { font-size: 14px; color: var(--muted); }
+  /* Route tab first-use prompt: pulsing search box + tap ripple on the map */
+  #routePrompt { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 850; pointer-events: none;
+    display: none; flex-direction: column; align-items: center; gap: 12px; }
+  #routePrompt.on { display: flex; animation: fadeIn .3s ease; }
+  #routePrompt .tap { position: relative; width: 22px; height: 22px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 3px #fff; }
+  #routePrompt .tap i { position: absolute; inset: -3px; border-radius: 50%; border: 2px solid #7EA3FF; animation: ripple 1.6s ease-out infinite; }
+  #routePrompt .tap i + i { animation-delay: .8s; }
+  #routePrompt .rp-txt { font-size: 14px; font-weight: 600; color: #fff; background: rgba(20,22,30,.85); padding: 9px 14px; border-radius: 999px; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  .trip.pulse { animation: tripPulse 1.4s ease-in-out 3; }
+  @keyframes ripple { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+  @keyframes tripPulse { 0%,100% { box-shadow: 0 6px 20px rgba(0,0,0,.35), 0 0 0 0 rgba(45,91,255,0); border-color: var(--line-2); }
+    50% { box-shadow: 0 6px 20px rgba(0,0,0,.35), 0 0 0 5px rgba(45,91,255,.35); border-color: var(--blue); } }
+  @media (prefers-reduced-motion: reduce) { #routePrompt .tap i, .trip.pulse { animation: none; } }
 
   .toll-filter { margin: 0 0 10px; }
   .route-opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 14px; margin-bottom: 6px; border-radius: 16px; background: var(--s1); border: 1px solid transparent; cursor: pointer; }
@@ -308,6 +321,7 @@
   /* ---- report sheet (modal) ---- */
   #sheet { position: absolute; inset: 0; z-index: 1300; background: rgba(0,0,0,.5); display: none; align-items: flex-end; padding: 0 var(--panel-gap) calc(env(safe-area-inset-bottom) + var(--panel-gap)); }
   #sheet.open { display: flex; }
+  #sheetBody { transition: height .3s cubic-bezier(.32,.72,0,1); }
   #sheetBody { width: 100%; max-height: calc(100% - env(safe-area-inset-top) - 16px); display: flex; flex-direction: column; overflow: hidden; background: var(--sheet); border: 1px solid var(--line); border-radius: 34px; box-shadow: 0 -6px 30px rgba(0,0,0,.4); }
   .drag-zone { touch-action: none; cursor: grab; flex-shrink: 0; }
   #sheetBody.dragging { transition: none !important; }
@@ -329,13 +343,23 @@
   .step-b { display: none; }
   .step.open .step-b { display: block; }
   .step-b.pad, .step-b .pad { padding: 0 12px 12px; }
-  #catSeg { background: var(--s2); padding: 3px; }
-  #catSeg button { font-size: 13.5px; padding: 6px; }
+  /* same look as the panel filter (.seg on --s1 card → use --s2 track so it reads the same) */
+  #catSeg { background: var(--s2); }
   #catSeg button.on { background: #3A3D42; }
   .chips-grid, #typeChips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 0; }
   .chip { min-height: 38px; padding: 6px 8px; border-radius: 12px; border: none; background: var(--s2); font-size: 13.5px; font-weight: 400; line-height: 1.2; text-wrap: balance; }
   .chip.sel { background: var(--blue); color: #fff; font-weight: 600; }
   #pickWrap { position: relative; height: clamp(160px, calc(100dvh - 420px), 420px); margin: 0 10px; border-radius: 18px; overflow: hidden; }
+  /* Location / photo steps: sheet takes the full screen height and the map/camera fills it */
+  #sheetBody.tall { height: calc(100% - env(safe-area-inset-top) - 8px); max-height: none; }
+  #sheetBody.tall .steps { flex: 1; }
+  #sheetBody.tall .step.open { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #sheetBody.tall .step.open .step-b { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #sheetBody.tall #pickWrap, #sheetBody.tall #camWrap { flex: 1; height: auto; min-height: 220px; }
+  #pickLocate { position: absolute; right: 10px; bottom: 10px; z-index: 1000; width: 44px; height: 44px; border-radius: 50%; border: none;
+    background: var(--glass-blue); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  #pickLocate svg { width: 20px; height: 20px; }
+  #pickHint.warn { background: rgba(214,58,46,.92); }
   #pickHint { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 1000; font-size: 13px; white-space: nowrap; color: #fff; background: rgba(20,22,30,.75); padding: 7px 13px; border-radius: 999px; pointer-events: none; }
   #crosshair { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); z-index: 1000; pointer-events: none; font-size: 32px; line-height: 1; filter: drop-shadow(0 3px 4px rgba(0,0,0,.55)); }
   #labelInput { width: 100%; height: 44px; font-size: 16px; padding: 0 16px; border: none; border-radius: 999px; margin: 10px 0 0; background: var(--s2); outline: none; }
@@ -380,6 +404,7 @@
     #toast { left: calc(50% + min(420px, 42vw) / 2 + 6px); }
     #sheet { align-items: center; justify-content: center; padding: 24px; }
     #sheetBody { max-width: 560px; max-height: calc(100% - 48px); }
+    #sheetBody.tall { height: calc(100% - 48px); }
     #pickWrap { height: clamp(220px, calc(100dvh - 520px), 440px); }
     #camWrap { height: clamp(260px, calc(100dvh - 420px), 520px); }
   }
@@ -417,6 +442,7 @@
       <div id="routeHint" data-i18n="routeHint"></div>
     </div>
     <div id="routeMap"></div>
+    <div id="routePrompt" aria-hidden="true"><span class="tap"><i></i><i></i></span><span class="rp-txt" data-i18n="routePrompt"></span></div>
   </div>
 
   <!-- Persistent bottom panel: nearby list / report detail / route options + tab bar -->
@@ -464,6 +490,7 @@
               <div id="pickMap"></div>
               <div id="crosshair">📍</div>
               <div id="pickHint" data-i18n="pickHint"></div>
+              <button id="pickLocate" onclick="pickRecenter()" aria-label="My location"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></button>
             </div>
             <div class="pad"><input id="labelInput" data-i18n-ph="placePh"></div>
           </div>
@@ -513,14 +540,14 @@ const I18N = {
     share: "แชร์", shareTitle: "glubDD — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
     sharedGone: "รายงานนี้หมดอายุหรือถูกลบแล้ว", detected: x => `ตรวจพบ: ${x} ✓`,
     destPh: "ไปไหน? เช่น สยามพารากอน", origPh: "ตำแหน่งของคุณ", myLoc: "ตำแหน่งของคุณ", needOrig: "เลือกจุดเริ่มต้น", routeBtn: "ดูเส้นทาง",
-    routeHint: "ตั้งจุดเริ่ม–ปลายทาง · หรือแตะแผนที่",
+    routeHint: "ตั้งจุดเริ่ม–ปลายทาง · หรือแตะแผนที่", routePrompt: "แตะแผนที่ หรือค้นหาปลายทางด้านบน",
     sheetTitle: "รายงาน", st1: "ถ่ายรูป", st2: "ประเภท", st3: "ตำแหน่ง", next: "ถัดไป", back: "ย้อนกลับ",
     photoDone: "ถ่ายแล้ว", fromYou: m => `ห่างจากคุณ ${m}`, pickHint: "เลื่อนแผนที่ให้หมุดตรงจุด", sheetHint: "ถ่ายรูปสด ๆ แล้วเลื่อนแผนที่ให้หมุดตรงจุดที่เกิดเหตุ",
     retake: "ถ่ายใหม่", passengerNote: "ให้ผู้โดยสารถ่าย — ห้ามใช้มือถือขณะขับรถ",
     camErr: "เปิดกล้องไม่ได้ — อนุญาตให้เบราว์เซอร์ใช้กล้อง แล้วลองอีกครั้ง",
     needPhoto: "ถ่ายรูปก่อนส่งรายงาน", needGps: "ต้องเปิดตำแหน่ง (GPS) เพื่อรายงาน", verifying: "กำลังส่ง…",
     checking: "กำลังตรวจรูป…", photoOk: "✓ รูปตรงกับประเภทที่เลือก", photoBad: "รูปไม่ตรงกับประเภทที่เลือก — ถ่ายใหม่ หรือเปลี่ยนประเภท",
-    tooFar: "หมุดอยู่ไกลจากตำแหน่งของคุณเกิน 500 ม.", rateLimited: "รายงานถี่เกินไป ลองใหม่ภายหลัง",
+    tooFar: "หมุดต้องอยู่ห่างจากคุณไม่เกิน 1 กม.", rateLimited: "รายงานถี่เกินไป ลองใหม่ภายหลัง",
     photoRejected: "รูปไม่ตรงกับประเภทที่เลือก — ถ่ายใหม่", sendErr: "ส่งรายงานไม่สำเร็จ ลองใหม่",
     closeRoute: "ปิดเส้นทาง", f_all: "ทั้งหมด", f_toll: "มีทางด่วน", f_noToll: "ไม่ขึ้นทางด่วน",
     noRouteFilter: "ไม่มีเส้นทางแบบนี้ — ลองตัวกรองอื่น", navNote: "แอปนำทางจะเลือกเส้นทางเองตามสภาพจราจรจริง",
@@ -561,14 +588,14 @@ const I18N = {
     share: "Share", shareTitle: "glubDD — road report", copied: "Link copied", shareErr: "Couldn't share",
     sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
     destPh: "Where to? e.g. Siam Paragon", origPh: "Your location", myLoc: "Your location", needOrig: "Choose a starting point", routeBtn: "Check",
-    routeHint: "Set start & destination · or tap the map",
+    routeHint: "Set start & destination · or tap the map", routePrompt: "Tap the map or search a destination above",
     sheetTitle: "Report", st1: "Photo", st2: "Type", st3: "Location", next: "Next", back: "Back",
     photoDone: "Taken", fromYou: m => `${m} from you`, pickHint: "Move the map to put the pin on the spot", sheetHint: "Take a live photo, then move the map so the pin sits on the spot",
     retake: "Retake", passengerNote: "Passengers only — don't use your phone while driving",
     camErr: "Can't open the camera — allow camera access in your browser and try again",
     needPhoto: "Take a photo of the checkpoint first", needGps: "Turn on location (GPS) to report", verifying: "Sending…",
     checking: "Checking photo…", photoOk: "✓ Photo matches the selected type", photoBad: "Photo doesn't match the selected type — retake or change the type",
-    tooFar: "The pin is more than 500 m from where you are", rateLimited: "Too many reports — try again later",
+    tooFar: "The pin must be within 1 km of you", rateLimited: "Too many reports — try again later",
     photoRejected: "This photo doesn't look like a checkpoint — retake it so the checkpoint is visible", sendErr: "Couldn't send the report — try again",
     closeRoute: "Close route", f_all: "All", f_toll: "Tollway", f_noToll: "No tollway",
     noRouteFilter: "No routes of this kind — try another filter", navNote: "The navigation app picks its own route using live traffic",
@@ -624,7 +651,7 @@ function t(key, ...a) { const v = I18N[lang][key]; return typeof v === "function
 function typeName(k) { return TYPES[k] ? TYPES[k][lang] : k; }
 function shortName(k) { return TYPES[k] ? TYPES[k].s[lang === "en" ? 1 : 0] : k; }
 function catOf(cp) { return (TYPES[cp.type] || {}).cat || "checkpoint"; }
-let catFilter = "all", reportCat = "checkpoint";
+let catFilter = "checkpoint", reportCat = "checkpoint"; // default view: checkpoints only
 function catShown(cp) { return catFilter === "all" || catOf(cp) === catFilter; }
 function setCat(c) {
   catFilter = c; renderCatBars(); renderMap(); renderFeed(); renderRouteCps();
@@ -1269,7 +1296,7 @@ function tripChanged() {
   if (tripDest) { document.activeElement && document.activeElement.blur(); buildRoute(); }
   else { activeField = "dest"; $("destInput").focus(); }
 }
-function setTripEnd(f, place) { if (f === "orig") tripOrig = place; else tripDest = place; tripChanged(); }
+function setTripEnd(f, place) { hideRoutePrompt(); if (f === "orig") tripOrig = place; else tripDest = place; tripChanged(); }
 function pickPlace(i) {
   const r = suggestions[i]; if (!r) return;
   setTripEnd(activeField, { lat: r.lat, lng: r.lng, name: r.name });
@@ -1352,6 +1379,13 @@ async function buildRoute() {
   }, 380);
 }
 
+let routePromptT = null;
+function showRoutePrompt() {
+  $("routePrompt").classList.add("on");
+  const tb = document.querySelector(".trip"); tb.classList.remove("pulse"); void tb.offsetWidth; tb.classList.add("pulse");
+  clearTimeout(routePromptT); routePromptT = setTimeout(hideRoutePrompt, 6000);
+}
+function hideRoutePrompt() { $("routePrompt").classList.remove("on"); document.querySelector(".trip").classList.remove("pulse"); }
 function closeRoute() {
   routeData = []; selRoute = 0; lastDest = null; lastOrig = null;
   routeLines.clearLayers();
@@ -1360,6 +1394,7 @@ function closeRoute() {
   suggestions = []; closeSuggest(); activeField = "dest";
   renderRouteCps();
   if (userLoc) routeMap.setView(userLoc, 12);
+  if ($("tab-route").classList.contains("active")) showRoutePrompt();
 }
 
 function drawRoutes() {
@@ -1566,7 +1601,12 @@ function renderSteps() {
   $("sum3").textContent = reportPos && pickMap ? t("fromYou", distText(haversineM(reportPos, [pickMap.getCenter().lat, pickMap.getCenter().lng]))) : "";
   $("backBtn").textContent = step === 0 ? t("cancel") : t("back");
   $("nextBtn").textContent = step === last ? "＋ " + t("submit") : t("next");
-  $("nextBtn").disabled = STEPS[step] === "photo" ? !(photoData && photoOk) : false;
+  // Pin must be within REPORT_MAX_M of where the reporter actually is (server enforces it too).
+  const far = reportPos && pickMap && haversineM(reportPos, [pickMap.getCenter().lat, pickMap.getCenter().lng]) > REPORT_MAX_M;
+  $("pickHint").textContent = far ? t("tooFar") : t("pickHint");
+  $("pickHint").classList.toggle("warn", !!far);
+  $("sheetBody").classList.toggle("tall", STEPS[step] === "where" || STEPS[step] === "photo");
+  $("nextBtn").disabled = STEPS[step] === "photo" ? !(photoData && photoOk) : (STEPS[step] === "where" && far);
 }
 function goStep(i) {
   if (i > maxStep) return;
@@ -1576,6 +1616,7 @@ function goStep(i) {
   if (name === "photo" && !photoData && !camStream) startCamera();
   if (name !== "photo" && camStream && !photoData) stopCamera(); // camera only runs on the photo step
   if (name === "where" && pickMap) setTimeout(() => { pickMap.invalidateSize(); renderSteps(); }, 60);
+  if (name === "where" && pickMap) setTimeout(() => pickMap.invalidateSize(), 420); // after the sheet grows
 }
 function stepNext() {
   if (!PHOTO_ON && step === STEPS.length - 1) return submitReport();
@@ -1585,6 +1626,12 @@ function stepNext() {
   }
   maxStep = Math.max(maxStep, step + 1);
   goStep(step + 1);
+}
+const REPORT_MAX_M = 1000;
+function pickRecenter() {
+  const here = reportPos || userLoc;
+  if (!here) return toast(t("needGps"));
+  pickMap.setView(here, 17);
 }
 function stepBack() { step === 0 ? closeSheet() : goStep(step - 1); }
 
@@ -1692,6 +1739,7 @@ function switchTab(name) {
   if (name === "map") { showView("near"); setPanel("collapsed"); }
   if (name === "route") {
     showView("route");
+    if (!routeData.length && !tripDest) showRoutePrompt();
     if (routeData.length) { renderRouteSummary(); setPanel("collapsed"); } else { renderRouteEmpty(); setPanel("collapsed"); }
   }
   setTimeout(() => {
@@ -1701,8 +1749,9 @@ function switchTab(name) {
 }
 
 function renderChips() {
+  const ic = { checkpoint: `<span class="seg-ic cp">${PIN_SHIELD}</span>`, incident: `<span class="seg-ic inc">${PIN_WARN}</span>` };
   $("catSeg").innerHTML = ["checkpoint", "incident"].map(c =>
-    `<button class="${reportCat === c ? "on" : ""}" onclick="setReportCat('${c}')">${t("c_" + c)}</button>`).join("");
+    `<button class="${reportCat === c ? "on" : ""}" onclick="setReportCat('${c}')">${ic[c]}${t("c_" + c)}</button>`).join("");
   $("typeChips").innerHTML = TYPE_KEYS.map((k, i) => TYPES[k].cat !== reportCat ? "" :
     `<button class="chip ${k === selType ? "sel" : ""}" onclick="pickType(${i})">${esc(typeName(k))}</button>`).join("");
 }
@@ -1717,6 +1766,7 @@ function pickType(i) { selType = TYPE_KEYS[i]; renderChips(); evalPhoto(); }
   el.addEventListener("input", () => onSearchInput(f));
   el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); activeField = f; submitSearch(); } });
   el.addEventListener("focus", () => {
+    hideRoutePrompt();
     if (activeField !== f) suggestions = [];
     activeField = f; renderSuggest(el.value.trim());
   });

@@ -35,7 +35,7 @@ LEGACY_TYPES = {
 }
 
 # ---------- report anti-spam ----------
-REPORT_MAX_DIST_M = 500            # reporter's live GPS must be within this of the pin
+REPORT_MAX_DIST_M = 1000           # reporter's live GPS must be within this of the pin
 REPORT_RATE = (5, 600)             # max 5 reports per 10 minutes per client
 # The live photo is checked ON THE PHONE by a free open model (MobileCLIP, see index.html) and
 # never leaves the device. The server only enforces GPS proximity and rate limits.

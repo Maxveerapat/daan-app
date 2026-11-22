@@ -182,6 +182,11 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   so users discover the panel pulls up (user feedback).
 - **Photo step is a toggle:** env `REPORT_PHOTO=1` turns it on; off by default (owner's choice for now).
   When off, reports are type + location; the CLIP model isn't loaded.
+- Default category filter is **checkpoints only** (all views). Route tab shows a tap/search prompt
+  (pulsing trip box + map ripple) until a destination is set.
+- Report sheet: category switch styled exactly like the filter; location step expands the sheet to
+  full height; "my location" button on the pick map; pin must be within **1 km** of the reporter
+  (client blocks Send, server enforces `REPORT_MAX_DIST_M = 1000`).
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

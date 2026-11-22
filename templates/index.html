@@ -70,7 +70,7 @@
     background: var(--glass); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
     border: 1px solid var(--line-2); font-weight: 700; font-size: 17px;
   }
-  .brand { padding-left: 14px; }
+  .brand { padding-left: 14px; background: #1D1F27; -webkit-backdrop-filter: none; backdrop-filter: none; } /* solid: matches the logo knockout */
   .wordmark { display: inline-flex; align-items: center; }
   .wordmark .wm { height: 21px; width: auto; display: block; }
   .mapctl {
@@ -394,7 +394,7 @@
 <main>
   <div class="tab active" id="tab-map">
     <div id="map"></div>
-    <div class="brand"><span class="wordmark" role="img" aria-label="GlubDD"><svg class="wm" viewBox="0 0 100 24" aria-hidden="true"><g fill="none" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 6.36A8.6 8.6 0 1 0 20.6 12h-7.6" stroke="#5B86FF"/><g stroke="#fff"><path d="M27.5 4V20"/><path d="M34.1 9.5V15.7a4.5 4.5 0 0 0 9 0V9.5V20"/><path d="M49.7 4V20"/><circle cx="55.1" cy="14.75" r="5.45"/><path d="M67.1 4V20H70.3A8 8 0 0 0 70.3 4Z"/><path d="M85.1 4V20H88.3A8 8 0 0 0 88.3 4Z"/></g></g><circle cx="13" cy="12" r="2.5" fill="#FFD23F"/></svg></span><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
+    <div class="brand"><span class="wordmark" role="img" aria-label="GlubDD"><svg class="wm" viewBox="0 0 104 24" aria-hidden="true"><path d="M13 12H99.5" stroke="#2D5BFF" stroke-width="2" stroke-linecap="round"/><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#1D1F27" stroke-width="5"><path d="M18.5 6.36A8.6 8.6 0 1 0 20.6 12"/><path d="M27.5 4V20"/><path d="M34.1 9.5V15.7a4.5 4.5 0 0 0 9 0V9.5V20"/><path d="M49.7 4V20"/><circle cx="55.1" cy="14.75" r="5.45"/><path d="M67.1 4V20H70.3A8 8 0 0 0 70.3 4Z"/><path d="M85.1 4V20H88.3A8 8 0 0 0 88.3 4Z"/></g><g stroke="#fff" stroke-width="3.1"><path d="M18.5 6.36A8.6 8.6 0 1 0 20.6 12"/><path d="M27.5 4V20"/><path d="M34.1 9.5V15.7a4.5 4.5 0 0 0 9 0V9.5V20"/><path d="M49.7 4V20"/><circle cx="55.1" cy="14.75" r="5.45"/><path d="M67.1 4V20H70.3A8 8 0 0 0 70.3 4Z"/><path d="M85.1 4V20H88.3A8 8 0 0 0 88.3 4Z"/></g></g><circle cx="13" cy="12" r="2.6" fill="#2D5BFF"/><circle cx="100.3" cy="12" r="2.4" fill="#fff"/><circle cx="94" cy="6.3" r="3.3" fill="#1D1F27"/><circle cx="94" cy="6.3" r="2.1" fill="#FFD23F"/></svg></span><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
   </div>
 
   <div class="tab" id="tab-route">

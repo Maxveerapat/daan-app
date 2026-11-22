@@ -2,9 +2,10 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2032%2032%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22gdLogoGrad%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234C7BFF%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%232140D8%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%229%22%20fill%3D%22url%28%23gdLogoGrad%29%22/%3E%3Cpath%20d%3D%22M22.6%2010.4A8.4%208.4%200%201%200%2024.4%2016H16.6%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%223.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Ccircle%20cx%3D%2216.6%22%20cy%3D%2216%22%20r%3D%222.6%22%20fill%3D%22%23FFD23F%22/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
+<link rel="apple-touch-icon" href="/static/icon-180.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>GlubDD — ด่านตรวจและเหตุบนถนน</title>
+<title>glubDD — ด่านตรวจและเหตุบนถนน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap">
@@ -70,8 +71,8 @@
     background: var(--glass); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
     border: 1px solid var(--line-2); font-weight: 700; font-size: 17px;
   }
-  .brand { padding-left: 14px; background: #1D1F27; -webkit-backdrop-filter: none; backdrop-filter: none; } /* solid: matches the logo knockout */
-  .wordmark { display: inline-flex; align-items: center; }
+  .brand { padding: 4px 6px 4px 12px; background: #111214; -webkit-backdrop-filter: none; backdrop-filter: none; } /* solid: matches the logo knockout */
+  .logo-img { height: 34px; width: auto; display: block; }
   .wordmark .wm { height: 21px; width: auto; display: block; }
   .mapctl {
     position: absolute; right: 2px; bottom: calc(100% + 12px); z-index: 2; display: flex; flex-direction: column;
@@ -394,7 +395,7 @@
 <main>
   <div class="tab active" id="tab-map">
     <div id="map"></div>
-    <div class="brand"><span class="wordmark" role="img" aria-label="GlubDD"><svg class="wm" viewBox="0 0 104 24" aria-hidden="true"><path d="M13 12H99.5" stroke="#2D5BFF" stroke-width="2" stroke-linecap="round"/><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#1D1F27" stroke-width="5"><path d="M18.5 6.36A8.6 8.6 0 1 0 20.6 12"/><path d="M27.5 4V20"/><path d="M34.1 9.5V15.7a4.5 4.5 0 0 0 9 0V9.5V20"/><path d="M49.7 4V20"/><circle cx="55.1" cy="14.75" r="5.45"/><path d="M67.1 4V20H70.3A8 8 0 0 0 70.3 4Z"/><path d="M85.1 4V20H88.3A8 8 0 0 0 88.3 4Z"/></g><g stroke="#fff" stroke-width="3.1"><path d="M18.5 6.36A8.6 8.6 0 1 0 20.6 12"/><path d="M27.5 4V20"/><path d="M34.1 9.5V15.7a4.5 4.5 0 0 0 9 0V9.5V20"/><path d="M49.7 4V20"/><circle cx="55.1" cy="14.75" r="5.45"/><path d="M67.1 4V20H70.3A8 8 0 0 0 70.3 4Z"/><path d="M85.1 4V20H88.3A8 8 0 0 0 88.3 4Z"/></g></g><circle cx="13" cy="12" r="2.6" fill="#2D5BFF"/><circle cx="100.3" cy="12" r="2.4" fill="#fff"/><circle cx="94" cy="6.3" r="3.3" fill="#1D1F27"/><circle cx="94" cy="6.3" r="2.1" fill="#FFD23F"/></svg></span><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
+    <div class="brand"><img class="logo-img" src="/static/logo.png" alt="glubDD" width="83" height="34"><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
   </div>
 
   <div class="tab" id="tab-route">
@@ -498,7 +499,7 @@
 /* ---------- i18n ---------- */
 const I18N = {
   th: {
-    title: "GlubDD — ด่านตรวจและเหตุบนถนน",
+    title: "glubDD — ด่านตรวจและเหตุบนถนน",
     locating: "กำลังหาตำแหน่ง…", locReal: "รอบตำแหน่งปัจจุบันของคุณ", locDemo: "รอบอนุสาวรีย์ชัยฯ (ตำแหน่งตัวอย่าง)",
     legFresh: "ไม่เกิน 1 ชม.", legAging: "1–3 ชม.", legStale: "เกิน 3 ชม.", legFreshS: "<1 ชม.", legAgingS: "1–3 ชม.", legStaleS: ">3 ชม.",
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
@@ -508,7 +509,7 @@ const I18N = {
     secStatus: "สถานะ", secStill: "ยังอยู่ไหม?", confirmedL: "ยืนยันแล้ว", peopleN: n => `${n} คน`,
     lastL: "ยืนยันล่าสุด", reportsL: "รายงานรวม", timesN: n => `${n} ครั้ง`, distL: "ห่างจากคุณ",
     openG: "เปิด Google Maps", openA: "เปิด Apple Maps", routeTitle: "เส้นทาง",
-    share: "แชร์", shareTitle: "GlubDD — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
+    share: "แชร์", shareTitle: "glubDD — แจ้งจุดบนถนน", copied: "คัดลอกลิงก์แล้ว", shareErr: "แชร์ไม่สำเร็จ",
     sharedGone: "รายงานนี้หมดอายุหรือถูกลบแล้ว", detected: x => `ตรวจพบ: ${x} ✓`,
     destPh: "ไปไหน? เช่น สยามพารากอน", origPh: "ตำแหน่งของคุณ", myLoc: "ตำแหน่งของคุณ", needOrig: "เลือกจุดเริ่มต้น", routeBtn: "ดูเส้นทาง",
     routeHint: "ตั้งจุดเริ่ม–ปลายทาง · หรือแตะแผนที่",
@@ -546,7 +547,7 @@ const I18N = {
     liveTraffic: "รวมจราจรสด", noTraffic: "ยังไม่รวมสภาพจราจร", delay: m => `รถติด +${m} นาที`, toll: "มีทางด่วน", noToll: "ไม่ขึ้นทางด่วน",
   },
   en: {
-    title: "GlubDD — checkpoints & road incidents",
+    title: "glubDD — checkpoints & road incidents",
     locating: "Locating…", locReal: "Around your current location", locDemo: "Around Victory Monument (demo location)",
     legFresh: "Under 1 hr", legAging: "1–3 hrs", legStale: "Over 3 hrs", legFreshS: "<1 hr", legAgingS: "1–3 hrs", legStaleS: ">3 hrs",
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
@@ -556,7 +557,7 @@ const I18N = {
     secStatus: "Status", secStill: "Still there?", confirmedL: "Confirmed by", peopleN: n => `${n} ${n === 1 ? "person" : "people"}`,
     lastL: "Last confirmed", reportsL: "Reports merged", timesN: n => `${n}`, distL: "From you",
     openG: "Open Google Maps", openA: "Open Apple Maps", routeTitle: "Route",
-    share: "Share", shareTitle: "GlubDD — road report", copied: "Link copied", shareErr: "Couldn't share",
+    share: "Share", shareTitle: "glubDD — road report", copied: "Link copied", shareErr: "Couldn't share",
     sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
     destPh: "Where to? e.g. Siam Paragon", origPh: "Your location", myLoc: "Your location", needOrig: "Choose a starting point", routeBtn: "Check",
     routeHint: "Set start & destination · or tap the map",

@@ -83,7 +83,7 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 
 ## 0a. Product name & business model (owner's decisions, Nov 2026)
 
-- **Name: GlubDD** (owner is buying the domain). Repo/Render service still called `daan-app`;
+- **Name: glubDD** (logo: static/logo.png; icons: static/icon-*.png, favicon-32.png) (owner is buying the domain). Repo/Render service still called `daan-app`;
   point the new domain at Render via Settings → Custom Domains.
 - **Monetization: no ads.** Free during testing. Later: **two paid packages offered side by side**
   — a pay-per-use **daily pass** and a **monthly subscription** (different prices). A permanent **free tier without the map** — static report list only

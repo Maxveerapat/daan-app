@@ -95,7 +95,7 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - `db.py`: Postgres when `DATABASE_URL` is set (psycopg 3), else local SQLite. Same SQL for both
   (`?` placeholders rewritten for Postgres). Schema changes = append to `MIGRATIONS` (tracked in
   `schema_migrations`); never edit a shipped migration.
-- Demo seed data only goes into an empty SQLite DB (or Postgres with `SEED_DEMO=1`).
+- Demo reports (`source='demo'`) are refreshed on every startup while `SEED_DEMO=1` (default on for SQLite, off for Postgres); turning it off removes them. Real reports never merge into demo rows.
 - Anonymous **device id** (random UUID in localStorage, sent as `X-Device-Id`): stored on reports
   (`reporter_device`) and votes; one vote per device per report (`votes` table, unique index).
 - **Prepared for accounts/payments (not built):** nullable `reporter_user_id` / `votes.user_id`.

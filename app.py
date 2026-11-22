@@ -84,25 +84,28 @@ def init_db():
     db.execute("DELETE FROM checkpoints WHERE source = 'official'")  # legacy rows from older DBs
     for old, code in LEGACY_TYPES.items():
         db.execute("UPDATE checkpoints SET type = ? WHERE type = ?", (code, old))
-    if SEED_DEMO and db.scalar("SELECT COUNT(*) FROM checkpoints") == 0:
+    # Demo reports are tagged source='demo' and replaced with fresh ones on every startup, so they
+    # never expire while SEED_DEMO is on and never mix with real reports. Turn SEED_DEMO off to remove them.
+    db.execute("DELETE FROM checkpoints WHERE source = 'demo'")
+    if SEED_DEMO:
         now = int(time.time())
         # All checkpoints are crowdsourced in-app (source = 'user'). There is no public
         # feed of Thai police checkpoints, so the old 'official' source was removed.
         seed = [
             # lat, lng, label, type, rep_min, conf_min, confirms, reports, source, source_name
             # coordinates snapped to the road network (OSRM /nearest) so pins sit on roads, not buildings
-            (13.78062, 100.50344, "ถ.ราชวิถี ใกล้สะพานกรุงธน", "license_helmet", 55, 15, 4, 2, "user", None),
-            (13.66041, 100.43404, "ถ.พระราม 2 หน้าโลตัส", "speed", 95, 40, 2, 3, "user", None),
-            (13.72203, 100.52311, "ถ.สาทร ใกล้ รพ.เซนต์หลุยส์", "general", 30, 8, 5, 2, "user", None),
-            (13.76474, 100.53874, "วงเวียนอนุสาวรีย์ชัยฯ", "alcohol", 70, 25, 3, 1, "user", None),
-            (13.73052, 100.56972, "ถ.สุขุมวิท ซ.33", "motorbike", 170, 165, 1, 1, "user", None),
-            (13.7097, 100.4601, "ถ.จรัญสนิทวงศ์ ซ.35", "license_helmet", 480, 470, 1, 1, "user", None),
-            (13.8037, 100.55419, "ถ.กำแพงเพชร ใกล้ ม.เกษตร", "tax_insurance", 60, 35, 6, 4, "user", None),
-            (13.74671, 100.53406, "แยกราชเทวี", "general", 50, 20, 8, 5, "user", None),
+            (13.78062, 100.50344, "ถ.ราชวิถี ใกล้สะพานกรุงธน", "license_helmet", 55, 15, 4, 2, "demo", None),
+            (13.66041, 100.43404, "ถ.พระราม 2 หน้าโลตัส", "speed", 95, 40, 2, 3, "demo", None),
+            (13.72203, 100.52311, "ถ.สาทร ใกล้ รพ.เซนต์หลุยส์", "general", 30, 8, 5, 2, "demo", None),
+            (13.76474, 100.53874, "วงเวียนอนุสาวรีย์ชัยฯ", "alcohol", 70, 25, 3, 1, "demo", None),
+            (13.73052, 100.56972, "ถ.สุขุมวิท ซ.33", "motorbike", 170, 165, 1, 1, "demo", None),
+            (13.7097, 100.4601, "ถ.จรัญสนิทวงศ์ ซ.35", "license_helmet", 480, 470, 1, 1, "demo", None),
+            (13.8037, 100.55419, "ถ.กำแพงเพชร ใกล้ ม.เกษตร", "tax_insurance", 60, 35, 6, 4, "demo", None),
+            (13.74671, 100.53406, "แยกราชเทวี", "general", 50, 20, 8, 5, "demo", None),
             # road incidents (same table; category comes from the type)
-            (13.72258, 100.56003, "ถ.พระราม 4 ใกล้คลองเตย", "roadwork", 240, 40, 3, 2, "user", None),
-            (13.77610, 100.55870, "ถ.วิภาวดีรังสิต ขาเข้า ใกล้ดินแดง", "accident", 25, 10, 4, 3, "user", None),
-            (13.71862, 100.59672, "ถ.สุขุมวิท ซ.71", "flood", 70, 30, 2, 2, "user", None),
+            (13.72258, 100.56003, "ถ.พระราม 4 ใกล้คลองเตย", "roadwork", 240, 40, 3, 2, "demo", None),
+            (13.77610, 100.55870, "ถ.วิภาวดีรังสิต ขาเข้า ใกล้ดินแดง", "accident", 25, 10, 4, 3, "demo", None),
+            (13.71862, 100.59672, "ถ.สุขุมวิท ซ.71", "flood", 70, 30, 2, 2, "demo", None),
         ]
         for lat, lng, label, typ, rep_m, conf_m, confirms, reports, source, sname in seed:
             db.execute(
@@ -207,7 +210,7 @@ def add_checkpoint():
     now = int(time.time())
     db = get_db()
     active = db.execute(
-        "SELECT * FROM checkpoints WHERE cleared_at IS NULL AND last_confirmed_at > ? AND type = ?",
+        "SELECT * FROM checkpoints WHERE cleared_at IS NULL AND source != 'demo' AND last_confirmed_at > ? AND type = ?",
         (now - ACTIVE_SECONDS, typ),
     ).fetchall()
     for row in active:

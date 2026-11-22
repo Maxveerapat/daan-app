@@ -12,6 +12,8 @@ from flask import Flask, g, jsonify, render_template, request
 import db as dbmod
 
 APP_DIR = Path(__file__).parent
+# Feature toggle: require a live photo (on-device check) when reporting. Off unless REPORT_PHOTO=1.
+PHOTO_REQUIRED = os.environ.get("REPORT_PHOTO", "0") == "1"
 # Demo reports are only seeded into an empty local (SQLite) DB unless SEED_DEMO=1 is set.
 SEED_DEMO = os.environ.get("SEED_DEMO", "" if dbmod.IS_PG else "1") == "1"
 
@@ -169,7 +171,7 @@ def row_to_dict(row, now):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", photo_on=PHOTO_REQUIRED)
 
 
 @app.route("/api/health")

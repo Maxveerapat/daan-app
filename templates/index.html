@@ -940,17 +940,26 @@ let panelView = "near", prevView = "near", prevPanelState = "collapsed";
 // Two states only: "collapsed" (default) and "full". Collapsed height is measured per view so it
 // ends right below the useful header: Nearby → the filter; Route → the first route option.
 function panelState() { return $("panel").classList.contains("full") ? "full" : "collapsed"; }
+// Collapsed height leaves HALF of the next item peeking above the tab bar, so people can see
+// there's more and that the panel pulls up. Nearby: half the first report. Route results: the
+// first route plus half the second. Route without a destination: just the header.
 function updateCollapsed() {
   const p = $("panel"), pv = $("pv-" + panelView);
   if (!pv || panelView === "detail") return;
-  let anchor = panelView === "near" ? $("catbar")
-    : (document.querySelector("#routeSummary .route-opt") || $("routeSummary").lastElementChild);
-  if (!anchor) return;
-  const grab = $("panelDrag").offsetHeight, nav = p.querySelector("nav");
-  const navH = nav.offsetHeight + parseFloat(getComputedStyle(nav).marginTop) + parseFloat(getComputedStyle(nav).marginBottom);
-  const padTop = parseFloat(getComputedStyle(pv).paddingTop);
-  const h = Math.round(grab + padTop + anchor.offsetTop + anchor.offsetHeight + 12 + navH + 2);
-  p.style.setProperty("--collapsed", Math.min(h, window.innerHeight * 0.6) + "px");
+  let full = null, half = null;
+  if (panelView === "near") { full = $("catbar"); half = document.querySelector("#feedScroll .row"); }
+  else {
+    const opts = document.querySelectorAll("#routeSummary .route-opt");
+    if (opts.length) { full = opts[0]; half = opts[1] || null; }
+    else full = $("routeSummary").lastElementChild;
+  }
+  if (!full) return;
+  const top = el => el.getBoundingClientRect().top - pv.getBoundingClientRect().top + pv.scrollTop;
+  const grab = $("panelDrag").offsetHeight, nav = p.querySelector("nav"), cs = getComputedStyle(nav);
+  const navH = nav.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+  const content = half ? top(half) + half.offsetHeight * 0.5 : top(full) + full.offsetHeight + 12;
+  const h = Math.round(grab + content + navH);
+  p.style.setProperty("--collapsed", Math.min(h, window.innerHeight * 0.62) + "px");
 }
 function setPanel(st) {
   const p = $("panel");
@@ -1538,7 +1547,10 @@ function evalPhoto(detected) {
   updateSubmit();
 }
 /* Report stepper: 1 type → 2 location → 3 photo → send. */
-const STEPS = ["type", "where", "photo"];
+// Photo step is a server-side toggle (REPORT_PHOTO=1). When off, reports are type + location only.
+const PHOTO_ON = {{ 'true' if photo_on else 'false' }};
+const STEPS = PHOTO_ON ? ["type", "where", "photo"] : ["type", "where"];
+if (!PHOTO_ON) document.querySelector('.step[data-step="photo"]').style.display = "none";
 let step = 0, maxStep = 0;
 function updateSubmit() { renderSteps(); }
 function renderSteps() {
@@ -1566,6 +1578,7 @@ function goStep(i) {
   if (name === "where" && pickMap) setTimeout(() => { pickMap.invalidateSize(); renderSteps(); }, 60);
 }
 function stepNext() {
+  if (!PHOTO_ON && step === STEPS.length - 1) return submitReport();
   if (STEPS[step] === "photo") {
     if (!(photoData && photoOk)) return toast(t(photoData ? "photoBad" : "needPhoto"));
     return submitReport();
@@ -1589,7 +1602,7 @@ function openSheet() {
   photoData = null; photoOk = false; photoProbs = undefined; $("camWrap").classList.remove("shot", "err"); $("camCheck").className = "";
   renderChips();
   renderSteps();
-  loadClip().catch(() => {}); // warm up the model while the user aims
+  if (PHOTO_ON) loadClip().catch(() => {}); // warm up the model while the user aims
   // Fresh high-accuracy fix: the pin starts here and the server checks the pin is near it.
   reportPos = null;
   navigator.geolocation && navigator.geolocation.getCurrentPosition(
@@ -1636,8 +1649,8 @@ function closeSheet() {
 }
 
 async function submitReport() {
-  if (!photoData) return toast(t("needPhoto"));
-  if (!photoOk) return toast(t("photoBad"));
+  if (PHOTO_ON && !photoData) return toast(t("needPhoto"));
+  if (PHOTO_ON && !photoOk) return toast(t("photoBad"));
   if (!reportPos) return toast(t("needGps"));
   const c = pickMap.getCenter();
   $("nextBtn").disabled = true;

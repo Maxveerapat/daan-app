@@ -10,6 +10,8 @@ services:
         value: 3.12.7
       - key: DATABASE_URL   # Postgres connection string (Neon/Supabase); without it data is lost on restart
         sync: false
+      - key: REPORT_PHOTO   # 1 = require a live photo when reporting (on-device check); 0/unset = off
+        value: "0"
       - key: TOMTOM_KEY     # TomTom key: live-traffic routes + place search
         sync: false
       - key: ORS_KEY        # free OpenRouteService key; enter it in Render → Environment

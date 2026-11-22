@@ -178,6 +178,10 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Route start point is editable** (Google-Maps-style A/B box with swap): `tripOrig` null = live
   location, otherwise a searched place or dropped pin; map tap fills whichever field is being edited.
   Nav handoff passes `origin=` (Google) / `saddr=` (Apple) when a custom start is set.
+- **Collapsed panel peeks half of the next row** (Nearby: first report; Route: route 1 + half of route 2)
+  so users discover the panel pulls up (user feedback).
+- **Photo step is a toggle:** env `REPORT_PHOTO=1` turns it on; off by default (owner's choice for now).
+  When off, reports are type + location; the CLIP model isn't loaded.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

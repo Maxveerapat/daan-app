@@ -94,6 +94,10 @@
   .seg-ic { display: inline-flex; width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
   .seg-ic svg { width: 100%; height: 100%; }
   .seg-ic.cp { color: #FF8A7E; } .seg-ic.inc { color: var(--yellow); }
+  .brand #refreshBtn { margin-left: 6px; width: 30px; height: 30px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
+  .brand #refreshBtn svg { width: 16px; height: 16px; }
+  .brand #refreshBtn.spin svg { animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .brand #langBtn { margin-left: 4px; height: 30px; padding: 0 11px; border-radius: 999px; border: none; background: rgba(255,255,255,.12); font-size: 12.5px; font-weight: 700; }
   .lg-i { display: flex; align-items: center; gap: 5px; color: #D7DAE4; }
   .lg-i i { width: 9px; height: 9px; border-radius: 50%; }
@@ -456,7 +460,7 @@
 <main>
   <div class="tab active" id="tab-map">
     <div id="map"></div>
-    <div class="brand"><img class="logo-img" src="/static/logo.png?v=2" alt="glubDD" width="76" height="34"><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button></div>
+    <div class="brand"><img class="logo-img" src="/static/logo.png?v=2" alt="glubDD" width="76" height="34"><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button><button id="refreshBtn" onclick="hardRefresh()" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></div>
   </div>
 
   <div class="tab" id="tab-route">
@@ -729,6 +733,13 @@ function applyLang() {
   renderCatBars();
   if ($("sheet").classList.contains("open")) renderSteps();
   baseMaps.forEach(setMapLabels);
+}
+// Manual refresh for people using a home-screen shortcut (no browser reload button):
+// reloads the page so they get the latest reports and the latest version of the app.
+function hardRefresh() {
+  $("refreshBtn").classList.add("spin");
+  const u = new URL(location.href); u.searchParams.set("_", Date.now().toString(36));
+  location.replace(u.toString());
 }
 function toggleLang() {
   lang = lang === "th" ? "en" : "th";
@@ -1923,6 +1934,7 @@ contentDrag(document.querySelector("#sheetBody .steps"), {
   },
 });
 
+(() => { const u = new URL(location.href); if (u.searchParams.has("_")) { u.searchParams.delete("_"); history.replaceState(null, "", u.pathname + u.search + u.hash); } })();
 initMaps();
 applyLang();
 locate();

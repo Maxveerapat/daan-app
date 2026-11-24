@@ -103,6 +103,8 @@ MIGRATIONS = [
         created_at BIGINT NOT NULL
     )""",
     "CREATE INDEX IF NOT EXISTS idx_events_created ON events (created_at)",
+    # 10: event details as JSON (platform, language, source, report type/category/area…)
+    "ALTER TABLE events ADD COLUMN meta TEXT",
 ]
 
 

@@ -205,10 +205,15 @@ STATS_TOKEN = os.environ.get("STATS_TOKEN", "").strip()
 TZ_OFFSET = 7 * 3600   # report days in Bangkok time
 
 
-def log_event(db, kind, standalone=False):
+EVENT_KINDS = {"report_open", "route_search", "nav_google", "nav_apple", "detail_open", "share",
+               "install_shown", "install_click", "installed", "filter", "lang", "theme"}
+
+
+def log_event(db, kind, standalone=False, meta=None):
     try:
-        db.execute("INSERT INTO events (kind, device_id, standalone, created_at) VALUES (?,?,?,?)",
-                   (kind, _device_id() or _client_id(), bool(standalone), int(time.time())))
+        db.execute("INSERT INTO events (kind, device_id, standalone, created_at, meta) VALUES (?,?,?,?,?)",
+                   (kind, _device_id() or _client_id(), bool(standalone), int(time.time()),
+                    json.dumps(meta, ensure_ascii=False)[:500] if meta else None))
     except Exception as e:  # noqa: BLE001 — analytics must never break the app
         app.logger.warning("event log failed: %s", e)
 
@@ -216,40 +221,180 @@ def log_event(db, kind, standalone=False):
 @app.route("/api/visit", methods=["POST"])
 def visit():
     db = get_db()
-    log_event(db, "visit", (request.get_json(silent=True) or {}).get("standalone", False))
+    d = request.get_json(silent=True) or {}
+    meta = {k: str(d.get(k))[:60] for k in ("platform", "lang", "src", "theme") if d.get(k) is not None}
+    meta["new"] = bool(d.get("new"))
+    log_event(db, "visit", d.get("standalone", False), meta)
     db.commit()
     return jsonify({"ok": True})
 
 
-def _stats(days):
-    since = int(time.time()) - days * 86400
-    rows = get_db().execute(
-        "SELECT kind, device_id, standalone, created_at FROM events WHERE created_at >= ?", (since,)
-    ).fetchall()
+@app.route("/api/event", methods=["POST"])
+def event():
+    """Feature-usage events from the client (whitelisted kinds, small meta)."""
+    d = request.get_json(silent=True) or {}
+    kind = str(d.get("kind", ""))
+    if kind not in EVENT_KINDS:
+        return jsonify({"ok": False}), 400
+    meta = d.get("meta") if isinstance(d.get("meta"), dict) else None
+    if meta:
+        meta = {str(k)[:20]: (v if isinstance(v, (int, float, bool)) else str(v)[:60]) for k, v in list(meta.items())[:8]}
+    db = get_db()
+    log_event(db, kind, d.get("standalone", False), meta)
+    db.commit()
+    return jsonify({"ok": True})
+
+
+def _stats(days, gran="day"):
+    """Everything the analytics dashboard shows, computed from the events table."""
     import datetime as dt
-    buckets = {"daily": {}, "monthly": {}}
+    from collections import Counter, defaultdict
+    now = int(time.time())
+    since = now - days * 86400
+    db = get_db()
+    rows = db.execute(
+        "SELECT kind, device_id, standalone, created_at, meta FROM events WHERE created_at >= ?", (since,)
+    ).fetchall()
+    first_seen = {r["device_id"]: r["fs"] for r in db.execute(
+        "SELECT device_id, MIN(created_at) AS fs FROM events WHERE kind = 'visit' GROUP BY device_id").fetchall()}
+
+    local = lambda ts: dt.datetime.utcfromtimestamp(ts + TZ_OFFSET)
+
+    def bucket(ts):
+        d = local(ts)
+        if gran == "month":
+            return d.strftime("%Y-%m")
+        if gran == "week":
+            return (d - dt.timedelta(days=d.weekday())).strftime("%Y-%m-%d")
+        return d.strftime("%Y-%m-%d")
+
+    # continuous list of buckets for the range
+    keys, d = [], local(since)
+    while d <= local(now):
+        k = bucket(int(d.timestamp()) - TZ_OFFSET)
+        if not keys or keys[-1] != k:
+            keys.append(k)
+        d += dt.timedelta(days=1)
+    tl = {k: {"visits": 0, "visitors": set(), "new": set(), "reports": 0, "reports_cp": 0, "reports_inc": 0,
+              "reporters": set(), "nav": 0, "routes": 0} for k in keys}
+
+    ev = []
     for r in rows:
-        d = dt.datetime.utcfromtimestamp(r["created_at"] + TZ_OFFSET)
-        for gran, key in (("daily", d.strftime("%Y-%m-%d")), ("monthly", d.strftime("%Y-%m"))):
-            b = buckets[gran].setdefault(key, {"visits": 0, "visitors": set(), "app_visits": 0,
-                                               "reports": 0, "reporters": set()})
-            if r["kind"] == "visit":
-                b["visits"] += 1; b["visitors"].add(r["device_id"])
-                if r["standalone"]:
-                    b["app_visits"] += 1
-            elif r["kind"] == "report":
-                b["reports"] += 1; b["reporters"].add(r["device_id"])
-    out = {}
-    for gran, bs in buckets.items():
-        out[gran] = [{"period": k, "visits": v["visits"], "unique_visitors": len(v["visitors"]),
-                      "visits_from_shortcut": v["app_visits"], "reports": v["reports"],
-                      "unique_reporters": len(v["reporters"])} for k, v in sorted(bs.items(), reverse=True)]
-    all_v = {r["device_id"] for r in rows if r["kind"] == "visit"}
-    all_r = {r["device_id"] for r in rows if r["kind"] == "report"}
-    out["total"] = {"days": days, "visits": sum(1 for r in rows if r["kind"] == "visit"),
-                    "unique_visitors": len(all_v), "reports": sum(1 for r in rows if r["kind"] == "report"),
-                    "unique_reporters": len(all_r)}
-    return out
+        try:
+            m = json.loads(r["meta"]) if r["meta"] else {}
+        except ValueError:
+            m = {}
+        ev.append((r["kind"], r["device_id"], bool(r["standalone"]), r["created_at"], m))
+
+    users_by_kind = defaultdict(set)
+    count_by_kind = Counter()
+    daily_users = defaultdict(set)
+    plat, langs, srcs, types, hourgrid = Counter(), Counter(), Counter(), Counter(), Counter()
+    seen_plat = set()
+    points, visits_sa, merged = [], 0, 0
+    for kind, dev, sa, ts, m in ev:
+        users_by_kind[kind].add(dev); count_by_kind[kind] += 1
+        b = tl.get(bucket(ts))
+        if kind == "visit":
+            daily_users[local(ts).strftime("%Y-%m-%d")].add(dev)
+            if sa:
+                visits_sa += 1
+            if b is not None:
+                b["visits"] += 1; b["visitors"].add(dev)
+                if first_seen.get(dev, 0) >= ts - 1 and bucket(first_seen.get(dev, ts)) == bucket(ts):
+                    b["new"].add(dev)
+            if dev not in seen_plat:
+                seen_plat.add(dev)
+                plat[m.get("platform", "unknown")] += 1
+                langs[m.get("lang", "unknown")] += 1
+            srcs[m.get("src") or "direct"] += 1
+        elif kind == "report":
+            cat = m.get("cat", "checkpoint")
+            types[m.get("type", "general")] += 1
+            if m.get("merged"):
+                merged += 1
+            lt = local(ts); hourgrid[(lt.weekday(), lt.hour)] += 1
+            if "lat" in m and len(points) < 3000:
+                points.append([m["lat"], m["lng"], cat])
+            if b is not None:
+                b["reports"] += 1; b["reporters"].add(dev)
+                b["reports_" + ("inc" if cat == "incident" else "cp")] += 1
+        elif kind in ("nav_google", "nav_apple") and b is not None:
+            b["nav"] += 1
+        elif kind == "route_search" and b is not None:
+            b["routes"] += 1
+
+    visitors = users_by_kind["visit"]
+    timeline = [{"period": k, "visits": v["visits"], "visitors": len(v["visitors"]), "new": len(v["new"]),
+                 "returning": len(v["visitors"]) - len(v["new"]), "reports": v["reports"],
+                 "reports_cp": v["reports_cp"], "reports_inc": v["reports_inc"], "reporters": len(v["reporters"]),
+                 "nav": v["nav"], "routes": v["routes"]} for k, v in tl.items()]
+
+    # DAU / MAU / stickiness
+    all_days = [(local(since) + dt.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days + 1)]
+    dau_avg = sum(len(daily_users.get(x, ())) for x in all_days) / max(1, len(all_days))
+    mau = len({dev for kind, dev, _, ts, _ in ev if kind == "visit" and ts >= now - 30 * 86400})
+    wau = len({dev for kind, dev, _, ts, _ in ev if kind == "visit" and ts >= now - 7 * 86400})
+
+    def uniq(*kinds):
+        return len(set().union(*(users_by_kind[k] for k in kinds)))
+
+    funnels = {
+        "report": [["visited", len(visitors)], ["opened_report", uniq("report_open")], ["submitted", uniq("report")]],
+        "route": [["visited", len(visitors)], ["searched_route", uniq("route_search")], ["opened_nav", uniq("nav_google", "nav_apple")]],
+        "install": [["shown", uniq("install_shown")], ["clicked", uniq("install_click")], ["installed", uniq("installed")]],
+    }
+    features = sorted([{"kind": k, "count": count_by_kind[k], "users": len(users_by_kind[k])}
+                       for k in ("route_search", "nav_google", "nav_apple", "detail_open", "vote", "share",
+                                 "report_open", "report", "filter", "lang", "theme")], key=lambda x: -x["count"])
+
+    # weekly retention cohorts (by first visit week, last 8 weeks)
+    def wk(ts):
+        x = local(ts); return (x - dt.timedelta(days=x.weekday())).date()
+    visit_weeks = defaultdict(set)
+    for kind, dev, _, ts, _ in db_all_visits(db, now - 9 * 7 * 86400):
+        visit_weeks[dev].add(wk(ts))
+    cohorts = defaultdict(set)
+    for dev, fs in first_seen.items():
+        if fs >= now - 8 * 7 * 86400:
+            cohorts[wk(fs)].add(dev)
+    retention = []
+    for c in sorted(cohorts, reverse=True):
+        devs = cohorts[c]
+        row = {"cohort": c.isoformat(), "size": len(devs), "weeks": []}
+        for n in range(0, 6):
+            w = c + dt.timedelta(weeks=n)
+            if w > wk(now):
+                break
+            row["weeks"].append(round(100 * sum(1 for x in devs if w in visit_weeks[x]) / len(devs)))
+        retention.append(row)
+
+    reports_total = count_by_kind["report"]
+    return {
+        "days": days, "gran": gran, "generated": local(now).strftime("%Y-%m-%d %H:%M"),
+        "kpi": {
+            "visitors": len(visitors), "visits": count_by_kind["visit"],
+            "new_visitors": sum(1 for x in visitors if first_seen.get(x, 0) >= since),
+            "dau": round(dau_avg, 1), "wau": wau, "mau": mau,
+            "stickiness": round(100 * dau_avg / mau, 1) if mau else 0,
+            "reports": reports_total, "reporters": len(users_by_kind["report"]),
+            "contrib_rate": round(100 * len(users_by_kind["report"]) / len(visitors), 1) if visitors else 0,
+            "merge_rate": round(100 * merged / reports_total, 1) if reports_total else 0,
+            "shortcut_share": round(100 * visits_sa / count_by_kind["visit"], 1) if count_by_kind["visit"] else 0,
+            "route_users": uniq("route_search"), "nav_opens": count_by_kind["nav_google"] + count_by_kind["nav_apple"],
+            "visits_per_user": round(count_by_kind["visit"] / len(visitors), 2) if visitors else 0,
+        },
+        "timeline": timeline, "funnels": funnels, "features": features, "retention": retention,
+        "platforms": plat.most_common(), "langs": langs.most_common(), "sources": srcs.most_common(12),
+        "types": types.most_common(),
+        "hours": [[wd, h, n] for (wd, h), n in hourgrid.items()],
+        "points": points,
+    }
+
+
+def db_all_visits(db, since):
+    return [("visit", r["device_id"], None, r["created_at"], None) for r in db.execute(
+        "SELECT device_id, created_at FROM events WHERE kind = 'visit' AND created_at >= ?", (since,)).fetchall()]
 
 
 def _stats_allowed():
@@ -260,15 +405,24 @@ def _stats_allowed():
 def stats_json():
     if not _stats_allowed():
         return jsonify({"error": "forbidden"}), 403
-    return jsonify(_stats(min(int(request.args.get("days", 90)), 730)))
+    return jsonify(_stats(*_stats_args()))
 
 
 @app.route("/stats")
 def stats_page():
     if not _stats_allowed():
         return "Set STATS_TOKEN on the server and open /stats?token=…", 403
-    return render_template("stats.html", s=_stats(min(int(request.args.get("days", 90)), 730)),
-                           token=request.args.get("token"))
+    days, gran = _stats_args()
+    return render_template("stats.html", data=_stats(days, gran), token=request.args.get("token"))
+
+
+def _stats_args():
+    try:
+        days = max(1, min(int(request.args.get("days", 30)), 730))
+    except ValueError:
+        days = 30
+    gran = request.args.get("gran", "day" if days <= 60 else "week" if days <= 180 else "month")
+    return days, gran if gran in ("day", "week", "month") else "day"
 
 
 @app.route("/manifest.webmanifest")
@@ -387,7 +541,7 @@ def add_checkpoint():
                 (now, row["id"]),
             )
             db.execute("INSERT INTO votes (report_id, device_id, still_there, created_at) VALUES (?,?,?,?)", (row["id"], device, True, now))
-        log_event(db, "report")
+        log_event(db, "report", meta={"type": typ, "cat": cat, "merged": True, "lat": round(lat, 3), "lng": round(lng, 3)})
         db.commit()
         return jsonify({"ok": True, "merged": True, "id": row["id"]})
 
@@ -395,7 +549,7 @@ def add_checkpoint():
         "INSERT INTO checkpoints (lat,lng,label,type,reported_at,last_confirmed_at,reporter_device,heading) VALUES (?,?,?,?,?,?,?,?)",
         (lat, lng, label, typ, now, now, _device_id(), heading),
     )
-    log_event(db, "report")
+    log_event(db, "report", meta={"type": typ, "cat": cat, "merged": False, "lat": round(lat, 3), "lng": round(lng, 3)})
     db.commit()
     return jsonify({"ok": True, "merged": False, "id": new_id})
 
@@ -470,6 +624,7 @@ def vote(cid):
         db.execute("UPDATE checkpoints SET dismisses=dismisses+1 WHERE id=?", (cid,))
         if db.scalar("SELECT dismisses FROM checkpoints WHERE id=?", (cid,)) >= DISMISS_THRESHOLD:
             db.execute("UPDATE checkpoints SET cleared_at=? WHERE id=?", (now, cid))
+    log_event(db, "vote", meta={"still": still})
     db.commit()
     return jsonify({"ok": True})
 

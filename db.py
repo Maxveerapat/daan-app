@@ -94,6 +94,15 @@ MIGRATIONS = [
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_report_device ON votes (report_id, device_id)",
     # 7: direction of travel the report applies to (degrees, 0 = north); NULL = unknown
     f"ALTER TABLE checkpoints ADD COLUMN heading {REAL}",
+    # 8: first-party analytics events (anonymous device id only — no IP, no personal data)
+    f"""CREATE TABLE IF NOT EXISTS events (
+        id {PK},
+        kind TEXT NOT NULL,
+        device_id TEXT NOT NULL,
+        standalone BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at BIGINT NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_events_created ON events (created_at)",
 ]
 
 

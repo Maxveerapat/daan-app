@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="48x48" href="/static/favicon-48.png?v=2">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#111214">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="glubDD">
 <link rel="apple-touch-icon" href="/static/icon-180.png?v=2">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>glubDD — ด่านตรวจและเหตุบนถนน</title>
@@ -442,6 +446,17 @@
   .sheet-actions .submit { border: none; background: var(--blue); color: #fff; }
   .sheet-actions .submit:disabled { opacity: .4; }
 
+  /* "Add to home screen" snackbar: browser visits only, a few seconds, never blocks the map */
+  #installBar { position: absolute; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 64px); z-index: 1250; display: none;
+    align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 18px; background: rgba(30,32,40,.95);
+    border: 1px solid var(--line-2); box-shadow: 0 8px 26px rgba(0,0,0,.45); max-width: 460px; }
+  #installBar.on { display: flex; animation: ibIn .3s cubic-bezier(.32,.72,0,1); }
+  #installBar img { width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0; }
+  .ib-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 12.5px; color: var(--muted); }
+  .ib-txt b { font-size: 14px; color: var(--text); }
+  #ibGo { border: none; background: var(--blue); color: #fff; font-weight: 700; font-size: 13.5px; height: 34px; padding: 0 14px; border-radius: 999px; white-space: nowrap; }
+  #ibX { border: none; background: none; color: var(--muted); width: 28px; height: 28px; font-size: 14px; }
+  @keyframes ibIn { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
   #toast { position: absolute; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 124px); z-index: 1400; display: none; width: max-content; max-width: calc(100% - 32px); text-align: center; color: #fff; font-size: 14.5px; font-weight: 500; padding: 13px 20px; border-radius: 999px; background: rgba(40,44,58,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid var(--line-2); box-shadow: 0 8px 26px rgba(0,0,0,.4); }
 
   /* ===== Wide screens: unfolded foldables, tablets, desktop ===== */
@@ -581,6 +596,8 @@
   </div>
 
   <div id="toast"></div>
+  <div id="installBar" role="status"><img src="/static/icon-180.png?v=2" alt=""><div class="ib-txt"><b data-i18n="installT"></b><span id="ibHow"></span></div>
+    <button id="ibGo" data-i18n="installGo"></button><button id="ibX" aria-label="Close">✕</button></div>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -599,6 +616,8 @@ const I18N = {
     sideQ: "ด่านอยู่ฝั่งไหน?", sideSame: "ฝั่งเดียวกับฉัน", sideOpp: "ฝั่งตรงข้าม", setDir: "ตั้งทิศ",
     dirUnknown: "ทิศทาง: ไม่ระบุ — แตะเพื่อตั้ง", heading: x => `มุ่งหน้าทิศ${x}`, dirL: "ทิศทาง",
     wrongSide: "อยู่อีกฝั่งถนน", flipped: "เปลี่ยนฝั่งแล้ว",
+    installT: "เพิ่ม glubDD ไว้ที่หน้าจอโฮม", installGo: "ติดตั้ง", installGot: "เข้าใจแล้ว",
+    installIOS: "แชร์ ⬆︎ → “เพิ่มไปยังหน้าจอโฮม”", installOther: "เมนู ⋮ → “เพิ่มลงในหน้าจอหลัก”", installAndroid: "เปิดเร็วเหมือนแอป ไม่ต้องดาวน์โหลด",
     tabNear: "แถวนี้", tabReport: "รายงาน", nearTitle: n => `${n} รายงานแถวนี้`, live: "สด",
     secStatus: "สถานะ", secStill: "ยังอยู่ไหม?", confirmedL: "ยืนยันแล้ว", peopleN: n => `${n} คน`,
     lastL: "ยืนยันล่าสุด", reportsL: "รายงานรวม", timesN: n => `${n} ครั้ง`, distL: "ห่างจากคุณ",
@@ -650,6 +669,8 @@ const I18N = {
     sideQ: "Which side?", sideSame: "My side", sideOpp: "Opposite side", setDir: "Set direction",
     dirUnknown: "Direction: not set — tap to set", heading: x => `Heading ${x}`, dirL: "Direction",
     wrongSide: "It's on the other side of the road", flipped: "Side changed",
+    installT: "Add glubDD to your home screen", installGo: "Install", installGot: "Got it",
+    installIOS: "Tap Share ⬆︎ then “Add to Home Screen”", installOther: "Open the ⋮ menu → “Add to Home screen”", installAndroid: "Opens like an app — no download",
     tabNear: "Nearby", tabReport: "Report", nearTitle: n => `${n} report${n === 1 ? "" : "s"} nearby`, live: "Live",
     secStatus: "Status", secStill: "Still there?", confirmedL: "Confirmed by", peopleN: n => `${n} ${n === 1 ? "person" : "people"}`,
     lastL: "Last confirmed", reportsL: "Reports merged", timesN: n => `${n}`, distL: "From you",
@@ -2020,6 +2041,33 @@ contentDrag(document.querySelector("#sheetBody .steps"), {
     } else b.style.transform = "";
   },
 });
+
+/* ---------- installability, analytics ping, install snackbar ---------- */
+const IS_STANDALONE = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+fetch("/api/visit", { method: "POST", headers: apiHeaders(), body: JSON.stringify({ standalone: IS_STANDALONE }), keepalive: true }).catch(() => {});
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if ($("installBar").classList.contains("on")) renderInstall(); });
+window.addEventListener("appinstalled", () => hideInstall());
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+let installT = null;
+function renderInstall() {
+  $("ibHow").textContent = installEvt ? t("installAndroid") : IS_IOS ? t("installIOS") : t("installOther");
+  $("ibGo").textContent = installEvt ? t("installGo") : t("installGot");
+}
+function hideInstall() { $("installBar").classList.remove("on"); clearTimeout(installT); }
+function showInstall() {
+  if (IS_STANDALONE) return;            // opened from the home-screen shortcut: never show
+  renderInstall();
+  $("installBar").classList.add("on");
+  installT = setTimeout(hideInstall, IS_IOS ? 9000 : 7000);
+}
+$("ibX").onclick = hideInstall;
+$("ibGo").onclick = async () => {
+  if (installEvt) { installEvt.prompt(); try { await installEvt.userChoice; } catch (e) {} installEvt = null; }
+  hideInstall();
+};
+setTimeout(showInstall, 1500);           // every browser visit, after the map has appeared
 
 (() => { const u = new URL(location.href); if (u.searchParams.has("_")) { u.searchParams.delete("_"); history.replaceState(null, "", u.pathname + u.search + u.hash); } })();
 initMaps();

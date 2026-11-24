@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glubDD stats</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap">
+<style>
+  :root { --bg:#111214; --card:#1B1C1E; --line:rgba(255,255,255,.08); --text:#F2F2F3; --muted:#9B9EA4; --blue:#7EA3FF; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Google Sans", -apple-system, Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 40px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; } .sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 22px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+  .kpi b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; } .kpi span { color: var(--muted); font-size: 13px; }
+  .tabs { display: flex; gap: 6px; margin: 0 0 10px; } .tabs a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 999px; background: var(--card); font-size: 14px; }
+  .tabs a.on { color: var(--text); background: #2C2E32; }
+  h2 { font-size: 17px; margin: 18px 0 8px; }
+  .wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 9px 12px; text-align: right; white-space: nowrap; } th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 500; background: var(--card); } tr + tr td { border-top: 1px solid var(--line); }
+  .note { color: var(--muted); font-size: 12.5px; margin-top: 14px; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <h1>glubDD analytics</h1>
+  <div class="sub">Last {{ s.total.days }} days · Bangkok time · anonymous device IDs (no personal data)</div>
+  <div class="tabs">
+    {% for d in [7, 30, 90, 365] %}<a href="?token={{ token }}&days={{ d }}" class="{{ 'on' if s.total.days == d else '' }}">{{ d }} days</a>{% endfor %}
+  </div>
+  <div class="kpis">
+    <div class="kpi"><b>{{ s.total.visits }}</b><span>Visits</span></div>
+    <div class="kpi"><b>{{ s.total.unique_visitors }}</b><span>Unique visitors</span></div>
+    <div class="kpi"><b>{{ s.total.reports }}</b><span>Reports submitted</span></div>
+    <div class="kpi"><b>{{ s.total.unique_reporters }}</b><span>Unique reporters</span></div>
+  </div>
+  {% for gran, title in [('monthly', 'Monthly'), ('daily', 'Daily')] %}
+  <h2>{{ title }}</h2>
+  <div class="wrap"><table>
+    <tr><th>{{ 'Month' if gran == 'monthly' else 'Day' }}</th><th>Visits</th><th>Unique visitors</th><th>From shortcut</th><th>Reports</th><th>Unique reporters</th></tr>
+    {% for r in s[gran] %}
+    <tr><td>{{ r.period }}</td><td>{{ r.visits }}</td><td>{{ r.unique_visitors }}</td><td>{{ r.visits_from_shortcut }}</td><td>{{ r.reports }}</td><td>{{ r.unique_reporters }}</td></tr>
+    {% else %}
+    <tr><td colspan="6" style="text-align:center;color:var(--muted)">No data yet</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endfor %}
+  <p class="note">Visits = app opens (one per page load). Unique = distinct anonymous device IDs (one per browser; clearing site data counts as new).
+    Reports include ones merged into an existing report as confirmations. JSON: /api/stats?token=…&amp;days=…</p>
+</body>
+</html>

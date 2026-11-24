@@ -200,6 +200,96 @@ def index():
     return render_template("index.html", photo_on=PHOTO_REQUIRED)
 
 
+# ---------- analytics (first-party, anonymous) ----------
+STATS_TOKEN = os.environ.get("STATS_TOKEN", "").strip()
+TZ_OFFSET = 7 * 3600   # report days in Bangkok time
+
+
+def log_event(db, kind, standalone=False):
+    try:
+        db.execute("INSERT INTO events (kind, device_id, standalone, created_at) VALUES (?,?,?,?)",
+                   (kind, _device_id() or _client_id(), bool(standalone), int(time.time())))
+    except Exception as e:  # noqa: BLE001 — analytics must never break the app
+        app.logger.warning("event log failed: %s", e)
+
+
+@app.route("/api/visit", methods=["POST"])
+def visit():
+    db = get_db()
+    log_event(db, "visit", (request.get_json(silent=True) or {}).get("standalone", False))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+def _stats(days):
+    since = int(time.time()) - days * 86400
+    rows = get_db().execute(
+        "SELECT kind, device_id, standalone, created_at FROM events WHERE created_at >= ?", (since,)
+    ).fetchall()
+    import datetime as dt
+    buckets = {"daily": {}, "monthly": {}}
+    for r in rows:
+        d = dt.datetime.utcfromtimestamp(r["created_at"] + TZ_OFFSET)
+        for gran, key in (("daily", d.strftime("%Y-%m-%d")), ("monthly", d.strftime("%Y-%m"))):
+            b = buckets[gran].setdefault(key, {"visits": 0, "visitors": set(), "app_visits": 0,
+                                               "reports": 0, "reporters": set()})
+            if r["kind"] == "visit":
+                b["visits"] += 1; b["visitors"].add(r["device_id"])
+                if r["standalone"]:
+                    b["app_visits"] += 1
+            elif r["kind"] == "report":
+                b["reports"] += 1; b["reporters"].add(r["device_id"])
+    out = {}
+    for gran, bs in buckets.items():
+        out[gran] = [{"period": k, "visits": v["visits"], "unique_visitors": len(v["visitors"]),
+                      "visits_from_shortcut": v["app_visits"], "reports": v["reports"],
+                      "unique_reporters": len(v["reporters"])} for k, v in sorted(bs.items(), reverse=True)]
+    all_v = {r["device_id"] for r in rows if r["kind"] == "visit"}
+    all_r = {r["device_id"] for r in rows if r["kind"] == "report"}
+    out["total"] = {"days": days, "visits": sum(1 for r in rows if r["kind"] == "visit"),
+                    "unique_visitors": len(all_v), "reports": sum(1 for r in rows if r["kind"] == "report"),
+                    "unique_reporters": len(all_r)}
+    return out
+
+
+def _stats_allowed():
+    return bool(STATS_TOKEN) and request.args.get("token") == STATS_TOKEN
+
+
+@app.route("/api/stats")
+def stats_json():
+    if not _stats_allowed():
+        return jsonify({"error": "forbidden"}), 403
+    return jsonify(_stats(min(int(request.args.get("days", 90)), 730)))
+
+
+@app.route("/stats")
+def stats_page():
+    if not _stats_allowed():
+        return "Set STATS_TOKEN on the server and open /stats?token=…", 403
+    return render_template("stats.html", s=_stats(min(int(request.args.get("days", 90)), 730)),
+                           token=request.args.get("token"))
+
+
+@app.route("/manifest.webmanifest")
+def manifest():
+    return app.response_class(json.dumps({
+        "name": "glubDD", "short_name": "glubDD", "start_url": "/", "scope": "/", "display": "standalone",
+        "background_color": "#111214", "theme_color": "#111214", "lang": "th",
+        "icons": [{"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+                  {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"}],
+    }), mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    # Minimal network-first worker: makes the site installable, always serves fresh content.
+    js = "self.addEventListener('install',e=>self.skipWaiting());" \
+         "self.addEventListener('activate',e=>self.clients.claim());" \
+         "self.addEventListener('fetch',e=>{});"
+    return app.response_class(js, mimetype="application/javascript", headers={"Cache-Control": "no-cache"})
+
+
 @app.route("/api/health")
 def health():
     """Which storage is live (no secrets) — handy after changing DATABASE_URL."""
@@ -297,6 +387,7 @@ def add_checkpoint():
                 (now, row["id"]),
             )
             db.execute("INSERT INTO votes (report_id, device_id, still_there, created_at) VALUES (?,?,?,?)", (row["id"], device, True, now))
+        log_event(db, "report")
         db.commit()
         return jsonify({"ok": True, "merged": True, "id": row["id"]})
 
@@ -304,6 +395,7 @@ def add_checkpoint():
         "INSERT INTO checkpoints (lat,lng,label,type,reported_at,last_confirmed_at,reporter_device,heading) VALUES (?,?,?,?,?,?,?,?)",
         (lat, lng, label, typ, now, now, _device_id(), heading),
     )
+    log_event(db, "report")
     db.commit()
     return jsonify({"ok": True, "merged": False, "id": new_id})
 

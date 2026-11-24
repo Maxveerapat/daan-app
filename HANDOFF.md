@@ -203,6 +203,12 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   Directed pins snap to the matching carriageway via OSRM /nearest with bearing (≤40 m). Detail has an
   "อยู่อีกฝั่งถนน" fix (`POST /api/checkpoints/<id>/flip`, re-merges). Route counts skip reports whose
   direction is >90° off the route's bearing. Direction is shown Google-Maps style (blue dot + light-blue beam).
+- **Analytics (first-party):** `events` table (kind visit|report, anonymous device id, standalone flag,
+  time). Dashboard `/stats?token=$STATS_TOKEN` (daily + monthly: visits, unique visitors, visits from
+  the home-screen shortcut, reports incl. merged, unique reporters; Bangkok days); JSON `/api/stats`.
+- **PWA:** `/manifest.webmanifest` + minimal `/sw.js` (no caching) make it installable. Browser visits
+  get an "add to home screen" snackbar for ~7 s (Android: native Install button; iOS: Share → Add to
+  Home Screen hint); never shown when opened from the shortcut.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

@@ -246,18 +246,19 @@ def event():
 
 
 def _stats(days, gran="day"):
-    """Everything the analytics dashboard shows, computed from the events table."""
+    """Data for the interactive dashboard: current period + previous period (for deltas and the
+    comparison line), per-bucket metrics *and* per-bucket breakdowns so the UI can cross-filter
+    by clicking a period."""
     import datetime as dt
     from collections import Counter, defaultdict
     now = int(time.time())
-    since = now - days * 86400
+    since, prev_since = now - days * 86400, now - 2 * days * 86400
     db = get_db()
     rows = db.execute(
-        "SELECT kind, device_id, standalone, created_at, meta FROM events WHERE created_at >= ?", (since,)
+        "SELECT kind, device_id, standalone, created_at, meta FROM events WHERE created_at >= ?", (prev_since,)
     ).fetchall()
     first_seen = {r["device_id"]: r["fs"] for r in db.execute(
         "SELECT device_id, MIN(created_at) AS fs FROM events WHERE kind = 'visit' GROUP BY device_id").fetchall()}
-
     local = lambda ts: dt.datetime.utcfromtimestamp(ts + TZ_OFFSET)
 
     def bucket(ts):
@@ -268,92 +269,110 @@ def _stats(days, gran="day"):
             return (d - dt.timedelta(days=d.weekday())).strftime("%Y-%m-%d")
         return d.strftime("%Y-%m-%d")
 
-    # continuous list of buckets for the range
-    keys, d = [], local(since)
-    while d <= local(now):
-        k = bucket(int(d.timestamp()) - TZ_OFFSET)
-        if not keys or keys[-1] != k:
-            keys.append(k)
-        d += dt.timedelta(days=1)
-    tl = {k: {"visits": 0, "visitors": set(), "new": set(), "reports": 0, "reports_cp": 0, "reports_inc": 0,
-              "reporters": set(), "nav": 0, "routes": 0} for k in keys}
+    def keys(a, b):
+        out, t = [], a
+        while t <= b:
+            k = bucket(t)
+            if not out or out[-1] != k:
+                out.append(k)
+            t += 86400
+        if bucket(b) != out[-1]:
+            out.append(bucket(b))
+        return out
 
-    ev = []
+    def empty():
+        return {"visitors": set(), "new": set(), "visits": 0, "sa": 0, "cp": 0, "inc": 0, "merged": 0,
+                "reporters": set(), "routes": 0, "route_users": set(), "nav": 0, "nav_users": set(),
+                "report_open": set(), "inst_shown": set(), "inst_click": set(), "installed": set(),
+                "src": Counter(), "plat": {}, "types": Counter()}
+
+    cur_keys, prev_keys = keys(since, now), keys(prev_since, since - 1)
+    cur = {k: empty() for k in cur_keys}
+    prev = {k: empty() for k in prev_keys}
+    tot, ptot = empty(), empty()
+    feat, feat_users = Counter(), defaultdict(set)
+    hours, points, daily_users = Counter(), [], defaultdict(set)
+
     for r in rows:
+        kind, dev, ts = r["kind"], r["device_id"], r["created_at"]
         try:
             m = json.loads(r["meta"]) if r["meta"] else {}
         except ValueError:
             m = {}
-        ev.append((r["kind"], r["device_id"], bool(r["standalone"]), r["created_at"], m))
-
-    users_by_kind = defaultdict(set)
-    count_by_kind = Counter()
-    daily_users = defaultdict(set)
-    plat, langs, srcs, types, hourgrid = Counter(), Counter(), Counter(), Counter(), Counter()
-    seen_plat = set()
-    points, visits_sa, merged = [], 0, 0
-    for kind, dev, sa, ts, m in ev:
-        users_by_kind[kind].add(dev); count_by_kind[kind] += 1
-        b = tl.get(bucket(ts))
-        if kind == "visit":
-            daily_users[local(ts).strftime("%Y-%m-%d")].add(dev)
-            if sa:
-                visits_sa += 1
-            if b is not None:
+        is_cur = ts >= since
+        k = bucket(ts)
+        bk = (cur if is_cur else prev).get(k)
+        start = since if is_cur else prev_since
+        for b, scope in ((bk, "bucket"), (tot if is_cur else ptot, "total")):
+            if b is None:
+                continue
+            if kind == "visit":
                 b["visits"] += 1; b["visitors"].add(dev)
-                if first_seen.get(dev, 0) >= ts - 1 and bucket(first_seen.get(dev, ts)) == bucket(ts):
+                if r["standalone"]:
+                    b["sa"] += 1
+                fs = first_seen.get(dev, ts)
+                if (scope == "bucket" and bucket(fs) == k) or (scope == "total" and fs >= start):
                     b["new"].add(dev)
-            if dev not in seen_plat:
-                seen_plat.add(dev)
-                plat[m.get("platform", "unknown")] += 1
-                langs[m.get("lang", "unknown")] += 1
-            srcs[m.get("src") or "direct"] += 1
-        elif kind == "report":
-            cat = m.get("cat", "checkpoint")
-            types[m.get("type", "general")] += 1
-            if m.get("merged"):
-                merged += 1
-            lt = local(ts); hourgrid[(lt.weekday(), lt.hour)] += 1
-            if "lat" in m and len(points) < 3000:
-                points.append([m["lat"], m["lng"], cat])
-            if b is not None:
-                b["reports"] += 1; b["reporters"].add(dev)
-                b["reports_" + ("inc" if cat == "incident" else "cp")] += 1
-        elif kind in ("nav_google", "nav_apple") and b is not None:
-            b["nav"] += 1
-        elif kind == "route_search" and b is not None:
-            b["routes"] += 1
+                b["src"][m.get("src") or "direct"] += 1
+                b["plat"].setdefault(dev, m.get("platform", "unknown"))
+            elif kind == "report":
+                b["inc" if m.get("cat") == "incident" else "cp"] += 1
+                b["reporters"].add(dev); b["types"][m.get("type", "general")] += 1
+                if m.get("merged"):
+                    b["merged"] += 1
+            elif kind == "route_search":
+                b["routes"] += 1; b["route_users"].add(dev)
+            elif kind in ("nav_google", "nav_apple"):
+                b["nav"] += 1; b["nav_users"].add(dev)
+            elif kind == "report_open":
+                b["report_open"].add(dev)
+            elif kind == "install_shown":
+                b["inst_shown"].add(dev)
+            elif kind == "install_click":
+                b["inst_click"].add(dev)
+            elif kind == "installed":
+                b["installed"].add(dev)
+        if is_cur:
+            feat[kind] += 1; feat_users[kind].add(dev)
+            if kind == "visit":
+                daily_users[local(ts).strftime("%Y-%m-%d")].add(dev)
+            if kind == "report":
+                lt = local(ts); hours[(lt.weekday(), lt.hour)] += 1
+                if "lat" in m and len(points) < 3000:
+                    points.append([m["lat"], m["lng"], m.get("cat", "checkpoint")])
 
-    visitors = users_by_kind["visit"]
-    timeline = [{"period": k, "visits": v["visits"], "visitors": len(v["visitors"]), "new": len(v["new"]),
-                 "returning": len(v["visitors"]) - len(v["new"]), "reports": v["reports"],
-                 "reports_cp": v["reports_cp"], "reports_inc": v["reports_inc"], "reporters": len(v["reporters"]),
-                 "nav": v["nav"], "routes": v["routes"]} for k, v in tl.items()]
+    pct = lambda a, b: round(100 * a / b, 1) if b else 0
 
-    # DAU / MAU / stickiness
+    def ser(b, period=None):
+        v = len(b["visitors"]); n = len(b["new"] & b["visitors"]); rep = b["cp"] + b["inc"]
+        plat = Counter(b["plat"].values())
+        return {
+            "period": period, "visitors": v, "new": n, "returning": v - n, "returning_pct": pct(v - n, v),
+            "visits": b["visits"], "reports": rep, "reports_cp": b["cp"], "reports_inc": b["inc"],
+            "reporters": len(b["reporters"]), "contrib": pct(len(b["reporters"]), v), "merge_rate": pct(b["merged"], rep),
+            "routes": b["routes"], "route_users": len(b["route_users"]), "nav": b["nav"],
+            "shortcut_pct": pct(b["sa"], b["visits"]),
+            "sources": b["src"].most_common(10), "platforms": plat.most_common(), "types": b["types"].most_common(),
+            "funnel": {"report": [v, len(b["report_open"]), len(b["reporters"])],
+                       "route": [v, len(b["route_users"]), len(b["nav_users"])],
+                       "install": [len(b["inst_shown"]), len(b["inst_click"]), len(b["installed"])]},
+        }
+
+    timeline = [ser(cur[k], k) for k in cur_keys]
+    prev_tl = [ser(prev[k], k) for k in prev_keys][-len(cur_keys):]
+    prev_tl = [None] * (len(cur_keys) - len(prev_tl)) + prev_tl
+
     all_days = [(local(since) + dt.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days + 1)]
-    dau_avg = sum(len(daily_users.get(x, ())) for x in all_days) / max(1, len(all_days))
-    mau = len({dev for kind, dev, _, ts, _ in ev if kind == "visit" and ts >= now - 30 * 86400})
-    wau = len({dev for kind, dev, _, ts, _ in ev if kind == "visit" and ts >= now - 7 * 86400})
+    dau = sum(len(daily_users.get(x, ())) for x in all_days) / max(1, len(all_days))
+    mau = len({r["device_id"] for r in rows if r["kind"] == "visit" and r["created_at"] >= now - 30 * 86400})
 
-    def uniq(*kinds):
-        return len(set().union(*(users_by_kind[k] for k in kinds)))
-
-    funnels = {
-        "report": [["visited", len(visitors)], ["opened_report", uniq("report_open")], ["submitted", uniq("report")]],
-        "route": [["visited", len(visitors)], ["searched_route", uniq("route_search")], ["opened_nav", uniq("nav_google", "nav_apple")]],
-        "install": [["shown", uniq("install_shown")], ["clicked", uniq("install_click")], ["installed", uniq("installed")]],
-    }
-    features = sorted([{"kind": k, "count": count_by_kind[k], "users": len(users_by_kind[k])}
-                       for k in ("route_search", "nav_google", "nav_apple", "detail_open", "vote", "share",
-                                 "report_open", "report", "filter", "lang", "theme")], key=lambda x: -x["count"])
-
-    # weekly retention cohorts (by first visit week, last 8 weeks)
+    # weekly retention cohorts by first visit
     def wk(ts):
         x = local(ts); return (x - dt.timedelta(days=x.weekday())).date()
     visit_weeks = defaultdict(set)
-    for kind, dev, _, ts, _ in db_all_visits(db, now - 9 * 7 * 86400):
-        visit_weeks[dev].add(wk(ts))
+    for r in db.execute("SELECT device_id, created_at FROM events WHERE kind = 'visit' AND created_at >= ?",
+                        (now - 9 * 7 * 86400,)).fetchall():
+        visit_weeks[r["device_id"]].add(wk(r["created_at"]))
     cohorts = defaultdict(set)
     for dev, fs in first_seen.items():
         if fs >= now - 8 * 7 * 86400:
@@ -361,40 +380,24 @@ def _stats(days, gran="day"):
     retention = []
     for c in sorted(cohorts, reverse=True):
         devs = cohorts[c]
-        row = {"cohort": c.isoformat(), "size": len(devs), "weeks": []}
-        for n in range(0, 6):
+        weeks = []
+        for n in range(6):
             w = c + dt.timedelta(weeks=n)
             if w > wk(now):
                 break
-            row["weeks"].append(round(100 * sum(1 for x in devs if w in visit_weeks[x]) / len(devs)))
-        retention.append(row)
+            weeks.append(round(100 * sum(1 for x in devs if w in visit_weeks[x]) / len(devs)))
+        retention.append({"cohort": c.isoformat(), "size": len(devs), "weeks": weeks})
 
-    reports_total = count_by_kind["report"]
+    FEATS = ("route_search", "nav_google", "nav_apple", "detail_open", "vote", "share", "report_open", "report",
+             "filter", "lang", "theme")
     return {
         "days": days, "gran": gran, "generated": local(now).strftime("%Y-%m-%d %H:%M"),
-        "kpi": {
-            "visitors": len(visitors), "visits": count_by_kind["visit"],
-            "new_visitors": sum(1 for x in visitors if first_seen.get(x, 0) >= since),
-            "dau": round(dau_avg, 1), "wau": wau, "mau": mau,
-            "stickiness": round(100 * dau_avg / mau, 1) if mau else 0,
-            "reports": reports_total, "reporters": len(users_by_kind["report"]),
-            "contrib_rate": round(100 * len(users_by_kind["report"]) / len(visitors), 1) if visitors else 0,
-            "merge_rate": round(100 * merged / reports_total, 1) if reports_total else 0,
-            "shortcut_share": round(100 * visits_sa / count_by_kind["visit"], 1) if count_by_kind["visit"] else 0,
-            "route_users": uniq("route_search"), "nav_opens": count_by_kind["nav_google"] + count_by_kind["nav_apple"],
-            "visits_per_user": round(count_by_kind["visit"] / len(visitors), 2) if visitors else 0,
-        },
-        "timeline": timeline, "funnels": funnels, "features": features, "retention": retention,
-        "platforms": plat.most_common(), "langs": langs.most_common(), "sources": srcs.most_common(12),
-        "types": types.most_common(),
-        "hours": [[wd, h, n] for (wd, h), n in hourgrid.items()],
-        "points": points,
+        "total": ser(tot), "prev": ser(ptot),
+        "engagement": {"dau": round(dau, 1), "mau": mau, "stickiness": pct(dau, mau)},
+        "timeline": timeline, "prev_timeline": prev_tl,
+        "features": sorted([[f, feat[f], len(feat_users[f])] for f in FEATS if feat[f]], key=lambda x: -x[1]),
+        "hours": [[w, h, n] for (w, h), n in hours.items()], "points": points, "retention": retention,
     }
-
-
-def db_all_visits(db, since):
-    return [("visit", r["device_id"], None, r["created_at"], None) for r in db.execute(
-        "SELECT device_id, created_at FROM events WHERE kind = 'visit' AND created_at >= ?", (since,)).fetchall()]
 
 
 def _stats_allowed():
@@ -421,7 +424,7 @@ def _stats_args():
         days = max(1, min(int(request.args.get("days", 30)), 730))
     except ValueError:
         days = 30
-    gran = request.args.get("gran", "day" if days <= 60 else "week" if days <= 180 else "month")
+    gran = request.args.get("gran", "day" if days <= 31 else "week" if days <= 180 else "month")
     return days, gran if gran in ("day", "week", "month") else "day"
 
 

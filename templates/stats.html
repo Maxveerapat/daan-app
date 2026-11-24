@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,275 +8,291 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  :root, :root[data-theme="dark"] {
+  /* Dark dashboard. Series colours = validated dark categorical slots 1–3. */
+  :root {
     color-scheme: dark;
-    --bg: #111214; --card: #1B1C1E; --card-2: #232528; --line: rgba(255,255,255,.08);
+    --bg: #0F1012; --card: #18191C; --card-2: #212327; --line: rgba(255,255,255,.07);
     --text: #F0EFEC; --text-2: #C3C2B7; --muted: #8E8D86;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --seq: 57,135,229;
-  }
-  :root[data-theme="light"] {
-    color-scheme: light;
-    --bg: #F4F4F2; --card: #FCFCFB; --card-2: #EFEFEC; --line: rgba(0,0,0,.08);
-    --text: #0B0B0B; --text-2: #52514E; --muted: #75746F;
-    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --seq: 42,120,214;
+    --up: #5CCB8A; --down: #FF6B5A;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: "Google Sans", -apple-system, Roboto, sans-serif; background: var(--bg); color: var(--text); }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
-  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  header img { height: 34px; display: block; }
-  :root[data-theme="light"] header .logo { background: #111214; border-radius: 12px; padding: 4px 10px; }
-  h1 { font-size: 22px; font-weight: 700; } .gen { color: var(--muted); font-size: 13px; }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; position: sticky; top: 0; z-index: 500; background: var(--bg); padding: 8px 0; margin-bottom: 8px; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 16px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; justify-content: space-between; position: sticky; top: 0; z-index: 900; background: var(--bg); padding: 8px 0 12px; }
+  .brand { display: flex; align-items: center; gap: 12px; } .brand img { height: 30px; }
+  h1 { font-size: 19px; font-weight: 700; } .gen { color: var(--muted); font-size: 12.5px; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); }
-  .seg a, .seg button { color: var(--text-2); text-decoration: none; font: inherit; font-size: 13.5px; padding: 6px 12px; border-radius: 999px; border: none; background: none; cursor: pointer; }
+  .seg a { color: var(--text-2); text-decoration: none; font-size: 13px; padding: 6px 11px; border-radius: 999px; }
   .seg a.on { background: var(--card-2); color: var(--text); font-weight: 700; }
-  .btn { font: inherit; font-size: 13.5px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; text-decoration: none; }
-  h2 { font-size: 16px; font-weight: 700; margin: 26px 0 10px; color: var(--text); }
-  h2 small { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 6px; }
-  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
-  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 14px 12px; }
-  .kpi .v { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
-  .kpi .l { font-size: 13px; color: var(--text-2); margin-top: 4px; }
-  .kpi .h { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px 16px; min-width: 0; }
-  .card h3 { font-size: 15px; font-weight: 700; }
-  .card .q { font-size: 12.5px; color: var(--muted); margin: 3px 0 10px; line-height: 1.4; }
-  .legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--text-2); margin-bottom: 6px; flex-wrap: wrap; }
-  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-  .chart { position: relative; height: 230px; }
-  .bars { display: flex; flex-direction: column; gap: 7px; }
-  .bar-row { display: grid; grid-template-columns: minmax(90px, 32%) 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
-  .bar-row .lab { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bar-row .track { display: block; height: 12px; background: var(--card-2); border-radius: 4px; overflow: hidden; }
-  .bar-row .fill { display: block; height: 100%; background: var(--s1); border-radius: 0 4px 4px 0; }
-  .bar-row .num { font-variant-numeric: tabular-nums; color: var(--text); min-width: 64px; text-align: right; }
-  .bar-row .num small { color: var(--muted); }
-  .funnel { margin-bottom: 14px; } .funnel h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
-  .heat { display: grid; grid-template-columns: 34px repeat(24, 1fr); gap: 2px; font-size: 10.5px; color: var(--muted); }
-  .heat div { aspect-ratio: 1; border-radius: 3px; }
-  .heat .hl { aspect-ratio: auto; display: flex; align-items: center; }
-  .heat .hc { text-align: center; aspect-ratio: auto; }
+  .btn { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text-2); text-decoration: none; cursor: pointer; }
+  .eng { font-size: 12.5px; color: var(--muted); margin: 2px 0 12px; } .eng b { color: var(--text-2); font-weight: 500; }
+
+  /* KPI strip: value + delta + sparkline; click = show in main chart */
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 1000px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 11px 12px 6px; cursor: pointer; text-align: left; font: inherit; color: inherit; transition: border-color .15s; }
+  .kpi:hover { border-color: rgba(255,255,255,.18); }
+  .kpi.on { border-color: var(--s1); box-shadow: inset 0 0 0 1px var(--s1); }
+  .kpi .l { font-size: 12.5px; color: var(--text-2); }
+  .kpi .row { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+  .kpi .v { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .delta { font-size: 12px; font-weight: 600; white-space: nowrap; } .delta.up { color: var(--up); } .delta.down { color: var(--down); } .delta.flat { color: var(--muted); }
+  .kpi canvas { width: 100% !important; height: 34px !important; margin-top: 2px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; min-width: 0; }
+  .card-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .card h3 { font-size: 15px; font-weight: 700; } .card .q { font-size: 12.5px; color: var(--muted); }
+  .main { margin-top: 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px; }
+  .legend button { font: inherit; font-size: 12.5px; color: var(--text-2); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .legend button.off { opacity: .45; } .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .legend i.dash { height: 0; border-top: 2px dashed var(--muted); border-radius: 0; width: 14px; }
+  .chart-main { position: relative; height: 300px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .chip { display: none; align-items: center; gap: 8px; font-size: 13px; background: rgba(57,135,229,.15); color: var(--text); border: 1px solid rgba(57,135,229,.5); border-radius: 999px; padding: 4px 6px 4px 12px; }
+  .chip.on { display: inline-flex; } .chip button { border: none; background: rgba(255,255,255,.1); color: var(--text); border-radius: 999px; width: 22px; height: 22px; cursor: pointer; }
+
+  .sec-h { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 22px 0 10px; }
+  .sec-h h2 { font-size: 16px; font-weight: 700; } .sec-h span.q { font-size: 12.5px; color: var(--muted); }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .grid-2 { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  @media (max-width: 480px) { .grid-2 { grid-template-columns: 1fr; } }
+  .chart-sm { position: relative; height: 220px; }
+  .tabs { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--card-2); }
+  .tabs button { font: inherit; font-size: 12.5px; color: var(--text-2); background: none; border: none; padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+  .tabs button.on { background: var(--card); color: var(--text); font-weight: 700; }
+  .heat { display: grid; grid-template-columns: 32px repeat(24, 1fr); gap: 2px; font-size: 10.5px; color: var(--muted); }
+  .heat .c { aspect-ratio: 1; border-radius: 3px; }
+  .heat .hl { display: flex; align-items: center; } .heat .hc { text-align: center; }
+  #map { height: 300px; border-radius: 12px; }
+  #map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) saturate(.35); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
   th, td { padding: 7px 8px; text-align: right; white-space: nowrap; } th:first-child, td:first-child { text-align: left; }
   th { color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); }
-  td.ret { color: var(--text); border-radius: 4px; }
   .scroll { overflow-x: auto; }
-  #map { height: 340px; border-radius: 12px; }
-  .note { color: var(--muted); font-size: 12.5px; margin-top: 22px; line-height: 1.5; }
-  .empty { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
-  details.tbl { margin-top: 8px; font-size: 12.5px; } details.tbl summary { color: var(--muted); cursor: pointer; }
+  #tip { position: fixed; pointer-events: none; z-index: 2000; background: var(--card-2); border: 1px solid var(--line); color: var(--text); font-size: 12.5px; padding: 7px 10px; border-radius: 8px; display: none; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 0; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 20px; line-height: 1.5; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div style="display:flex;align-items:center;gap:12px"><span class="logo"><img src="/static/logo.png?v=2" alt="glubDD"></span>
-      <div><h1>Analytics</h1><div class="gen">Updated {{ data.generated }} (Bangkok) · last {{ data.days }} days</div></div></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn" id="themeBtn">☀︎ Light</button>
-      <a class="btn" href="/api/stats?token={{ token }}&days={{ data.days }}&gran={{ data.gran }}" download="glubdd-stats.json">Download JSON</a>
+    <div class="brand"><img src="/static/logo.png?v=2" alt="glubDD">
+      <div><h1>Analytics</h1><div class="gen">Updated {{ data.generated }} Bangkok · last {{ data.days }} days vs previous {{ data.days }}</div></div></div>
+    <div class="ctl">
+      <div class="seg">{% for d in [7, 30, 90, 365] %}<a href="?token={{ token }}&days={{ d }}" class="{{ 'on' if data.days == d else '' }}">{{ d }}d</a>{% endfor %}</div>
+      <div class="seg">{% for g, lab in [('day','Daily'),('week','Weekly'),('month','Monthly')] %}<a href="?token={{ token }}&days={{ data.days }}&gran={{ g }}" class="{{ 'on' if data.gran == g else '' }}">{{ lab }}</a>{% endfor %}</div>
+      <a class="btn" href="/api/stats?token={{ token }}&days={{ data.days }}&gran={{ data.gran }}" download="glubdd-stats.json">Export</a>
     </div>
   </header>
+  <div class="eng" id="eng"></div>
 
-  <div class="controls">
-    <div class="seg">{% for d in [7, 30, 90, 365] %}<a href="?token={{ token }}&days={{ d }}" class="{{ 'on' if data.days == d else '' }}">{{ d }} days</a>{% endfor %}</div>
-    <div class="seg">{% for g, lab in [('day','Daily'),('week','Weekly'),('month','Monthly')] %}<a href="?token={{ token }}&days={{ data.days }}&gran={{ g }}" class="{{ 'on' if data.gran == g else '' }}">{{ lab }}</a>{% endfor %}</div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card main">
+    <div class="card-h">
+      <div><h3 id="mainTitle"></h3><div class="q" id="mainQ"></div></div>
+      <div class="legend" id="mainLegend"></div>
+    </div>
+    <div class="chart-main"><canvas id="cMain"></canvas></div>
+    <div class="hint">Click a KPI above to change this chart · click a bar or point to drill into that period below</div>
   </div>
 
-  <h2>Audience</h2>
-  <div class="kpis" id="kpiAudience"></div>
-  <h2>Community & contribution</h2>
-  <div class="kpis" id="kpiContrib"></div>
-  <h2>Product usage <small>signals for the paid plans</small></h2>
-  <div class="kpis" id="kpiProduct"></div>
-
-  <h2>Trends</h2>
+  <div class="sec-h"><h2>Breakdown</h2><span class="q" id="scopeTxt">Whole period</span>
+    <span class="chip" id="chip"><span id="chipTxt"></span><button onclick="selectBucket(null)" aria-label="Clear">✕</button></span></div>
   <div class="grid">
-    <div class="card"><h3>Visitors</h3><div class="q">Are we growing, and are people coming back? Bars split new vs returning visitors.</div>
-      <div class="legend"><span><i style="background:var(--s1)"></i>Returning</span><span><i style="background:var(--s2)"></i>New</span></div>
-      <div class="chart"><canvas id="cVisitors"></canvas></div></div>
-    <div class="card"><h3>Reports submitted</h3><div class="q">Is the community feeding the map? Includes reports merged into an existing one.</div>
-      <div class="legend"><span><i style="background:var(--s1)"></i>Checkpoints</span><span><i style="background:var(--s2)"></i>Incidents</span></div>
-      <div class="chart"><canvas id="cReports"></canvas></div></div>
-    <div class="card"><h3>Route planning</h3><div class="q">Demand for the routing feature — the strongest candidate for the paid plans.</div>
-      <div class="legend"><span><i style="background:var(--s1)"></i>Route searches</span><span><i style="background:var(--s2)"></i>Opened in Google/Apple Maps</span></div>
-      <div class="chart"><canvas id="cRoutes"></canvas></div></div>
+    <div class="card"><div class="card-h"><div><h3>Conversion funnel</h3><div class="q">Unique devices per step</div></div>
+      <div class="tabs" id="funTabs"></div></div><div class="chart-sm"><canvas id="cFunnel"></canvas></div></div>
+    <div class="card"><div class="card-h"><div><h3>Traffic sources</h3><div class="q">Visits by source</div></div></div><div class="chart-sm"><canvas id="cSources"></canvas></div></div>
+    <div class="card"><div class="card-h"><div><h3>Report types</h3><div class="q">What the community reports</div></div></div><div class="chart-sm"><canvas id="cTypes"></canvas></div></div>
+    <div class="card"><div class="card-h"><div><h3>Devices</h3><div class="q">Unique visitors by platform</div></div></div><div class="chart-sm"><canvas id="cPlat"></canvas></div></div>
   </div>
 
-  <h2>Funnels</h2>
-  <div class="grid">
-    <div class="card"><h3>Conversion</h3><div class="q">Unique devices at each step. Big drops show where to improve the UX.</div><div id="funnels"></div></div>
-    <div class="card"><h3>Feature usage</h3><div class="q">What people actually use (events · unique devices).</div><div class="bars" id="features"></div></div>
+  <div class="sec-h"><h2>Behaviour</h2><span class="q">Whole period</span></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-h"><div><h3>When checkpoints get reported</h3><div class="q">Reports by hour × weekday (Bangkok) — hover a cell</div></div></div><div class="heat" id="heat"></div></div>
+    <div class="card"><div class="card-h"><div><h3>Feature usage</h3><div class="q">Events (hover for unique users)</div></div></div><div class="chart-sm" style="height:260px"><canvas id="cFeat"></canvas></div></div>
+  </div>
+  <div class="grid-2" style="margin-top:12px">
+    <div class="card"><div class="card-h"><div><h3>Report coverage</h3><div class="q">Blue = checkpoints · orange = incidents · size = number of reports</div></div></div><div id="map"></div></div>
+    <div class="card"><div class="card-h"><div><h3>Retention</h3><div class="q">% of each week's new visitors who came back</div></div></div><div class="scroll"><table id="ret"></table></div></div>
   </div>
 
-  <h2>When & what gets reported</h2>
-  <div class="grid">
-    <div class="card"><h3>Reports by hour & weekday</h3><div class="q">Peak times for checkpoints — when to push notifications or campaigns.</div><div class="heat" id="heat"></div></div>
-    <div class="card"><h3>Report types</h3><div class="q">Which checkpoint / incident types matter most to users.</div><div class="bars" id="types"></div></div>
-  </div>
-  <div class="card" style="margin-top:12px"><h3>Where reports come from</h3><div class="q">Coverage by area (≈100 m grid). Blue = checkpoints, orange = incidents. Gaps = areas to recruit reporters.</div><div id="map"></div></div>
-
-  <h2>Acquisition</h2>
-  <div class="grid">
-    <div class="card"><h3>Traffic sources</h3><div class="q">Visits by source (utm_source, shared report links, referring sites, direct).</div><div class="bars" id="sources"></div></div>
-    <div class="card"><h3>Devices</h3><div class="q">Unique visitors by platform — prioritises iOS vs Android work.</div><div class="bars" id="platforms"></div>
-      <h3 style="margin-top:16px">Language</h3><div class="bars" id="langs" style="margin-top:8px"></div></div>
-  </div>
-
-  <h2>Retention <small>weekly cohorts by first visit</small></h2>
-  <div class="card"><div class="q">% of each week's new visitors who came back in later weeks. Week 1+ above ~20% is healthy for a utility app.</div><div class="scroll"><table id="retention"></table></div></div>
-
-  <p class="note">All data is first-party and anonymous: a random device ID per browser, no IPs or personal data. "Unique" = distinct browsers
-    (clearing site data or a second browser counts again). Days are Bangkok time. Tracking started with the analytics release; earlier activity isn't included.
-    Add <code>?utm_source=line</code> (or facebook, tiktok…) to links you share to measure campaigns.</p>
+  <p class="note">First-party, anonymous: one random ID per browser, no personal data. "Unique" = distinct browsers. Deltas compare with the previous period of the same length.
+    Tag shared links with <code>?utm_source=line</code> (facebook, tiktok…) to see campaigns under Traffic sources.</p>
 </div>
+<div id="tip"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const D = {{ data | tojson }};
 const $ = id => document.getElementById(id);
-const fmt = n => typeof n === "number" ? n.toLocaleString("en-US") : n;
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = n => (typeof n === "number" ? n.toLocaleString("en-US") : n);
+const C = { s1: css("--s1"), s2: css("--s2"), s3: css("--s3"), muted: css("--muted"), line: css("--line"), text: css("--text"), text2: css("--text-2"), card2: css("--card-2"), card: css("--card") };
+Chart.defaults.font.family = '"Google Sans", -apple-system, Roboto, sans-serif';
+Chart.defaults.color = C.muted;
+const TIP = { backgroundColor: C.card2, titleColor: C.text, bodyColor: C.text2, borderColor: "rgba(255,255,255,.12)", borderWidth: 1, padding: 10, boxPadding: 4 };
+const lab = p => !p ? "" : D.gran === "month" ? p : p.slice(5);
+const TL = D.timeline, PT = D.prev_timeline;
 
-// ---- theme (shared preference with the app) ----
-function applyTheme(t) {
-  document.documentElement.dataset.theme = t;
-  $("themeBtn").textContent = t === "dark" ? "☀︎ Light" : "☾ Dark";
-  try { localStorage.setItem("gd-theme", t); } catch (e) {}
-  renderCharts();
-  heat(); retention();
-}
-$("themeBtn").onclick = () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+$("eng").innerHTML = `Daily active <b>${D.engagement.dau}</b> · monthly active <b>${fmt(D.engagement.mau)}</b> · stickiness <b>${D.engagement.stickiness}%</b> · visits from home-screen shortcut <b>${D.total.shortcut_pct}%</b> · reports merged into existing <b>${D.total.merge_rate}%</b>`;
 
-// ---- KPI tiles ----
-const K = D.kpi;
-function tiles(el, list) {
-  $(el).innerHTML = list.map(([v, l, h]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div>${h ? `<div class="h">${h}</div>` : ""}</div>`).join("");
-}
-tiles("kpiAudience", [
-  [fmt(K.visitors), "Unique visitors", `${fmt(K.new_visitors)} new in this period`],
-  [fmt(K.visits), "Visits", `${K.visits_per_user} visits per visitor`],
-  [fmt(K.dau), "Avg daily active", "DAU, averaged over the period"],
-  [fmt(K.wau), "Weekly active", "last 7 days"],
-  [fmt(K.mau), "Monthly active", "last 30 days"],
-  [K.stickiness + "%", "Stickiness", "DAU ÷ MAU — habit strength"],
-]);
-tiles("kpiContrib", [
-  [fmt(K.reports), "Reports submitted", "incl. merged confirmations"],
-  [fmt(K.reporters), "Unique reporters", ""],
-  [K.contrib_rate + "%", "Contribution rate", "visitors who reported"],
-  [K.merge_rate + "%", "Merged into existing", "same spot already reported"],
-]);
-tiles("kpiProduct", [
-  [fmt(K.route_users), "Route planners", "devices that searched a route"],
-  [fmt(K.nav_opens), "Opened in nav apps", "Google / Apple Maps hand-offs"],
-  [K.shortcut_share + "%", "Visits from shortcut", "installed to home screen"],
-]);
+// ---------- metrics ----------
+const METRICS = {
+  visitors: { label: "Unique visitors", q: "Growth, split into new and returning visitors", type: "bar",
+    series: [["returning", "Returning", "s1"], ["new", "New", "s2"]], prev: "visitors" },
+  returning_pct: { label: "Returning visitors", unit: "%", q: "Share of visitors who had been here before — habit formation", type: "line",
+    series: [["returning_pct", "Returning %", "s1"]], prev: "returning_pct" },
+  reports: { label: "Reports", q: "Community contribution, checkpoints vs incidents", type: "bar",
+    series: [["reports_cp", "Checkpoints", "s1"], ["reports_inc", "Incidents", "s2"]], prev: "reports" },
+  contrib: { label: "Contribution rate", unit: "%", q: "Visitors who submitted at least one report", type: "line",
+    series: [["contrib", "Contribution %", "s1"]], prev: "contrib" },
+  routes: { label: "Route searches", q: "Demand for route planning — key paid-plan signal", type: "bar",
+    series: [["routes", "Route searches", "s1"]], prev: "routes" },
+  nav: { label: "Nav hand-offs", q: "Opened Google / Apple Maps from glubDD", type: "bar",
+    series: [["nav", "Opened in nav app", "s1"]], prev: "nav" },
+};
+let metric = "visitors", hidden = new Set(), showPrev = true, selected = null;
 
-// ---- time series (Chart.js) ----
-let charts = [];
-function base(stacked) {
-  return {
-    responsive: true, maintainAspectRatio: false, animation: false,
-    interaction: { mode: "index", intersect: false },
-    plugins: { legend: { display: false }, tooltip: { backgroundColor: css("--card-2"), titleColor: css("--text"), bodyColor: css("--text-2"), borderColor: css("--line"), borderWidth: 1, padding: 10 } },
-    scales: {
-      x: { stacked, grid: { display: false }, ticks: { color: css("--muted"), maxRotation: 0, autoSkip: true, maxTicksLimit: 8, font: { size: 11 } }, border: { color: css("--line") } },
-      y: { stacked, beginAtZero: true, grid: { color: css("--line") }, border: { display: false }, ticks: { color: css("--muted"), precision: 0, font: { size: 11 } } },
-    },
-  };
+// ---------- KPI strip ----------
+function delta(cur, prev, unit) {
+  if (unit === "%") { const d = Math.round((cur - prev) * 10) / 10; return d === 0 ? ["flat", "0 pt"] : [d > 0 ? "up" : "down", `${d > 0 ? "▲" : "▼"} ${Math.abs(d)} pt`]; }
+  if (!prev) return cur ? ["up", "▲ new"] : ["flat", "–"];
+  const d = Math.round(100 * (cur - prev) / prev); return d === 0 ? ["flat", "0%"] : [d > 0 ? "up" : "down", `${d > 0 ? "▲" : "▼"} ${Math.abs(d)}%`];
 }
-const label = p => D.gran === "month" ? p : p.slice(5);
-function bar(id, sets) {
-  return new Chart($(id), { type: "bar", data: { labels: D.timeline.map(x => label(x.period)),
-    datasets: sets.map(([k, lab, c]) => ({ label: lab, data: D.timeline.map(x => x[k]), backgroundColor: css(c), borderRadius: 4, borderSkipped: "start", borderColor: css("--card"), borderWidth: { top: 2 }, maxBarThickness: 22 })) },
-    options: base(true) });
-}
-function line(id, sets) {
-  return new Chart($(id), { type: "line", data: { labels: D.timeline.map(x => label(x.period)),
-    datasets: sets.map(([k, lab, c]) => ({ label: lab, data: D.timeline.map(x => x[k]), borderColor: css(c), backgroundColor: css(c), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: .25 })) },
-    options: base(false) });
-}
-function renderCharts() {
-  charts.forEach(c => c.destroy());
-  charts = [
-    bar("cVisitors", [["returning", "Returning", "--s1"], ["new", "New", "--s2"]]),
-    bar("cReports", [["reports_cp", "Checkpoints", "--s1"], ["reports_inc", "Incidents", "--s2"]]),
-    line("cRoutes", [["routes", "Route searches", "--s1"], ["nav", "Opened in nav apps", "--s2"]]),
-  ];
-}
-
-// ---- bars / funnels ----
-function bars(el, rows, opts = {}) {
-  if (!rows.length) { $(el).innerHTML = `<div class="empty">No data yet</div>`; return; }
-  const max = Math.max(...rows.map(r => r[1]), 1);
-  $(el).innerHTML = rows.map(([lab, v, sub]) => `<div class="bar-row"><span class="lab" title="${lab}">${lab}</span>
-    <span class="track"><span class="fill" style="width:${100 * v / max}%"></span></span>
-    <span class="num">${fmt(v)}${sub != null ? ` <small>${sub}</small>` : ""}</span></div>`).join("");
-}
-const NAMES = { visited: "Visited", opened_report: "Opened report form", submitted: "Submitted a report", searched_route: "Searched a route",
-  opened_nav: "Opened Google/Apple Maps", shown: "Install prompt shown", clicked: "Tapped install", installed: "Installed",
-  route_search: "Route searches", nav_google: "Open in Google Maps", nav_apple: "Open in Apple Maps", detail_open: "Viewed a report",
-  vote: "Votes (still there / gone)", share: "Shares", report_open: "Opened report form", report: "Reports submitted",
-  filter: "Changed filter", lang: "Switched language", theme: "Switched theme",
-  general: "Checkpoint · general", motorbike: "Checkpoint · motorcycles", alcohol: "Checkpoint · alcohol", truck: "Checkpoint · trucks",
-  black_smoke: "Checkpoint · black smoke", license_helmet: "Checkpoint · license (retired)", speed: "Checkpoint · speed (retired)",
-  tax_insurance: "Checkpoint · tax (retired)", accident: "Incident · accident", roadwork: "Incident · roadworks", flood: "Incident · flooding",
-  blocked: "Incident · road closed", ios: "iPhone / iPad", android: "Android", desktop: "Desktop", th: "Thai", en: "English",
-  direct: "Direct / unknown", shared_link: "Shared report links" };
-const nm = k => NAMES[k] || k;
-$("funnels").innerHTML = [["Report a checkpoint", "report"], ["Plan a route", "route"], ["Install to home screen", "install"]].map(([t, k]) =>
-  `<div class="funnel"><h4>${t}</h4><div class="bars" id="f_${k}"></div></div>`).join("");
-Object.entries(D.funnels).forEach(([k, steps]) => {
-  const top = steps[0][1] || 0;
-  bars("f_" + k, steps.map(([s, v]) => [nm(s), v, top ? Math.round(100 * v / top) + "%" : ""]));
+const sparks = [];
+$("kpis").innerHTML = Object.entries(METRICS).map(([k, m]) => {
+  const v = D.total[k], [cls, txt] = delta(v, D.prev[k], m.unit);
+  return `<button class="kpi" data-k="${k}"><div class="l">${m.label}</div><div class="row"><span class="v">${fmt(v)}${m.unit || ""}</span><span class="delta ${cls}" title="vs previous ${D.days} days">${txt}</span></div><canvas></canvas></button>`;
+}).join("");
+document.querySelectorAll(".kpi").forEach(el => {
+  const k = el.dataset.k;
+  el.onclick = () => { metric = k; hidden.clear(); renderMain(); };
+  sparks.push(new Chart(el.querySelector("canvas"), { type: "line",
+    data: { labels: TL.map(x => x.period), datasets: [{ data: TL.map(x => x[k]), borderColor: C.s1, borderWidth: 1.5, pointRadius: 0, fill: true, backgroundColor: "rgba(57,135,229,.12)", tension: .3 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, events: [], plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, beginAtZero: true } } } }));
 });
-bars("features", D.features.filter(f => f.count).map(f => [nm(f.kind), f.count, `${fmt(f.users)} users`]));
-bars("types", D.types.map(([k, v]) => [nm(k), v]));
-bars("sources", D.sources.map(([k, v]) => [nm(k), v]));
-bars("platforms", D.platforms.map(([k, v]) => [nm(k), v]));
-bars("langs", D.langs.map(([k, v]) => [nm(k), v]));
 
-// ---- hour × weekday heatmap (single-hue sequential) ----
-function heat() {
+// ---------- main chart ----------
+let main;
+function renderMain() {
+  const m = METRICS[metric];
+  document.querySelectorAll(".kpi").forEach(el => el.classList.toggle("on", el.dataset.k === metric));
+  $("mainTitle").textContent = m.label + (D.gran === "month" ? " by month" : D.gran === "week" ? " by week" : " by day");
+  $("mainQ").textContent = m.q;
+  const sets = m.series.map(([k, l, c]) => ({ key: k, label: l, data: TL.map(x => x[k]), type: m.type,
+    backgroundColor: C[c], borderColor: C[c], borderWidth: m.type === "line" ? 2 : 0, pointRadius: m.type === "line" ? 2.5 : 0, pointHoverRadius: 5,
+    borderRadius: 4, borderSkipped: "start", maxBarThickness: 26, stack: "cur", tension: .25, hidden: hidden.has(k), order: 2 }));
+  sets.push({ key: "_prev", label: `Previous ${D.days} days`, type: "line", data: PT.map(x => x ? x[m.prev] : null),
+    borderColor: C.muted, borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: .25, hidden: !showPrev, order: 1, spanGaps: true });
+  $("mainLegend").innerHTML = sets.map((s, i) => `<button data-i="${i}" class="${s.hidden ? "off" : ""}"><i class="${s.key === "_prev" ? "dash" : ""}" style="${s.key === "_prev" ? "" : `background:${s.backgroundColor}`}"></i>${s.label}</button>`).join("");
+  document.querySelectorAll("#mainLegend button").forEach(b => b.onclick = () => {
+    const s = sets[+b.dataset.i];
+    if (s.key === "_prev") showPrev = !showPrev; else hidden.has(s.key) ? hidden.delete(s.key) : hidden.add(s.key);
+    renderMain();
+  });
+  if (main) main.destroy();
+  main = new Chart($("cMain"), {
+    type: m.type, data: { labels: TL.map(x => lab(x.period)), datasets: sets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 250 },
+      interaction: { mode: "index", intersect: false },
+      onClick: (e, els) => { const pts = main.getElementsAtEventForMode(e, "index", { intersect: false }, false); if (pts.length) selectBucket(pts[0].index); },
+      onHover: (e, els) => { e.native.target.style.cursor = "pointer"; },
+      plugins: { legend: { display: false }, tooltip: { ...TIP, callbacks: {
+        title: items => { const i = items[0].dataIndex; return `${TL[i].period}${PT[i] ? `  (prev: ${PT[i].period})` : ""}`; },
+        label: it => ` ${it.dataset.label}: ${fmt(it.raw ?? 0)}${m.unit || ""}`,
+        footer: items => m.type === "bar" && m.series.length > 1 ? `Total: ${fmt(TL[items[0].dataIndex][metric])}` : "" } } },
+      scales: {
+        x: { stacked: m.type === "bar", grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, border: { color: C.line } },
+        y: { stacked: m.type === "bar", beginAtZero: true, grid: { color: C.line }, border: { display: false }, ticks: { precision: 0, callback: v => fmt(v) + (m.unit || "") } },
+      },
+    },
+  });
+}
+
+// ---------- breakdown (cross-filtered by selected period) ----------
+const NAMES = { direct: "Direct / unknown", shared_link: "Shared report links", ios: "iPhone / iPad", android: "Android", desktop: "Desktop", unknown: "Unknown",
+  general: "Checkpoint · general", motorbike: "Checkpoint · motorcycles", alcohol: "Checkpoint · alcohol", truck: "Checkpoint · trucks", black_smoke: "Checkpoint · black smoke",
+  license_helmet: "Checkpoint · license", speed: "Checkpoint · speed", tax_insurance: "Checkpoint · tax", accident: "Incident · accident", roadwork: "Incident · roadworks",
+  flood: "Incident · flooding", blocked: "Incident · road closed",
+  route_search: "Route searches", nav_google: "Opened Google Maps", nav_apple: "Opened Apple Maps", detail_open: "Viewed a report", vote: "Voted still there / gone",
+  share: "Shared a report", report_open: "Opened report form", report: "Submitted a report", filter: "Changed filter", lang: "Switched language", theme: "Switched theme" };
+const nm = k => NAMES[k] || k;
+const FUNNELS = { report: ["Visited", "Opened report form", "Submitted report"], route: ["Visited", "Searched a route", "Opened nav app"], install: ["Install prompt shown", "Tapped install", "Installed"] };
+let funnel = "report", charts = {};
+$("funTabs").innerHTML = [["report", "Report"], ["route", "Route"], ["install", "Install"]].map(([k, l]) => `<button data-k="${k}">${l}</button>`).join("");
+document.querySelectorAll("#funTabs button").forEach(b => b.onclick = () => { funnel = b.dataset.k; renderBreakdown(); });
+
+function hbar(id, rows, opts = {}) {
+  if (charts[id]) charts[id].destroy();
+  const cv = $(id), wrap = cv.parentElement;
+  wrap.querySelector(".empty")?.remove();
+  if (!rows.length || rows.every(r => !r[1])) { cv.style.display = "none"; wrap.insertAdjacentHTML("beforeend", `<div class="empty">No data for this period</div>`); return; }
+  cv.style.display = "";
+  charts[id] = new Chart(cv, { type: "bar",
+    data: { labels: rows.map(r => r[0]), datasets: [{ data: rows.map(r => r[1]), backgroundColor: rows.map(r => r[3] || C.s1), borderRadius: 4, borderSkipped: "start", maxBarThickness: 20 }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 250 },
+      plugins: { legend: { display: false }, tooltip: { ...TIP, callbacks: { label: it => ` ${fmt(it.raw)}${rows[it.dataIndex][2] ? ` · ${rows[it.dataIndex][2]}` : ""}` } } },
+      scales: { x: { beginAtZero: true, grid: { color: C.line }, border: { display: false }, ticks: { precision: 0 } }, y: { grid: { display: false }, border: { display: false }, ticks: { color: C.text2 } } } } });
+}
+function renderBreakdown() {
+  const b = selected == null ? D.total : TL[selected];
+  $("scopeTxt").textContent = selected == null ? "Whole period" : "Selected period";
+  $("chip").classList.toggle("on", selected != null);
+  $("chipTxt").textContent = selected == null ? "" : TL[selected].period;
+  document.querySelectorAll("#funTabs button").forEach(x => x.classList.toggle("on", x.dataset.k === funnel));
+  const f = b.funnel[funnel], top = f[0] || 0;
+  hbar("cFunnel", FUNNELS[funnel].map((l, i) => [`${l}  ${top ? Math.round(100 * f[i] / top) : 0}%`, f[i],
+    i ? `${f[i - 1] ? Math.round(100 * f[i] / f[i - 1]) : 0}% of previous step` : "", i === 2 ? C.s3 : C.s1]));
+  hbar("cSources", b.sources.map(([k, v]) => [nm(k), v]));
+  hbar("cTypes", b.types.map(([k, v]) => [nm(k), v, "", ["accident", "roadwork", "flood", "blocked"].includes(k) ? C.s2 : C.s1]));
+  hbar("cPlat", b.platforms.map(([k, v]) => [nm(k), v]));
+}
+function selectBucket(i) { selected = i; renderBreakdown(); }
+
+// ---------- behaviour ----------
+hbar("cFeat", D.features.map(([k, n, u]) => [nm(k), n, `${fmt(u)} unique users`]));
+(function heat() {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], g = {};
   D.hours.forEach(([w, h, n]) => g[w + "-" + h] = n);
-  const max = Math.max(1, ...D.hours.map(x => x[2])), seq = css("--seq");
+  if (!D.hours.length) { $("heat").outerHTML = `<div class="empty">No reports yet</div>`; return; }
+  const max = Math.max(...D.hours.map(x => x[2])), seq = css("--seq");
   let html = `<span></span>` + [...Array(24).keys()].map(h => `<span class="hc">${h % 3 === 0 ? h : ""}</span>`).join("");
-  days.forEach((d, w) => {
-    html += `<span class="hl">${d}</span>` + [...Array(24).keys()].map(h => {
-      const n = g[w + "-" + h] || 0;
-      return `<div title="${d} ${h}:00 — ${n} reports" style="background:${n ? `rgba(${seq},${0.15 + 0.85 * n / max})` : css("--card-2")}"></div>`;
-    }).join("");
-  });
-  $("heat").innerHTML = D.hours.length ? html : `<div class="empty" style="grid-column:1/-1">No reports yet</div>`;
-}
-
-// ---- retention table ----
-function retention() {
-  if (!D.retention.length) { $("retention").innerHTML = `<tr><td class="empty">No cohorts yet</td></tr>`; return; }
+  days.forEach((d, w) => { html += `<span class="hl">${d}</span>` + [...Array(24).keys()].map(h => { const n = g[w + "-" + h] || 0;
+    return `<div class="c" data-t="${d} ${String(h).padStart(2, "0")}:00 · ${n} report${n === 1 ? "" : "s"}" style="background:${n ? `rgba(${seq},${0.18 + 0.82 * n / max})` : C.card2}"></div>`; }).join(""); });
+  $("heat").innerHTML = html;
+  const tip = $("tip");
+  $("heat").addEventListener("mousemove", e => { const t = e.target.dataset.t; if (!t) { tip.style.display = "none"; return; }
+    tip.textContent = t; tip.style.display = "block"; tip.style.left = e.clientX + 12 + "px"; tip.style.top = e.clientY + 12 + "px"; });
+  $("heat").addEventListener("mouseleave", () => tip.style.display = "none");
+})();
+(function retention() {
+  if (!D.retention.length) { $("ret").innerHTML = `<tr><td class="empty">No cohorts yet</td></tr>`; return; }
   const seq = css("--seq");
-  $("retention").innerHTML = `<tr><th>First visit (week of)</th><th>Visitors</th>${[0,1,2,3,4,5].map(n => `<th>Week ${n}</th>`).join("")}</tr>` +
-    D.retention.map(r => `<tr><td>${r.cohort}</td><td>${fmt(r.size)}</td>${[0,1,2,3,4,5].map(n => r.weeks[n] == null ? "<td></td>"
-      : `<td class="ret" style="background:rgba(${seq},${n === 0 ? 0.12 : 0.1 + 0.8 * r.weeks[n] / 100})">${r.weeks[n]}%</td>`).join("")}</tr>`).join("");
-}
+  $("ret").innerHTML = `<tr><th>Week of first visit</th><th>Visitors</th>${[0, 1, 2, 3, 4, 5].map(n => `<th>W${n}</th>`).join("")}</tr>` +
+    D.retention.map(r => `<tr><td>${r.cohort}</td><td>${fmt(r.size)}</td>${[0, 1, 2, 3, 4, 5].map(n => r.weeks[n] == null ? "<td></td>"
+      : `<td title="${r.weeks[n]}% returned in week ${n}" style="background:rgba(${seq},${n === 0 ? .1 : .1 + .8 * r.weeks[n] / 100})">${r.weeks[n]}%</td>`).join("")}</tr>`).join("");
+})();
+(function coverage() {
+  const map = L.map("map", { scrollWheelZoom: false }).setView([13.75, 100.55], 11);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(map);
+  const cells = {}; D.points.forEach(([a, b, c]) => { const k = `${a},${b},${c}`; cells[k] = (cells[k] || 0) + 1; });
+  const pts = Object.entries(cells);
+  pts.forEach(([k, n]) => { const [a, b, c] = k.split(",");
+    L.circleMarker([+a, +b], { radius: 4 + Math.min(10, Math.sqrt(n) * 2), color: "#0F1012", weight: 1.5, fillColor: c === "incident" ? C.s2 : C.s1, fillOpacity: .9 })
+      .bindTooltip(`${n} ${c} report${n > 1 ? "s" : ""}`).addTo(map); });
+  if (pts.length) map.fitBounds(pts.map(([k]) => k.split(",").slice(0, 2).map(Number)), { padding: [20, 20], maxZoom: 14 });
+})();
 
-// ---- report map ----
-const map = L.map("map", { zoomControl: true, scrollWheelZoom: false }).setView([13.75, 100.55], 11);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(map);
-const cells = {};
-D.points.forEach(([la, ln, cat]) => { const k = la + "," + ln + "," + cat; cells[k] = (cells[k] || 0) + 1; });
-const pts = Object.entries(cells);
-pts.forEach(([k, n]) => { const [la, ln, cat] = k.split(",");
-  L.circleMarker([+la, +ln], { radius: 4 + Math.min(10, Math.sqrt(n) * 2), color: "#fff", weight: 1.5, fillColor: cat === "incident" ? "#d95926" : "#3987e5", fillOpacity: .85 })
-    .bindTooltip(`${n} ${cat === "incident" ? "incident" : "checkpoint"} report${n > 1 ? "s" : ""}`).addTo(map); });
-if (pts.length) map.fitBounds(pts.map(([k]) => k.split(",").slice(0, 2).map(Number)), { padding: [20, 20], maxZoom: 14 });
-
-let saved = "dark"; try { saved = localStorage.getItem("gd-theme") || "dark"; } catch (e) {}
-applyTheme(saved);
+renderMain();
+renderBreakdown();
 </script>
 </body>
 </html>

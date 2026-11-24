@@ -187,6 +187,11 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - Report sheet: category switch styled exactly like the filter; location step expands the sheet to
   full height; "my location" button on the pick map; pin must be within **1 km** of the reporter
   (client blocks Send, server enforces `REPORT_MAX_DIST_M = 1000`).
+- **Grouping:** a new report within **500 m** of an active report of the same CATEGORY (checkpoint vs
+  incident, any subtype, any user) merges into the nearest one as a confirmation (ยืนยัน +1, reports +1);
+  a device confirms a given report at most once. Demo rows never absorb real reports.
+- Toll icon = Material "toll" symbol (as in Google Maps); toll filter shows icon + text, cards icon only.
+- Report map shows a blue "you are here" dot separate from the red pin.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

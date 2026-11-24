@@ -19,7 +19,7 @@ SEED_DEMO = os.environ.get("SEED_DEMO", "" if dbmod.IS_PG else "1") == "1"
 
 ACTIVE_SECONDS = 3 * 3600          # fresh window: last confirmed within 3h
 HIDE_AFTER_SECONDS = 12 * 3600     # drop from API entirely after 12h
-DEDUP_RADIUS_M = 300               # same type within this radius -> merge as confirmation
+DEDUP_RADIUS_M = 500               # same category within this radius -> one report, extra reports = confirmations
 DISMISS_THRESHOLD = 2              # this many "gone" votes clears a checkpoint
 
 # ---------- report types ----------
@@ -27,6 +27,13 @@ DISMISS_THRESHOLD = 2              # this many "gone" votes clears a checkpoint
 # stored the Thai display name itself — those rows are migrated to codes on startup.
 TYPE_CODES = {"general", "license_helmet", "alcohol", "black_smoke", "motorbike", "speed",
               "tax_insurance", "truck", "accident", "roadwork", "flood", "blocked"}
+INCIDENT_TYPES = {"accident", "roadwork", "flood", "blocked"}   # everything else is a checkpoint
+
+
+def type_category(t):
+    return "incident" if t in INCIDENT_TYPES else "checkpoint"
+
+
 LEGACY_TYPES = {
     "ตั้งแล้ว ระวังด้วย": "general", "ใบขับขี่+หมวกกันน็อค": "license_helmet", "เช็คลมปาก": "alcohol",
     "ควันดำ": "black_smoke", "เน้น 2 ล้อ": "motorbike", "ส่องความเร็ว": "speed", "ภาษี พ.ร.บ.": "tax_insurance",
@@ -236,18 +243,32 @@ def add_checkpoint():
 
     now = int(time.time())
     db = get_db()
+    # Grouping: reports from any users of the same category (checkpoint vs incident) within
+    # DEDUP_RADIUS_M of an active report are the same thing → merge into the nearest one and count
+    # the new report as a confirmation (ยืนยัน). Each device confirms a given report at most once.
     active = db.execute(
-        "SELECT * FROM checkpoints WHERE cleared_at IS NULL AND source != 'demo' AND last_confirmed_at > ? AND type = ?",
-        (now - ACTIVE_SECONDS, typ),
+        "SELECT * FROM checkpoints WHERE cleared_at IS NULL AND source != 'demo' AND last_confirmed_at > ?",
+        (now - ACTIVE_SECONDS,),
     ).fetchall()
-    for row in active:
-        if haversine_m(lat, lng, row["lat"], row["lng"]) <= DEDUP_RADIUS_M:
+    cat = type_category(typ)
+    near = sorted(
+        ((haversine_m(lat, lng, r["lat"], r["lng"]), r) for r in active if type_category(r["type"]) == cat),
+        key=lambda x: x[0],
+    )
+    if near and near[0][0] <= DEDUP_RADIUS_M:
+        row = near[0][1]
+        device = _device_id() or _client_id()
+        seen = db.execute("SELECT 1 FROM votes WHERE report_id = ? AND device_id = ?", (row["id"], device)).fetchone()
+        if row["reporter_device"] == device or seen:
+            db.execute("UPDATE checkpoints SET last_confirmed_at=? WHERE id=?", (now, row["id"]))
+        else:
             db.execute(
-                "UPDATE checkpoints SET last_confirmed_at=?, confirms=confirms+1, reports=reports+1 WHERE id=?",
+                "UPDATE checkpoints SET last_confirmed_at=?, confirms=confirms+1, reports=reports+1, dismisses=0 WHERE id=?",
                 (now, row["id"]),
             )
-            db.commit()
-            return jsonify({"ok": True, "merged": True, "id": row["id"]})
+            db.execute("INSERT INTO votes (report_id, device_id, still_there, created_at) VALUES (?,?,?,?)", (row["id"], device, True, now))
+        db.commit()
+        return jsonify({"ok": True, "merged": True, "id": row["id"]})
 
     new_id = db.insert(
         "INSERT INTO checkpoints (lat,lng,label,type,reported_at,last_confirmed_at,reporter_device) VALUES (?,?,?,?,?,?,?)",

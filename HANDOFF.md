@@ -209,6 +209,14 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **PWA:** `/manifest.webmanifest` + minimal `/sw.js` (no caching) make it installable. Browser visits
   get an "add to home screen" snackbar for ~7 s (Android: native Install button; iOS: Share → Add to
   Home Screen hint); never shown when opened from the shortcut.
+- **Analytics dashboard** `/stats?token=…`: KPIs (unique/new visitors, DAU/WAU/MAU, stickiness, reports,
+  reporters, contribution & merge rates, route planners, nav hand-offs, shortcut share), trends
+  (day/week/month), funnels (report, route, install), feature usage, hour×weekday heatmap, report types,
+  report map, sources (utm_source / shared links / referrer), devices, language, weekly retention.
+  Client events via `track(kind, meta)` → `/api/event` (whitelist `EVENT_KINDS`); `events.meta` JSON.
+- **Light / dark mode:** toggle in the logo pill; dark default; saved in localStorage `gd-theme`
+  (shared with /stats). Colours are tokens on `:root` with a `[data-theme="light"]` override; map uses
+  `PALETTE_LIGHT`. Logo pill and map pins stay dark in both themes.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

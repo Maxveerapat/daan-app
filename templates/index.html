@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
+<script>/* apply saved theme before first paint */ try { document.documentElement.dataset.theme = localStorage.getItem("gd-theme") || "dark"; } catch (e) { document.documentElement.dataset.theme = "dark"; }</script>
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="48x48" href="/static/favicon-48.png?v=2">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -46,7 +47,36 @@
     --glass: rgba(30,32,40,.62);
     --glass-blue: rgba(52,70,140,.55);
     --panel-gap: 10px;
+    --cp-ic: var(--cp-ic);     /* checkpoint icon/text accent */
+    --inc-ic: #FFD23F;    /* incident icon/text accent */
+    --on-bg: var(--on-bg);     /* selected segment on a --s2 track */
   }
+  /* ===== Light theme (toggle in the logo pill; saved per device) ===== */
+  :root[data-theme="light"] {
+    --bg: #EEF0F3; --sheet: #FFFFFF; --s1: #F1F2F5; --s2: #E5E7EB;
+    --line: rgba(0,0,0,.08); --line-2: rgba(0,0,0,.14);
+    --text: #15171A; --muted: #5E626A; --faint: #8A8E96;
+    --blue-t: #2D5BFF; --green: #17894B; --green-bg: #E3F4E9; --red: #D63A2B; --amber: #B86E00; --yellow: #A87B00;
+    --map-bg: #E9ECF1; --glass: rgba(255,255,255,.8); --glass-blue: rgba(45,91,255,.9);
+    --cp-ic: #E0483A; --inc-ic: #B98800; --on-bg: #FFFFFF;
+  }
+  :root[data-theme="light"] body { color-scheme: light; }
+  :root[data-theme="light"] .grabber { background: rgba(0,0,0,.18); }
+  :root[data-theme="light"] { --ib-label: #3E7A57; }
+  :root[data-theme="light"] #panel nav { background: rgba(255,255,255,.9); }
+  :root[data-theme="light"] #panel nav button.active { background: #E8EEFF; }
+  :root[data-theme="light"] #panel { box-shadow: 0 -4px 24px rgba(0,0,0,.12); }
+  :root[data-theme="light"] .search-wrap, :root[data-theme="light"] .trip, :root[data-theme="light"] #suggest { box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+  :root[data-theme="light"] #installBar { background: rgba(255,255,255,.97); }
+  :root[data-theme="light"] .tile.big.cp { background: linear-gradient(160deg, #FDE3E0, #FFF1EF); }
+  :root[data-theme="light"] .tile.big.inc { background: linear-gradient(160deg, #FFF1C9, #FFF8E3); }
+  :root[data-theme="light"] .cnt.cp, :root[data-theme="light"] .cat-tag.cp, :root[data-theme="light"] .cpcount.cp-some { background: rgba(214,58,43,.1); }
+  :root[data-theme="light"] .cnt.inc, :root[data-theme="light"] .cat-tag.inc, :root[data-theme="light"] .cpcount.inc-some { background: rgba(185,136,0,.12); }
+  :root[data-theme="light"] #panel.tint-cp { background: radial-gradient(120% 60% at 0% 0%, rgba(214,58,43,.08), transparent 60%), var(--sheet); }
+  :root[data-theme="light"] #panel.tint-inc { background: radial-gradient(120% 60% at 0% 0%, rgba(185,136,0,.1), transparent 60%), var(--sheet); }
+  :root[data-theme="light"] .route-opt.sel { background: #EAF0FF; }
+  :root[data-theme="light"] .leaflet-control-attribution { background: rgba(255,255,255,.7) !important; color: #6b6f78 !important; }
+  :root[data-theme="light"] .leaflet-control-attribution a { color: #4c5160 !important; }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
@@ -91,13 +121,17 @@
   .mapctl svg { width: 22px; height: 22px; }
 
   /* ---- legend (inside the panel) ---- */
-  .rec-legend { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; font-size: 12px; color: #C9CCD3; }
+  .rec-legend { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; font-size: 12px; color: var(--muted); }
   .rec-legend > span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
   .rec-legend i { width: 9px; height: 9px; border-radius: 50%; }
   .leg-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -4px 0 10px; font-size: 12px; }
   .seg-ic { display: inline-flex; width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
   .seg-ic svg { width: 100%; height: 100%; }
-  .seg-ic.cp { color: #FF8A7E; } .seg-ic.inc { color: var(--yellow); }
+  .seg-ic.cp { color: var(--cp-ic); } .seg-ic.inc { color: var(--inc-ic); }
+  .brand #themeBtn { margin-left: 6px; width: 30px; height: 30px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; }
+  .brand #themeBtn svg { width: 16px; height: 16px; }
+  .brand #refreshBtn { color: #fff; }
+  .brand #langBtn { color: #fff; }
   .brand #refreshBtn { margin-left: 6px; width: 30px; height: 30px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
   .brand #refreshBtn svg { width: 16px; height: 16px; }
   .brand #refreshBtn.spin svg { animation: spin .7s linear infinite; }
@@ -126,12 +160,12 @@
   .mk.ghost { opacity: .45; }
   .mk { padding: 5px 7px 5px 6px; gap: 4px; }
   .mk .ic { width: 18px; height: 18px; }
-  .mk.cp .ic { color: #FF8A7E; } .mk.inc .ic { color: var(--yellow); }
+  .mk.cp .ic { color: #FF8A7E; } .mk.inc .ic { color: #FFD23F; }
   .chip { display: flex; align-items: center; justify-content: center; gap: 7px; }
   .chip.wide { grid-column: 1 / -1; }
   .chip-ic { display: inline-flex; width: 17px; height: 17px; flex-shrink: 0; }
   .chip-ic svg { width: 100%; height: 100%; }
-  .chip.cp .chip-ic { color: #FF8A7E; } .chip.inc .chip-ic { color: var(--yellow); }
+  .chip.cp .chip-ic { color: var(--cp-ic); } .chip.inc .chip-ic { color: var(--inc-ic); }
   .chip.sel .chip-ic { color: #fff; }
   .mk.dot { padding: 0; width: 18px; height: 18px; justify-content: center; border-width: 2px; }
   .mk.dot i { width: 8px; height: 8px; }
@@ -175,6 +209,7 @@
   /* segmented control */
   .seg { display: flex; padding: 4px; border-radius: 999px; background: var(--s1); gap: 2px; }
   .seg button { flex: 1; border: none; background: none; color: var(--muted); font-size: 14px; font-weight: 500; padding: 7px 6px; border-radius: 999px; white-space: nowrap; }
+  :root[data-theme="light"] .seg button.on { background: #FFFFFF; box-shadow: 0 1px 4px rgba(0,0,0,.14); }
   .seg button.on { background: var(--s2); color: var(--text); font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
 
   /* list rows */
@@ -186,7 +221,7 @@
     background: var(--s1); border: 1px solid var(--line);
   }
   .tile svg { width: 22px; height: 22px; }
-  .tile.cp { color: #FF8A7E; } .tile.inc { color: var(--yellow); }
+  .tile.cp { color: var(--cp-ic); } .tile.inc { color: var(--inc-ic); }
 
   .tile.big.cp { background: linear-gradient(160deg, #3A1A18, #24171A); border-color: rgba(255,120,110,.25); }
   .tile.big.inc { background: linear-gradient(160deg, #3A3215, #24211A); border-color: rgba(255,210,63,.25); }
@@ -218,7 +253,7 @@
   h3.sec { font-size: 16px; font-weight: 700; margin: 0 0 8px; }
   .infobox { background: var(--green-bg); border-radius: 16px; padding: 8px 14px; color: var(--green); font-size: 14px; }
   .infobox .ln { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
-  .infobox .ln span:first-child { color: #9FD9B8; }
+  .infobox .ln span:first-child { color: var(--ib-label, #9FD9B8); }
   .table { background: var(--s1); border-radius: 18px; overflow: hidden; margin-top: 10px; }
   .table .tr { display: flex; justify-content: space-between; gap: 10px; padding: 13px 16px; font-size: 15px; }
   .table .tr + .tr { border-top: 1px solid var(--line); }
@@ -387,7 +422,7 @@
   .step-b.pad, .step-b .pad { padding: 0 12px 12px; }
   /* same look as the panel filter (.seg on --s1 card → use --s2 track so it reads the same) */
   #catSeg { background: var(--s2); }
-  #catSeg button.on { background: #3A3D42; }
+  #catSeg button.on { background: var(--on-bg); }
   .chips-grid, #typeChips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 0; }
   .chip { min-height: 38px; padding: 6px 8px; border-radius: 12px; border: none; background: var(--s2); font-size: 13.5px; font-weight: 400; line-height: 1.2; text-wrap: balance; }
   .chip.sel { background: var(--blue); color: #fff; font-weight: 600; }
@@ -406,7 +441,7 @@
   .side-q { font-size: 14px; font-weight: 600; white-space: nowrap; }
   .side-seg { flex: 1; max-width: 270px; background: var(--s2); }
   .side-seg button { font-size: 13.5px; padding: 6px; }
-  .side-seg button.on { background: #3A3D42; }
+  .side-seg button.on { background: var(--on-bg); }
   .dir-btn { height: 34px; padding: 0 14px; font-size: 13.5px; }
   .mk .hd { display: inline-flex; width: 16px; height: 16px; margin-left: -1px; }
   .mk .hd svg { width: 100%; height: 100%; }
@@ -492,7 +527,7 @@
 <main>
   <div class="tab active" id="tab-map">
     <div id="map"></div>
-    <div class="brand"><img class="logo-img" src="/static/logo.png?v=2" alt="glubDD" width="76" height="34"><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button><button id="refreshBtn" onclick="hardRefresh()" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></div>
+    <div class="brand"><img class="logo-img" src="/static/logo.png?v=2" alt="glubDD" width="76" height="34"><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button><button id="themeBtn" onclick="toggleTheme()" aria-label="Dark / light mode"></button><button id="refreshBtn" onclick="hardRefresh()" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></div>
   </div>
 
   <div class="tab" id="tab-route">
@@ -792,6 +827,19 @@ function hardRefresh() {
   const u = new URL(location.href); u.searchParams.set("_", Date.now().toString(36));
   location.replace(u.toString());
 }
+// Dark / light mode. Dark is the default; the choice is saved per device (shared with /stats).
+const SUN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>', MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>';
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  const b = $("themeBtn"); if (b) b.innerHTML = t === "light" ? MOON_SVG : SUN_SVG;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "light" ? "#EEF0F3" : "#111214");
+  baseMaps.forEach(gl => { if (gl.isStyleLoaded()) { tuneStyle(gl); setMapLabels(gl); } });
+}
+function toggleTheme() {
+  const t = isLight() ? "dark" : "light";
+  try { localStorage.setItem("gd-theme", t); } catch (e) {}
+  applyTheme(t); track("theme", { theme: t });
+}
 function toggleLang() {
   lang = lang === "th" ? "en" : "th";
   track("lang", { lang });
@@ -846,6 +894,14 @@ function apiHeaders() { return { "Content-Type": "application/json", "X-Device-I
    Its "dark" style is recoloured below into a cleaner, Apple-Maps-like dark palette. */
 const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 const MAP_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+const PALETTE_LIGHT = {
+  background: "#EEF0F4", landuse_residential: "#E8EBF0", landcover_wood: "#D4EAD8", landuse_park: "#D4EAD8",
+  water: "#A8C7F3", waterway: "#A8C7F3", building: "#DDE1E8",
+  highway_path: "#D3D7DE", highway_minor: "#FFFFFF", highway_major_casing: "#C9CED8", highway_major_inner: "#FFFFFF",
+  highway_major_subtle: "#FFFFFF", highway_motorway_casing: "#D9AE57", highway_motorway_inner: "#F6D58E",
+  highway_motorway_subtle: "#F6D58E", railway_transit: "#C3C8D2", railway_minor: "#C3C8D2", railway: "#C3C8D2",
+};
+const isLight = () => document.documentElement.dataset.theme === "light";
 const PALETTE = {  // navy map, after JodNai
   background: "#2B3150", landuse_residential: "#2D3353", landcover_wood: "#23403A", landuse_park: "#23403A",
   water: "#1C2C8F", waterway: "#1C2C8F", building: "#353C5E",
@@ -856,18 +912,23 @@ const PALETTE = {  // navy map, after JodNai
 const baseMaps = [];
 
 function tuneStyle(gl) {
-  for (const [id, color] of Object.entries(PALETTE)) {
+  for (const [id, color] of Object.entries(isLight() ? PALETTE_LIGHT : PALETTE)) {
     const l = gl.getLayer(id); if (!l) continue;
     const prop = l.type === "background" ? "background-color" : l.type === "fill" ? "fill-color" : "line-color";
     gl.setPaintProperty(id, prop, color);
     if (l.type === "fill") gl.setPaintProperty(id, "fill-opacity", 1);
   }
   ["highway_minor", "highway_major_inner", "highway_motorway_inner"].forEach(id => gl.getLayer(id) && gl.setPaintProperty(id, "line-opacity", 1));
+  const P = isLight() ? PALETTE_LIGHT : PALETTE;
+  if (gl.getLayer("building")) gl.setPaintProperty("building", "fill-outline-color", isLight() ? "#D2D6DE" : P.building);
+  ["railway_transit_dashline", "railway_minor_dashline", "railway_dashline"].forEach(id => gl.getLayer(id) && gl.setPaintProperty(id, "line-color", P.background));
   gl.getStyle().layers.filter(l => l.type === "symbol").forEach(l => {
     if (!gl.getLayoutProperty(l.id, "text-field")) return;
     const major = l.id.startsWith("place_city") || l.id === "place_town";
-    gl.setPaintProperty(l.id, "text-color", major ? "#EEF0F8" : l.id.startsWith("highway") ? "#B7BFD9" : "#CDD2E4");
-    gl.setPaintProperty(l.id, "text-halo-color", "rgba(32,37,64,.92)");
+    const L = isLight();
+    gl.setPaintProperty(l.id, "text-color", L ? (major ? "#1F232B" : l.id.startsWith("highway") ? "#5A606C" : "#3D424C")
+                                             : (major ? "#EEF0F8" : l.id.startsWith("highway") ? "#B7BFD9" : "#CDD2E4"));
+    gl.setPaintProperty(l.id, "text-halo-color", L ? "rgba(255,255,255,.95)" : "rgba(32,37,64,.92)");
     gl.setPaintProperty(l.id, "text-halo-width", 1.2);
   });
 }
@@ -2094,6 +2155,7 @@ setTimeout(showInstall, 1500);           // every browser visit, after the map h
 
 (() => { const u = new URL(location.href); if (u.searchParams.has("_")) { u.searchParams.delete("_"); history.replaceState(null, "", u.pathname + u.search + u.hash); } })();
 initMaps();
+applyTheme(document.documentElement.dataset.theme || "dark");
 applyLang();
 locate();
 loadCheckpoints();

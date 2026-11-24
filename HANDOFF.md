@@ -192,6 +192,11 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   a device confirms a given report at most once. Demo rows never absorb real reports.
 - Toll icon = Material "toll" symbol (as in Google Maps); toll filter shows icon + text, cards icon only.
 - Report map shows a blue "you are here" dot separate from the red pin.
+- **Checkpoint subtypes reduced to 5** (picker order): ทั่วไป (full-width), มอไซ, แอลกอฮอล์, รถบรรทุก, ควันดำ.
+  `license_helmet`, `speed`, `tax_insurance` are retired: still displayed for old rows, rejected
+  (→ general) for new reports (`RETIRED_TYPES`).
+- Route list: the selected route's reports appear right under its card (icon, subtype, place, km, age),
+  each tappable to open the full report detail; the old bottom "reports on route" section was removed.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

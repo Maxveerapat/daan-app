@@ -27,7 +27,8 @@ DISMISS_THRESHOLD = 2              # this many "gone" votes clears a checkpoint
 # stored the Thai display name itself — those rows are migrated to codes on startup.
 TYPE_CODES = {"general", "license_helmet", "alcohol", "black_smoke", "motorbike", "speed",
               "tax_insurance", "truck", "accident", "roadwork", "flood", "blocked"}
-INCIDENT_TYPES = {"accident", "roadwork", "flood", "blocked"}   # everything else is a checkpoint
+INCIDENT_TYPES = {"accident", "roadwork", "flood", "blocked"}
+RETIRED_TYPES = {"license_helmet", "speed", "tax_insurance"}   # still displayed, no longer reportable   # everything else is a checkpoint
 
 
 def type_category(t):
@@ -103,34 +104,34 @@ def init_db():
         seed = [
             # lat, lng, label, type, rep_min, conf_min, confirms, reports, source, source_name
             # coordinates snapped to the road network (OSRM /nearest) so pins sit on roads, not buildings
-            (13.78062, 100.50344, "ถ.ราชวิถี ใกล้สะพานกรุงธน", "license_helmet", 55, 15, 4, 2, "demo", None),
-            (13.66041, 100.43404, "ถ.พระราม 2 หน้าโลตัส", "speed", 95, 40, 2, 3, "demo", None),
+            (13.78062, 100.50344, "ถ.ราชวิถี ใกล้สะพานกรุงธน", "motorbike", 55, 15, 4, 2, "demo", None),
+            (13.66041, 100.43404, "ถ.พระราม 2 หน้าโลตัส", "general", 95, 40, 2, 3, "demo", None),
             (13.72203, 100.52311, "ถ.สาทร ใกล้ รพ.เซนต์หลุยส์", "general", 30, 8, 5, 2, "demo", None),
             (13.76474, 100.53874, "วงเวียนอนุสาวรีย์ชัยฯ", "alcohol", 70, 25, 3, 1, "demo", None),
             (13.73052, 100.56972, "ถ.สุขุมวิท ซ.33", "motorbike", 170, 165, 1, 1, "demo", None),
-            (13.7097, 100.4601, "ถ.จรัญสนิทวงศ์ ซ.35", "license_helmet", 480, 470, 1, 1, "demo", None),
-            (13.8037, 100.55419, "ถ.กำแพงเพชร ใกล้ ม.เกษตร", "tax_insurance", 60, 35, 6, 4, "demo", None),
+            (13.7097, 100.4601, "ถ.จรัญสนิทวงศ์ ซ.35", "motorbike", 480, 470, 1, 1, "demo", None),
+            (13.8037, 100.55419, "ถ.กำแพงเพชร ใกล้ ม.เกษตร", "black_smoke", 60, 35, 6, 4, "demo", None),
             (13.74671, 100.53406, "แยกราชเทวี", "general", 50, 20, 8, 5, "demo", None),
             # more checkpoints across Bangkok (Ratchaphruek to Bang Na), snapped to roads via OSRM /nearest
             (13.78348, 100.44182, "ถ.ราชพฤกษ์ ใกล้แยกตลิ่งชัน", "alcohol", 25, 8, 4, 2, "demo", None),
-            (13.73899, 100.44603, "ถ.ราชพฤกษ์ ใกล้ถ.กัลปพฤกษ์", "license_helmet", 60, 30, 3, 2, "demo", None),
-            (13.70609, 100.45006, "ถ.ราชพฤกษ์ ใกล้แยกท่าพระ", "speed", 140, 120, 2, 1, "demo", None),
+            (13.73899, 100.44603, "ถ.ราชพฤกษ์ ใกล้ถ.กัลปพฤกษ์", "motorbike", 60, 30, 3, 2, "demo", None),
+            (13.70609, 100.45006, "ถ.ราชพฤกษ์ ใกล้แยกท่าพระ", "general", 140, 120, 2, 1, "demo", None),
             (13.81795, 100.43797, "ถ.ราชพฤกษ์ ใกล้ถ.รัตนาธิเบศร์", "general", 15, 5, 6, 3, "demo", None),
             (13.72312, 100.43614, "ถ.กัลปพฤกษ์", "motorbike", 200, 170, 1, 1, "demo", None),
             (13.7765, 100.479, "ถ.บรมราชชนนี ปิ่นเกล้า", "alcohol", 45, 20, 5, 2, "demo", None),
             (13.6681, 100.60474, "ถ.บางนา-ตราด กม.1", "general", 90, 70, 2, 1, "demo", None),
             (13.66504, 100.63787, "ถ.บางนา-ตราด หน้าเซ็นทรัลบางนา", "alcohol", 30, 12, 3, 2, "demo", None),
-            (13.66297, 100.67596, "ถ.บางนา-ตราด กม.8", "speed", 25, 8, 4, 2, "demo", None),
-            (13.67007, 100.61981, "แยกบางนา ถ.สรรพาวุธ", "license_helmet", 60, 30, 3, 2, "demo", None),
+            (13.66297, 100.67596, "ถ.บางนา-ตราด กม.8", "general", 25, 8, 4, 2, "demo", None),
+            (13.67007, 100.61981, "แยกบางนา ถ.สรรพาวุธ", "motorbike", 60, 30, 3, 2, "demo", None),
             (13.69314, 100.60393, "ถ.สุขุมวิท 101/1", "motorbike", 140, 120, 2, 1, "demo", None),
             (13.80268, 100.55359, "ถ.พหลโยธิน ห้าแยกลาดพร้าว", "alcohol", 15, 5, 6, 3, "demo", None),
-            (13.81598, 100.59598, "ถ.ลาดพร้าว 101", "license_helmet", 200, 170, 1, 1, "demo", None),
+            (13.81598, 100.59598, "ถ.ลาดพร้าว 101", "motorbike", 200, 170, 1, 1, "demo", None),
             (13.78917, 100.63992, "ถ.รามอินทรา กม.2", "general", 45, 20, 5, 2, "demo", None),
             (13.75699, 100.64593, "ถ.รามคำแหง หน้าม.ราม", "motorbike", 90, 70, 2, 1, "demo", None),
             (13.74499, 100.59602, "ถ.พัฒนาการ ซ.20", "alcohol", 30, 12, 3, 2, "demo", None),
-            (13.69602, 100.54271, "ถ.พระราม 3 ใกล้สาธุประดิษฐ์", "speed", 25, 8, 4, 2, "demo", None),
-            (13.71783, 100.50289, "ถ.เจริญนคร", "license_helmet", 60, 30, 3, 2, "demo", None),
-            (13.68684, 100.4904, "ถ.สุขสวัสดิ์ ดาวคะนอง", "tax_insurance", 140, 120, 2, 1, "demo", None),
+            (13.69602, 100.54271, "ถ.พระราม 3 ใกล้สาธุประดิษฐ์", "general", 25, 8, 4, 2, "demo", None),
+            (13.71783, 100.50289, "ถ.เจริญนคร", "motorbike", 60, 30, 3, 2, "demo", None),
+            (13.68684, 100.4904, "ถ.สุขสวัสดิ์ ดาวคะนอง", "black_smoke", 140, 120, 2, 1, "demo", None),
             (13.72917, 100.47407, "ถ.เพชรเกษม ภาษีเจริญ", "alcohol", 15, 5, 6, 3, "demo", None),
             (13.71397, 100.4084, "ถ.เพชรเกษม หลักสอง", "truck", 200, 170, 1, 1, "demo", None),
             (13.83315, 100.51498, "ถ.งามวงศ์วาน แคราย", "general", 45, 20, 5, 2, "demo", None),
@@ -232,7 +233,7 @@ def add_checkpoint():
     label = (data.get("label") or "").strip()[:80] or "ไม่ระบุตำแหน่ง"
     typ = (data.get("type") or "").strip()
     typ = LEGACY_TYPES.get(typ, typ)
-    if typ not in TYPE_CODES:
+    if typ not in TYPE_CODES or typ in RETIRED_TYPES:
         typ = "general"
 
     if _rate_limited():

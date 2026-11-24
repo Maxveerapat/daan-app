@@ -120,6 +120,7 @@
   .mk .ic { width: 18px; height: 18px; }
   .mk.cp .ic { color: #FF8A7E; } .mk.inc .ic { color: var(--yellow); }
   .chip { display: flex; align-items: center; justify-content: center; gap: 7px; }
+  .chip.wide { grid-column: 1 / -1; }
   .chip-ic { display: inline-flex; width: 17px; height: 17px; flex-shrink: 0; }
   .chip-ic svg { width: 100%; height: 100%; }
   .chip.cp .chip-ic { color: #FF8A7E; } .chip.inc .chip-ic { color: var(--yellow); }
@@ -233,6 +234,15 @@
   .foot svg { width: 16px; height: 16px; }
 
   /* tab bar inside the panel (glass) */
+  .ro-hits { margin: -2px 0 10px 12px; padding-left: 10px; border-left: 2px solid var(--blue); }
+  .ro-hits.empty { color: var(--muted); font-size: 13px; padding: 4px 0 4px 10px; }
+  .ro-hit { display: flex; align-items: center; gap: 10px; padding: 7px 0; cursor: pointer; }
+  .ro-hit + .ro-hit { border-top: 1px solid var(--line); }
+  .ro-hit .tile { width: 36px; height: 36px; border-radius: 11px; }
+  .ro-hit .tile svg { width: 18px; height: 18px; }
+  .ro-hit .row-t { font-size: 14.5px; } .ro-hit .row-s { font-size: 12.5px; }
+  .ro-hit .row-v { font-size: 13.5px; }
+  .ro-hit .chev { color: var(--muted); font-size: 20px; margin-left: -2px; }
   #routeNav { display: none; flex-shrink: 0; gap: 8px; padding: 6px 14px 2px; border-top: 1px solid var(--line); }
   #routeNav.on { display: grid; grid-template-columns: 1fr 1fr; }
   #routeNav .cta, #routeNav .btn-outline { margin: 0; height: 42px; font-size: 15px; }
@@ -655,18 +665,18 @@ const PIN_WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 // Thai names follow police/news usage (e.g. "ตรวจวัดแอลกอฮอล์", not slang "เช็คลมปาก") and
 // Royal Institute spelling (หมวกกันน็อก). cat: category; g: photo-check group in clip_labels.json.
 const TYPES = {
-  general:        { th: "ด่านตรวจทั่วไป",          en: "General checkpoint", s: ["ด่าน", "Checkpoint"],  cat: "checkpoint", g: "checkpoint" },
-  alcohol:        { th: "ตรวจวัดแอลกอฮอล์",        en: "Alcohol test", s: ["แอลกอฮอล์", "Alcohol"],        cat: "checkpoint", g: "checkpoint" },
-  license_helmet: { th: "ใบขับขี่/หมวกกันน็อก",     en: "License & helmet", s: ["ใบขับขี่", "License"],    cat: "checkpoint", g: "checkpoint" },
-  speed:          { th: "ตรวจจับความเร็ว",          en: "Speed check", s: ["ความเร็ว", "Speed"],         cat: "checkpoint", g: "checkpoint" },
+  general:        { th: "ทั่วไป",          en: "General", s: ["ด่าน", "Checkpoint"],  cat: "checkpoint", g: "checkpoint" },
   motorbike:      { th: "ตรวจรถจักรยานยนต์",       en: "Motorcycles", s: ["มอเตอร์ไซค์", "Motorbikes"],         cat: "checkpoint", g: "checkpoint" },
-  tax_insurance:  { th: "ตรวจภาษี/พ.ร.บ.",         en: "Tax & insurance", s: ["ภาษี/พ.ร.บ.", "Tax"],     cat: "checkpoint", g: "checkpoint" },
-  black_smoke:    { th: "ตรวจควันดำ",              en: "Black smoke", s: ["ควันดำ", "Smoke"],         cat: "checkpoint", g: "checkpoint" },
+  alcohol:        { th: "ตรวจวัดแอลกอฮอล์",        en: "Alcohol test", s: ["แอลกอฮอล์", "Alcohol"],        cat: "checkpoint", g: "checkpoint" },
   truck:          { th: "ตรวจรถบรรทุก",            en: "Trucks", s: ["รถบรรทุก", "Trucks"],              cat: "checkpoint", g: "checkpoint" },
+  black_smoke:    { th: "ตรวจควันดำ",              en: "Black smoke", s: ["ควันดำ", "Smoke"],         cat: "checkpoint", g: "checkpoint" },
   accident:       { th: "อุบัติเหตุ",                en: "Accident", s: ["อุบัติเหตุ", "Accident"],            cat: "incident",   g: "accident" },
   roadwork:       { th: "ซ่อมถนน/ก่อสร้าง",         en: "Roadworks", s: ["ซ่อมถนน", "Roadworks"],           cat: "incident",   g: "roadwork" },
   flood:          { th: "น้ำท่วมขัง",                en: "Flooding", s: ["น้ำท่วม", "Flood"],            cat: "incident",   g: "flood" },
   blocked:        { th: "ปิดถนน/สิ่งกีดขวาง",        en: "Road closed", s: ["ปิดถนน", "Closed"],         cat: "incident",   g: "blocked" },
+  license_helmet: { th: "ใบขับขี่/หมวกกันน็อก",     en: "License & helmet", s: ["ใบขับขี่", "License"],    cat: "checkpoint", g: "checkpoint", retired: true },
+  speed:          { th: "ตรวจจับความเร็ว",          en: "Speed check", s: ["ความเร็ว", "Speed"],         cat: "checkpoint", g: "checkpoint", retired: true },
+  tax_insurance:  { th: "ตรวจภาษี/พ.ร.บ.",         en: "Tax & insurance", s: ["ภาษี/พ.ร.บ.", "Tax"],     cat: "checkpoint", g: "checkpoint", retired: true },
 };
 const TYPE_KEYS = Object.keys(TYPES);
 
@@ -1474,6 +1484,17 @@ function renderRouteCps() {
 // Toll icons: Material 'toll' symbol (the one Google Maps uses) / crossed out used on route cards and the toll filter.
 const ICON_TOLL = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zM3 12c0-2.61 1.67-4.83 4-5.65V4.26C3.55 5.15 1 8.27 1 12s2.55 6.85 6 7.74v-2.09c-2.33-.82-4-3.04-4-5.65z"/></svg>';
 const ICON_NOTOLL = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zM3 12c0-2.61 1.67-4.83 4-5.65V4.26C3.55 5.15 1 8.27 1 12s2.55 6.85 6 7.74v-2.09c-2.33-.82-4-3.04-4-5.65z"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+// Reports on the selected route, shown right under its card (driving order). Tap → full details.
+function routeHitsHtml(r) {
+  const hits = r.hits.filter(h => catShown(h.cp));
+  if (!hits.length) return `<div class="ro-hits empty">${t("noCpOnRoute")}</div>`;
+  return `<div class="ro-hits">${hits.map(h => `<div class="ro-hit" onclick="event.stopPropagation();openDetail(${h.cp.id})">
+      ${tileHtml(h.cp)}
+      <div class="row-main"><div class="row-t">${esc(typeName(h.cp.type))}</div>
+        <div class="row-s">${esc(labelName(h.cp.label))}</div></div>
+      <div class="row-v">${t("kmAt", (h.along / 1000).toFixed(1))}<small><span class="dot" style="background:${pinColor(h.cp)}"></span>${agoText(h.cp.age_minutes)}</small></div>
+      <span class="chev">›</span></div>`).join("")}</div>`;
+}
 function renderRouteSummary() {
   const sum = $("routeSummary");
   // Toll filter only narrows the list; routes always stay in travel-time order.
@@ -1492,17 +1513,10 @@ function renderRouteSummary() {
           <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}${r.toll == null ? "" : `<span class="tl-ic ${r.toll ? "yes" : "no"}" title="${t(r.toll ? "toll" : "noToll")}">${r.toll ? ICON_TOLL : ICON_NOTOLL}</span>`}</span>
         </div>
         <div class="ro-badges">${catFilter !== "incident" ? `<span class="cnt ${n ? "cp" : "zero"}" title="${n ? t("cpN", n) : t("cpNone")}"><span class="seg-ic cp">${PIN_SHIELD}</span>${n}</span>` : ""}${catFilter !== "checkpoint" ? `<span class="cnt ${ni ? "inc" : "zero"}" title="${t("incN", ni)}"><span class="seg-ic inc">${PIN_WARN}</span>${ni}</span>` : ""}</div>
-      </div>`;
+      </div>${i === selRoute ? routeHitsHtml(r) : ""}`;
   }).join("") : `<div class="route-hit" style="color:var(--muted)">${t("noRouteFilter")}</div>`;
 
   const sel = routeData[selRoute];
-  const shownHits = sel.hits.filter(h => catShown(h.cp));
-  const list = shownHits.length
-    ? shownHits.map(h => `<div class="route-hit">
-          <div><b>${esc(labelName(h.cp.label))}</b><div class="t">${catTag(h.cp)}<span class="nw">${esc(typeName(h.cp.type))}</span> · <span class="nw">${t("lastConfirmed", agoText(h.cp.age_minutes))}</span></div></div>
-          <span class="badge dist">${t("kmAt", (h.along / 1000).toFixed(1))}</span>
-        </div>`).join("")
-    : `<div class="route-hit" style="color:var(--muted)">${t("noCpOnRoute")}</div>`;
 
   // Hand off to Google/Apple Maps for turn-by-turn: from the chosen start point, or live GPS.
   // Route points (see shapeWaypoints) keep the nav app on the selected route. They never sit on
@@ -1520,8 +1534,7 @@ function renderRouteSummary() {
     ${catSegHtml()}
     ${filterBar}
     ${opts}
-    <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>
-    ${list}`;
+`;
   if (panelView === "route") updateCollapsed();
 }
 
@@ -1811,8 +1824,8 @@ function renderChips() {
   const ic = { checkpoint: `<span class="seg-ic cp">${PIN_SHIELD}</span>`, incident: `<span class="seg-ic inc">${PIN_WARN}</span>` };
   $("catSeg").innerHTML = ["checkpoint", "incident"].map(c =>
     `<button class="${reportCat === c ? "on" : ""}" onclick="setReportCat('${c}')">${ic[c]}${t("c_" + c)}</button>`).join("");
-  $("typeChips").innerHTML = TYPE_KEYS.map((k, i) => TYPES[k].cat !== reportCat ? "" :
-    `<button class="chip ${TYPES[k].cat === "incident" ? "inc" : "cp"} ${k === selType ? "sel" : ""}" onclick="pickType(${i})"><span class="chip-ic">${typeIcon(k)}</span>${esc(typeName(k))}</button>`).join("");
+  $("typeChips").innerHTML = TYPE_KEYS.map((k, i) => (TYPES[k].cat !== reportCat || TYPES[k].retired) ? "" :
+    `<button class="chip ${TYPES[k].cat === "incident" ? "inc" : "cp"} ${k === "general" ? "wide" : ""} ${k === selType ? "sel" : ""}" onclick="pickType(${i})"><span class="chip-ic">${typeIcon(k)}</span>${esc(typeName(k))}</button>`).join("");
 }
 function setReportCat(c) {
   reportCat = c;

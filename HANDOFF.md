@@ -197,6 +197,12 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   (→ general) for new reports (`RETIRED_TYPES`).
 - Route list: the selected route's reports appear right under its card (icon, subtype, place, km, age),
   each tappable to open the full report detail; the old bottom "reports on route" section was removed.
+- **Direction / road side:** reports store `heading` (deg, null = unknown). Default = reporter's GPS
+  direction of travel ("ฝั่งเดียวกับฉัน"); "ฝั่งตรงข้าม" flips it 180°; stationary users can tap an arrow
+  (45° steps). Merge: same category AND (both directions known → ≤500 m and ≤60° apart; else ≤150 m).
+  Directed pins snap to the matching carriageway via OSRM /nearest with bearing (≤40 m). Detail has an
+  "อยู่อีกฝั่งถนน" fix (`POST /api/checkpoints/<id>/flip`, re-merges). Route counts skip reports whose
+  direction is >90° off the route's bearing. Pins show a small direction arrow.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

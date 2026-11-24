@@ -92,6 +92,8 @@ MIGRATIONS = [
         created_at BIGINT NOT NULL
     )""",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_report_device ON votes (report_id, device_id)",
+    # 7: direction of travel the report applies to (degrees, 0 = north); NULL = unknown
+    f"ALTER TABLE checkpoints ADD COLUMN heading {REAL}",
 ]
 
 

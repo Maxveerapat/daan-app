@@ -394,6 +394,22 @@
   #sheetBody.tall .step.open { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   #sheetBody.tall .step.open .step-b { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   #sheetBody.tall #pickWrap, #sheetBody.tall #camWrap { flex: 1; height: auto; min-height: 220px; }
+  #pickArrow { position: absolute; left: 50%; top: calc(50% + 14px); z-index: 1001; width: 30px; height: 30px; color: #FFD23F;
+    transform: translate(-50%, -50%); filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); cursor: pointer; }
+  #pickArrow svg { width: 100%; height: 100%; }
+  .side-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+  .side-q { font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .side-seg { flex: 1; max-width: 270px; background: var(--s2); }
+  .side-seg button { font-size: 13.5px; padding: 6px; }
+  .side-seg button.on { background: #3A3D42; }
+  .dir-btn { height: 34px; padding: 0 14px; font-size: 13.5px; }
+  .mk .hd { display: inline-flex; width: 13px; height: 13px; color: #fff; margin-left: -1px; }
+  .mk .hd svg { width: 100%; height: 100%; }
+  .mk .hd svg path { stroke: none; }
+  .hd-inline { display: inline-flex; width: 14px; height: 14px; vertical-align: -2px; }
+  .hd-inline svg { width: 100%; height: 100%; }
+  .hd-inline svg path { stroke: none; }
+  .link-btn { display: block; margin: 8px 0 0; padding: 6px 0; border: none; background: none; color: var(--blue-t); font-size: 14px; font-weight: 600; }
   #pickLocate { position: absolute; right: 10px; bottom: 10px; z-index: 1000; width: 44px; height: 44px; border-radius: 50%; border: none;
     background: var(--glass-blue); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
   #pickLocate svg { width: 20px; height: 20px; }
@@ -530,9 +546,15 @@
               <div id="pickMap"></div>
               <div id="crosshair"><svg viewBox="0 0 24 34" width="27" height="38"><path d="M12 1C5.9 1 1 5.8 1 11.8c0 7.9 9.6 19.6 10 20.1.5.6 1.5.6 2 0 .4-.5 10-12.2 10-20.1C23 5.8 18.1 1 12 1z" fill="#EA4335" stroke="#B31412" stroke-width="1.2"/><circle cx="12" cy="11.8" r="4" fill="#B31412"/></svg></div>
               <div id="pickHint" data-i18n="pickHint"></div>
+              <div id="pickArrow" onclick="rotateDir()"><svg viewBox="0 0 24 24"><path d="M12 2 19 20 12 16 5 20z" fill="currentColor" stroke="#111214" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
               <button id="pickLocate" onclick="pickRecenter()" aria-label="My location"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></button>
             </div>
-            <div class="pad"><input id="labelInput" data-i18n-ph="placePh"></div>
+            <div class="pad">
+              <div class="side-row" id="sideRow"><span class="side-q" data-i18n="sideQ"></span>
+                <div class="seg side-seg"><button id="sideSame" onclick="setSide('same')" data-i18n="sideSame"></button><button id="sideOpp" onclick="setSide('opp')" data-i18n="sideOpp"></button></div></div>
+              <div class="side-row" id="dirRow"><span class="side-q" id="dirTxt"></span>
+                <button class="btn-dark dir-btn" onclick="rotateDir()" data-i18n="setDir"></button></div>
+              <input id="labelInput" data-i18n-ph="placePh"></div>
           </div>
         </section>
         <section class="step" data-step="photo">
@@ -573,6 +595,9 @@ const I18N = {
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
     legIncident: "เหตุ", c_all: "ทั้งหมด", c_checkpoint: "ด่านตรวจ", c_incident: "เหตุบนถนน",
     incN: n => `เหตุ ${n} จุด`, tagCheckpoint: "ด่าน", tagIncident: "เหตุบนถนน",
+    sideQ: "ด่านอยู่ฝั่งไหน?", sideSame: "ฝั่งเดียวกับฉัน", sideOpp: "ฝั่งตรงข้าม", setDir: "ตั้งทิศ",
+    dirUnknown: "ทิศทาง: ไม่ระบุ — แตะเพื่อตั้ง", heading: x => `มุ่งหน้าทิศ${x}`, dirL: "ทิศทาง",
+    wrongSide: "อยู่อีกฝั่งถนน", flipped: "เปลี่ยนฝั่งแล้ว",
     tabNear: "แถวนี้", tabReport: "รายงาน", nearTitle: n => `${n} รายงานแถวนี้`, live: "สด",
     secStatus: "สถานะ", secStill: "ยังอยู่ไหม?", confirmedL: "ยืนยันแล้ว", peopleN: n => `${n} คน`,
     lastL: "ยืนยันล่าสุด", reportsL: "รายงานรวม", timesN: n => `${n} ครั้ง`, distL: "ห่างจากคุณ",
@@ -621,6 +646,9 @@ const I18N = {
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
     legIncident: "Incident", c_all: "All", c_checkpoint: "Checkpoints", c_incident: "Incidents",
     incN: n => `${n} incident${n === 1 ? "" : "s"}`, tagCheckpoint: "Checkpoint", tagIncident: "Incident",
+    sideQ: "Which side?", sideSame: "My side", sideOpp: "Opposite side", setDir: "Set direction",
+    dirUnknown: "Direction: not set — tap to set", heading: x => `Heading ${x}`, dirL: "Direction",
+    wrongSide: "It's on the other side of the road", flipped: "Side changed",
     tabNear: "Nearby", tabReport: "Report", nearTitle: n => `${n} report${n === 1 ? "" : "s"} nearby`, live: "Live",
     secStatus: "Status", secStill: "Still there?", confirmedL: "Confirmed by", peopleN: n => `${n} ${n === 1 ? "person" : "people"}`,
     lastL: "Last confirmed", reportsL: "Reports merged", timesN: n => `${n}`, distL: "From you",
@@ -731,7 +759,7 @@ function applyLang() {
   $("locBadge").textContent = userLoc ? t(locReal ? "locReal" : "locDemo") : t("locating");
   renderChips();
   renderCatBars();
-  if ($("sheet").classList.contains("open")) renderSteps();
+  if ($("sheet").classList.contains("open")) { renderSteps(); renderDir(); }
   baseMaps.forEach(setMapLabels);
 }
 // Manual refresh for people using a home-screen shortcut (no browser reload button):
@@ -911,7 +939,7 @@ function makeMarker(cp, big = false, onMap = map) {
   }
   const cls = ["mk", inc ? "inc" : "cp", cp.age_minutes > 180 ? "stale" : "", big || cp.id === selectedId ? "sel" : ""].join(" ");
   const icon = L.divIcon({ className: "mk-wrap", iconSize: [0, 0],
-    html: `<div class="${cls}"><span class="ic">${typeIcon(cp.type)}</span><i style="background:${pinColor(cp)}"></i></div>` });
+    html: `<div class="${cls}"><span class="ic">${typeIcon(cp.type)}</span><i style="background:${pinColor(cp)}"></i>${cp.heading != null ? `<span class="hd" style="transform:rotate(${cp.heading}deg)">${ARROW_SVG}</span>` : ""}</div>` });
   return L.marker([cp.lat, cp.lng], { icon, zIndexOffset: big || cp.id === selectedId ? 1000 : (cp.age_minutes <= 60 ? 500 : 0) })
     .on("click", () => openDetail(cp.id));
 }
@@ -1107,7 +1135,9 @@ function openDetail(id) {
       <div class="ln"><span>${t("confirmedL")}</span><span>${t("peopleN", cp.confirms)}</span></div>
       ${cp.reports > 1 ? `<div class="ln"><span>${t("reportsL")}</span><span>${t("timesN", cp.reports)}</span></div>` : ""}
       ${dist == null ? "" : `<div class="ln"><span>${t("distL")}</span><span>${distText(dist)}</span></div>`}
+      ${cp.heading != null ? `<div class="ln"><span>${t("dirL")}</span><span><span class="hd-inline" style="transform:rotate(${cp.heading}deg)">${ARROW_SVG}</span> ${compassName(cp.heading)}</span></div>` : ""}
     </div>
+    ${cp.heading != null ? `<button class="link-btn" onclick="flipSide(${cp.id})">⇅ ${t("wrongSide")}</button>` : ""}
     <h3 class="sec" style="margin-top:14px">${t("secStill")}</h3>
     <div class="vote2"><button class="btn-dark" onclick="vote(${cp.id},true)">${t("stillThere")}</button><button class="btn-dark" onclick="vote(${cp.id},false)">${t("gone")}</button></div>
     <a class="cta" href="${gmapsUrl(cp)}" target="_blank" rel="noopener">${ICON_GO}${t("openG")}</a>
@@ -1154,6 +1184,13 @@ function renderRouteEmpty() {
   zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
 })();
 
+async function flipSide(id) {
+  const js = await fetch(`/api/checkpoints/${id}/flip`, { method: "POST", headers: apiHeaders() }).then(r => r.json()).catch(() => null);
+  if (!js || !js.ok) return toast(t("sendErr"));
+  toast(t("flipped"));
+  await loadCheckpoints();
+  openDetail(js.merged_into || id);
+}
 async function vote(id, still) {
   const js = await fetch(`/api/checkpoints/${id}/vote`, {
     method: "POST", headers: apiHeaders(),
@@ -1177,15 +1214,23 @@ function ptSegDistM(p, a, b) {
 }
 
 function distToRoute(cp, coords) {
-  let best = Infinity, along = 0, acc = 0;
+  let best = Infinity, along = 0, acc = 0, seg = 0;
   for (let i = 0; i < coords.length - 1; i++) {
     const segLen = haversineM(coords[i], coords[i+1]);
     const r = ptSegDistM([cp.lat, cp.lng], coords[i], coords[i+1]);
-    if (r.d < best) { best = r.d; along = acc + r.t*segLen; }
+    if (r.d < best) { best = r.d; along = acc + r.t*segLen; seg = i; }
     acc += segLen;
   }
-  return { dist: best, along };
+  return { dist: best, along, seg };
 }
+/* ---------- direction of travel (which side of the road a report is on) ---------- */
+function bearingDeg(a, b) {
+  const toR = Math.PI / 180, y = Math.sin((b[1]-a[1])*toR) * Math.cos(b[0]*toR);
+  const x = Math.cos(a[0]*toR)*Math.sin(b[0]*toR) - Math.sin(a[0]*toR)*Math.cos(b[0]*toR)*Math.cos((b[1]-a[1])*toR);
+  return (Math.atan2(y, x) / toR + 360) % 360;
+}
+function angDiff(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+const ARROW_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2 19 20 12 16 5 20z" fill="currentColor" stroke="#111214" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 
 /* ---------- nav hand-off: route points ("shape waypoints") ----------
    Points from the selected route's own geometry, placed where it splits from the other options,
@@ -1428,7 +1473,13 @@ async function buildRoute() {
     const hits = [];
     active.forEach(cp => {
       const r = distToRoute(cp, rt.coords);
-      if (r.dist <= ROUTE_BUFFER_M) hits.push({ cp, along: r.along });
+      if (r.dist > ROUTE_BUFFER_M) return;
+      // Direction-aware: a report for the opposite carriageway doesn't count for this route.
+      if (cp.heading != null) {
+        const b = bearingDeg(rt.coords[r.seg], rt.coords[r.seg + 1]);
+        if (angDiff(cp.heading, b) > 90) return;
+      }
+      hits.push({ cp, along: r.along });
     });
     hits.sort((a, b) => a.along - b.along);
     return { coords: rt.coords, hits, km: rt.km, mins: rt.mins, toll: rt.toll, delay: rt.delay_mins || 0,
@@ -1709,6 +1760,39 @@ function showPickMe() {
   if (pickMe) pickMe.setLatLng(here);
   else pickMe = L.circleMarker(here, { radius: 7, color: "#fff", weight: 2.5, fillColor: "#0A84FF", fillOpacity: 1, interactive: false }).addTo(pickMap);
 }
+// Direction: from the phone's direction of travel when moving (flipped if the checkpoint is on the
+// opposite side), otherwise set by tapping the arrow (45° per tap). null = unknown.
+let travelHeading = null, reportSide = "same", manualDir = null, headWatch = null;
+function reportHeading() {
+  if (travelHeading != null) return reportSide === "opp" ? (travelHeading + 180) % 360 : travelHeading;
+  return manualDir;
+}
+function setSide(sd) { reportSide = sd; renderDir(); }
+function rotateDir() {
+  if (travelHeading != null) { setSide(reportSide === "same" ? "opp" : "same"); return; }
+  manualDir = manualDir == null ? 0 : (manualDir + 45) % 360; renderDir();
+}
+const COMPASS = { th: ["เหนือ","ตะวันออกเฉียงเหนือ","ตะวันออก","ตะวันออกเฉียงใต้","ใต้","ตะวันตกเฉียงใต้","ตะวันตก","ตะวันตกเฉียงเหนือ"],
+                  en: ["north","northeast","east","southeast","south","southwest","west","northwest"] };
+function compassName(h) { return COMPASS[lang][Math.round(h / 45) % 8]; }
+function renderDir() {
+  const h = reportHeading(), moving = travelHeading != null;
+  $("sideRow").style.display = moving ? "" : "none";
+  $("dirRow").style.display = moving ? "none" : "";
+  $("sideSame").classList.toggle("on", reportSide === "same");
+  $("sideOpp").classList.toggle("on", reportSide === "opp");
+  $("dirTxt").textContent = h == null ? t("dirUnknown") : t("heading", compassName(h));
+  const a = $("pickArrow"); a.style.display = h == null ? "none" : ""; if (h != null) a.style.transform = `translate(-50%, -50%) rotate(${h}deg)`;
+}
+function startHeadingWatch() {
+  stopHeadingWatch(); travelHeading = null; reportSide = "same"; manualDir = null;
+  if (!navigator.geolocation) return;
+  headWatch = navigator.geolocation.watchPosition(p => {
+    const c = p.coords;
+    if (c.heading != null && !isNaN(c.heading) && (c.speed == null || c.speed > 1.5)) { travelHeading = c.heading; renderDir(); }
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
+}
+function stopHeadingWatch() { if (headWatch != null) navigator.geolocation.clearWatch(headWatch); headWatch = null; }
 function pickRecenter() {
   const here = reportPos || userLoc;
   if (!here) return toast(t("needGps"));
@@ -1734,6 +1818,7 @@ function openSheet() {
   if (PHOTO_ON) loadClip().catch(() => {}); // warm up the model while the user aims
   // Fresh high-accuracy fix: the pin starts here and the server checks the pin is near it.
   reportPos = null;
+  startHeadingWatch(); renderDir();
   navigator.geolocation && navigator.geolocation.getCurrentPosition(
     p => { reportPos = [p.coords.latitude, p.coords.longitude]; pickMap.setView(reportPos, 17); showPickMe(); renderSteps(); },
     () => {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
@@ -1775,6 +1860,7 @@ function openSheet() {
 
 function closeSheet() {
   $("sheet").classList.remove("open");
+  stopHeadingWatch();
   stopCamera(); photoData = null; photoOk = false; photoProbs = undefined; $("camWrap").classList.remove("shot", "err"); $("camCheck").className = "";
 }
 
@@ -1791,7 +1877,7 @@ async function submitReport() {
       method: "POST", headers: apiHeaders(),
       body: JSON.stringify({
         lat: c.lat, lng: c.lng, type: selType, label: $("labelInput").value,
-        user_lat: reportPos[0], user_lng: reportPos[1],
+        user_lat: reportPos[0], user_lng: reportPos[1], heading: reportHeading(),
       })
     });
     js = await res.json();

@@ -19,7 +19,10 @@ SEED_DEMO = os.environ.get("SEED_DEMO", "" if dbmod.IS_PG else "1") == "1"
 
 ACTIVE_SECONDS = 3 * 3600          # fresh window: last confirmed within 3h
 HIDE_AFTER_SECONDS = 12 * 3600     # drop from API entirely after 12h
-DEDUP_RADIUS_M = 500               # same category within this radius -> one report, extra reports = confirmations
+DEDUP_RADIUS_M = 500               # same category + same direction within this radius -> one report
+DEDUP_NODIR_M = 150                # if either report has no direction, only merge this close
+DEDUP_MAX_ANGLE = 60               # directions within this many degrees count as "same side"
+SNAP_MAX_M = 40                    # snap a directed pin to the matching carriageway if this close
 DISMISS_THRESHOLD = 2              # this many "gone" votes clears a checkpoint
 
 # ---------- report types ----------
@@ -29,6 +32,20 @@ TYPE_CODES = {"general", "license_helmet", "alcohol", "black_smoke", "motorbike"
               "tax_insurance", "truck", "accident", "roadwork", "flood", "blocked"}
 INCIDENT_TYPES = {"accident", "roadwork", "flood", "blocked"}
 RETIRED_TYPES = {"license_helmet", "speed", "tax_insurance"}   # still displayed, no longer reportable   # everything else is a checkpoint
+
+
+def angle_diff(a, b):
+    d = abs(a - b) % 360
+    return 360 - d if d > 180 else d
+
+
+def same_spot(lat, lng, heading, row):
+    """Same physical checkpoint? Same side of the road when both directions are known."""
+    d = haversine_m(lat, lng, row["lat"], row["lng"])
+    rh = row["heading"]
+    if heading is not None and rh is not None:
+        return d <= DEDUP_RADIUS_M and angle_diff(heading, rh) <= DEDUP_MAX_ANGLE, d
+    return d <= DEDUP_NODIR_M, d
 
 
 def type_category(t):
@@ -174,6 +191,7 @@ def row_to_dict(row, now):
         "status": status,
         "source": row["source"],
         "source_name": row["source_name"],
+        "heading": row["heading"] if "heading" in row.keys() else None,
     }
 
 
@@ -236,11 +254,18 @@ def add_checkpoint():
     if typ not in TYPE_CODES or typ in RETIRED_TYPES:
         typ = "general"
 
+    try:
+        heading = float(data["heading"]) % 360 if data.get("heading") is not None else None
+    except (TypeError, ValueError):
+        heading = None
+
     if _rate_limited():
         return jsonify({"ok": False, "error": "rate_limited"}), 429
     if haversine_m(lat, lng, ulat, ulng) > REPORT_MAX_DIST_M:
         return jsonify({"ok": False, "error": "too_far"}), 400
     _recent_reports.setdefault(_client_id(), []).append(time.time())
+    if heading is not None:
+        lat, lng = _snap_to_carriageway(lat, lng, heading)
 
     now = int(time.time())
     db = get_db()
@@ -252,12 +277,16 @@ def add_checkpoint():
         (now - ACTIVE_SECONDS,),
     ).fetchall()
     cat = type_category(typ)
-    near = sorted(
-        ((haversine_m(lat, lng, r["lat"], r["lng"]), r) for r in active if type_category(r["type"]) == cat),
-        key=lambda x: x[0],
-    )
-    if near and near[0][0] <= DEDUP_RADIUS_M:
-        row = near[0][1]
+    cands = []
+    for r in active:
+        if type_category(r["type"]) != cat:
+            continue
+        ok, d = same_spot(lat, lng, heading, r)
+        if ok:
+            cands.append((d, r))
+    cands.sort(key=lambda x: x[0])
+    if cands:
+        row = cands[0][1]
         device = _device_id() or _client_id()
         seen = db.execute("SELECT 1 FROM votes WHERE report_id = ? AND device_id = ?", (row["id"], device)).fetchone()
         if row["reporter_device"] == device or seen:
@@ -272,11 +301,57 @@ def add_checkpoint():
         return jsonify({"ok": True, "merged": True, "id": row["id"]})
 
     new_id = db.insert(
-        "INSERT INTO checkpoints (lat,lng,label,type,reported_at,last_confirmed_at,reporter_device) VALUES (?,?,?,?,?,?,?)",
-        (lat, lng, label, typ, now, now, _device_id()),
+        "INSERT INTO checkpoints (lat,lng,label,type,reported_at,last_confirmed_at,reporter_device,heading) VALUES (?,?,?,?,?,?,?,?)",
+        (lat, lng, label, typ, now, now, _device_id(), heading),
     )
     db.commit()
     return jsonify({"ok": True, "merged": False, "id": new_id})
+
+
+def _snap_to_carriageway(lat, lng, heading):
+    """On divided roads each direction is its own OSM way; OSRM /nearest with a bearing picks the
+    carriageway running that way. Only small moves are applied; any failure keeps the pin as-is."""
+    try:
+        url = (f"https://router.project-osrm.org/nearest/v1/driving/{lng},{lat}"
+               f"?number=1&bearings={int(heading)},45")
+        wp = _http_json(url, timeout=4).get("waypoints", [])
+        if wp and wp[0].get("distance", 1e9) <= SNAP_MAX_M:
+            slng, slat = wp[0]["location"]
+            return slat, slng
+    except NET_ERRORS as e:
+        app.logger.info("snap skipped: %s", e)
+    return lat, lng
+
+
+@app.route("/api/checkpoints/<int:cid>/flip", methods=["POST"])
+def flip_side(cid):
+    """'Wrong side' fix: reverse the report's direction, then merge it into a matching report on
+    that side if one exists."""
+    db = get_db()
+    row = db.execute("SELECT * FROM checkpoints WHERE id = ?", (cid,)).fetchone()
+    if row is None or row["heading"] is None:
+        return jsonify({"ok": False, "error": "no_direction"}), 400
+    h = (row["heading"] + 180) % 360
+    db.execute("UPDATE checkpoints SET heading = ? WHERE id = ?", (h, cid))
+    now = int(time.time())
+    others = db.execute(
+        "SELECT * FROM checkpoints WHERE id != ? AND cleared_at IS NULL AND source != 'demo' AND last_confirmed_at > ?",
+        (cid, now - ACTIVE_SECONDS),
+    ).fetchall()
+    cat = type_category(row["type"])
+    match = sorted(((d, r) for r in others if type_category(r["type"]) == cat
+                    for ok, d in [same_spot(row["lat"], row["lng"], h, r)] if ok), key=lambda x: x[0])
+    if match:
+        target = match[0][1]
+        db.execute(
+            "UPDATE checkpoints SET confirms = confirms + ?, reports = reports + ?, last_confirmed_at = ? WHERE id = ?",
+            (row["confirms"], row["reports"], max(row["last_confirmed_at"], target["last_confirmed_at"]), target["id"]),
+        )
+        db.execute("DELETE FROM checkpoints WHERE id = ?", (cid,))
+        db.commit()
+        return jsonify({"ok": True, "merged_into": target["id"]})
+    db.commit()
+    return jsonify({"ok": True, "heading": h})
 
 
 @app.route("/api/checkpoints/<int:cid>/vote", methods=["POST"])

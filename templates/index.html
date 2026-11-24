@@ -394,8 +394,9 @@
   #sheetBody.tall .step.open { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   #sheetBody.tall .step.open .step-b { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   #sheetBody.tall #pickWrap, #sheetBody.tall #camWrap { flex: 1; height: auto; min-height: 220px; }
-  #pickArrow { position: absolute; left: 50%; top: calc(50% + 14px); z-index: 1001; width: 30px; height: 30px; color: #FFD23F;
-    transform: translate(-50%, -50%); filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); cursor: pointer; }
+  /* heading beam centred on the pin tip, under the red pin */
+  #pickArrow { position: absolute; left: 50%; top: 50%; z-index: 999; width: 120px; height: 120px;
+    transform: translate(-50%, -50%); cursor: pointer; transition: transform .25s ease; }
   #pickArrow svg { width: 100%; height: 100%; }
   .side-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
   .side-q { font-size: 14px; font-weight: 600; white-space: nowrap; }
@@ -403,12 +404,12 @@
   .side-seg button { font-size: 13.5px; padding: 6px; }
   .side-seg button.on { background: #3A3D42; }
   .dir-btn { height: 34px; padding: 0 14px; font-size: 13.5px; }
-  .mk .hd { display: inline-flex; width: 13px; height: 13px; color: #fff; margin-left: -1px; }
+  .mk .hd { display: inline-flex; width: 16px; height: 16px; margin-left: -1px; }
   .mk .hd svg { width: 100%; height: 100%; }
-  .mk .hd svg path { stroke: none; }
-  .hd-inline { display: inline-flex; width: 14px; height: 14px; vertical-align: -2px; }
+
+  .hd-inline { display: inline-flex; width: 18px; height: 18px; vertical-align: -4px; }
   .hd-inline svg { width: 100%; height: 100%; }
-  .hd-inline svg path { stroke: none; }
+
   .link-btn { display: block; margin: 8px 0 0; padding: 6px 0; border: none; background: none; color: var(--blue-t); font-size: 14px; font-weight: 600; }
   #pickLocate { position: absolute; right: 10px; bottom: 10px; z-index: 1000; width: 44px; height: 44px; border-radius: 50%; border: none;
     background: var(--glass-blue); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
@@ -546,7 +547,7 @@
               <div id="pickMap"></div>
               <div id="crosshair"><svg viewBox="0 0 24 34" width="27" height="38"><path d="M12 1C5.9 1 1 5.8 1 11.8c0 7.9 9.6 19.6 10 20.1.5.6 1.5.6 2 0 .4-.5 10-12.2 10-20.1C23 5.8 18.1 1 12 1z" fill="#EA4335" stroke="#B31412" stroke-width="1.2"/><circle cx="12" cy="11.8" r="4" fill="#B31412"/></svg></div>
               <div id="pickHint" data-i18n="pickHint"></div>
-              <div id="pickArrow" onclick="rotateDir()"><svg viewBox="0 0 24 24"><path d="M12 2 19 20 12 16 5 20z" fill="currentColor" stroke="#111214" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+              <div id="pickArrow" onclick="rotateDir()"><svg viewBox="0 0 120 120"><defs><radialGradient id="gdBeam" cx="60" cy="60" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4285F4" stop-opacity=".75"/><stop offset="1" stop-color="#4285F4" stop-opacity="0"/></radialGradient></defs><path d="M60 60 L31 9.8 A58 58 0 0 1 89 9.8 Z" fill="url(#gdBeam)"/><circle cx="60" cy="60" r="8" fill="#4285F4" stroke="#fff" stroke-width="3"/></svg></div>
               <button id="pickLocate" onclick="pickRecenter()" aria-label="My location"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></button>
             </div>
             <div class="pad">
@@ -1230,7 +1231,7 @@ function bearingDeg(a, b) {
   return (Math.atan2(y, x) / toR + 360) % 360;
 }
 function angDiff(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
-const ARROW_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2 19 20 12 16 5 20z" fill="currentColor" stroke="#111214" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+const ARROW_SVG = '<svg viewBox="0 0 24 24"><path d="M12 12 L6 1.6 A12 12 0 0 1 18 1.6 Z" fill="#8AB4F8" fill-opacity=".75"/><circle cx="12" cy="12" r="4" fill="#4285F4" stroke="#fff" stroke-width="1.6"/></svg>'; // small Google-style heading cone (pins, detail)
 
 /* ---------- nav hand-off: route points ("shape waypoints") ----------
    Points from the selected route's own geometry, placed where it splits from the other options,

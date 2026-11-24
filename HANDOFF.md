@@ -202,7 +202,7 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   (45° steps). Merge: same category AND (both directions known → ≤500 m and ≤60° apart; else ≤150 m).
   Directed pins snap to the matching carriageway via OSRM /nearest with bearing (≤40 m). Detail has an
   "อยู่อีกฝั่งถนน" fix (`POST /api/checkpoints/<id>/flip`, re-merges). Route counts skip reports whose
-  direction is >90° off the route's bearing. Pins show a small direction arrow.
+  direction is >90° off the route's bearing. Direction is shown Google-Maps style (blue dot + light-blue beam).
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

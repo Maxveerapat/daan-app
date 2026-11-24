@@ -233,6 +233,20 @@
   .foot svg { width: 16px; height: 16px; }
 
   /* tab bar inside the panel (glass) */
+  #routeNav { display: none; flex-shrink: 0; gap: 8px; padding: 6px 14px 2px; border-top: 1px solid var(--line); }
+  #routeNav.on { display: grid; grid-template-columns: 1fr 1fr; }
+  #routeNav .cta, #routeNav .btn-outline { margin: 0; height: 42px; font-size: 15px; }
+  .tl-ic { display: inline-flex; width: 17px; height: 17px; vertical-align: -3px; margin-left: 8px; }
+  .tl-ic svg { width: 100%; height: 100%; }
+  .tl-ic.yes { color: var(--yellow); } .tl-ic.no { color: var(--muted); }
+  .toll-filter .tl-ic { margin: 0; width: 19px; height: 19px; }
+  .cnt { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; padding: 3px 9px 3px 7px; border-radius: 999px; background: var(--s2); }
+  .cnt .seg-ic { margin: 0; width: 15px; height: 15px; vertical-align: 0; }
+  .cnt.cp { background: rgba(255,90,78,.14); color: var(--red); }
+  .cnt.inc { background: rgba(255,210,63,.13); color: var(--yellow); }
+  .cnt.zero { color: var(--green); background: rgba(92,203,138,.12); }
+  .cnt.zero .seg-ic { color: var(--green); }
+  .ro-badges { flex-direction: row !important; }
   #panel nav {
     flex-shrink: 0; margin: 2px 8px 8px; display: flex; padding: 3px; border-radius: 999px;
     background: rgba(28,30,36,.72); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
@@ -474,6 +488,7 @@
     </div>
     <div class="pv" id="pv-detail"></div>
     <div class="pv" id="pv-route"><div id="routeSummary"></div></div>
+    <div id="routeNav"></div>
     <nav>
       <button data-tab="map" class="active" onclick="switchTab('map')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><span data-i18n="tabNear"></span></button>
       <button data-tab="route" onclick="switchTab('route')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="5" r="2.2"/><path d="M8.2 19H14a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h5.8"/></svg><span data-i18n="tabRoute"></span></button>
@@ -1016,7 +1031,8 @@ function updateCollapsed() {
   const grab = $("panelDrag").offsetHeight, nav = p.querySelector("nav"), cs = getComputedStyle(nav);
   const navH = nav.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
   const content = half ? top(half) + half.offsetHeight * 0.5 : top(full) + full.offsetHeight + 12;
-  const h = Math.round(grab + content + navH);
+  const rn = $("routeNav"), rnH = rn.classList.contains("on") ? rn.offsetHeight : 0;
+  const h = Math.round(grab + content + navH + rnH);
   p.style.setProperty("--collapsed", Math.min(h, window.innerHeight * 0.62) + "px");
 }
 function setPanel(st) {
@@ -1038,9 +1054,11 @@ function setPanel(st) {
   updateCollapsed();
   document.body.classList.toggle("panel-full", st === "full");
 }
+function syncRouteNav() { $("routeNav").classList.toggle("on", panelView === "route" && routeData.length > 0 && !!$("routeNav").innerHTML.trim()); }
 function showView(v) {
   panelView = v;
   ["near", "detail", "route"].forEach(x => $("pv-" + x).classList.toggle("on", x === v));
+  syncRouteNav();
   updateCollapsed();
   if (v !== "detail") $("panel").classList.remove("tint-cp", "tint-inc");
 }
@@ -1421,6 +1439,7 @@ function closeRoute() {
   routeData = []; selRoute = 0; lastDest = null; lastOrig = null;
   routeLines.clearLayers();
   tripOrig = null; tripDest = null; $("origInput").value = ""; $("destInput").value = ""; syncTripUI();
+  $("routeNav").innerHTML = ""; syncRouteNav();
   renderRouteEmpty(); setPanel("collapsed");
   suggestions = []; closeSuggest(); activeField = "dest";
   renderRouteCps();
@@ -1452,6 +1471,9 @@ function renderRouteCps() {
   });
 }
 
+// Toll icons (coin with ฿ / crossed out) used on route cards and the toll filter.
+const ICON_TOLL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10 7.5v9M10 7.5h3a2.2 2.2 0 0 1 0 4.5H10h3.5a2.2 2.2 0 0 1 0 4.5H10M12 6v1.5M12 16.5V18"/></svg>';
+const ICON_NOTOLL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10 7.5v9M10 7.5h3a2.2 2.2 0 0 1 0 4.5H10h3.5a2.2 2.2 0 0 1 0 4.5H10"/><path d="M5.5 5.5l13 13"/></svg>';
 function renderRouteSummary() {
   const sum = $("routeSummary");
   // Toll filter only narrows the list; routes always stay in travel-time order.
@@ -1459,7 +1481,7 @@ function renderRouteSummary() {
   if (visible.length && !visible.includes(selRoute)) { selRoute = visible[0]; drawRoutes(); }
   const hasTollInfo = routeData.some(r => r.toll != null);
   const filterBar = hasTollInfo ? `<div class="seg toll-filter">${["all", "toll", "noToll"].map(k =>
-      `<button class="${tollFilter === k ? "on" : ""}" onclick="setTollFilter('${k}')">${t("f_" + k)}</button>`).join("")}</div>` : "";
+      `<button class="${tollFilter === k ? "on" : ""}" onclick="setTollFilter('${k}')" aria-label="${t("f_" + k)}" title="${t("f_" + k)}">${k === "all" ? t("f_all") : `<span class="tl-ic ${k === "toll" ? "yes" : "no"}">${k === "toll" ? ICON_TOLL : ICON_NOTOLL}</span>`}</button>`).join("")}</div>` : "";
   const opts = visible.length ? visible.map(i => {
     const r = routeData[i];
     const n = r.hits.filter(h => catOf(h.cp) === "checkpoint").length;
@@ -1467,10 +1489,9 @@ function renderRouteSummary() {
     return `<div class="route-opt ${i === selRoute ? "sel" : ""}" onclick="selRoute=${i};drawRoutes();renderRouteSummary()">
         <div class="ro-main">
           <b>${t("routeN", i + 1)}</b>
-          <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}</span>
-          ${(r.delay > 0 || r.toll != null) ? `<span class="ro-tags">${r.delay > 0 ? `<span class="mini delay">${t("delay", r.delay)}</span>` : ""}${r.toll == null ? "" : `<span class="mini toll ${r.toll ? "yes" : "no"}">${t(r.toll ? "toll" : "noToll")}</span>`}</span>` : ""}
+          <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}${r.toll == null ? "" : `<span class="tl-ic ${r.toll ? "yes" : "no"}" title="${t(r.toll ? "toll" : "noToll")}">${r.toll ? ICON_TOLL : ICON_NOTOLL}</span>`}</span>
         </div>
-        <div class="ro-badges">${catFilter !== "incident" ? `<span class="cpcount ${n ? "cp-some" : "cp-none"}">${n ? t("cpN", n) : t("cpNone")}</span>` : ""}${catFilter !== "checkpoint" && ni ? `<span class="cpcount inc-some">${t("incN", ni)}</span>` : ""}</div>
+        <div class="ro-badges">${catFilter !== "incident" ? `<span class="cnt ${n ? "cp" : "zero"}" title="${n ? t("cpN", n) : t("cpNone")}"><span class="seg-ic cp">${PIN_SHIELD}</span>${n}</span>` : ""}${catFilter !== "checkpoint" ? `<span class="cnt ${ni ? "inc" : "zero"}" title="${t("incN", ni)}"><span class="seg-ic inc">${PIN_WARN}</span>${ni}</span>` : ""}</div>
       </div>`;
   }).join("") : `<div class="route-hit" style="color:var(--muted)">${t("noRouteFilter")}</div>`;
 
@@ -1488,12 +1509,11 @@ function renderRouteSummary() {
   // or near a tollway/motorway, and checkpoints are not sent as stops.
   const wps = sel.wp || (sel.wp = shapeWaypoints(selRoute));
   const navOrig = lastOrig ? [lastOrig.lat, lastOrig.lng] : null;
-  const navBtns = lastDest ? `<div class="ro-listhead">${t("navWith")}</div>
-    <div class="nav-note">${wps.length ? t("navNoteShape", wps.length) : t("navNote")}</div>
-    <div class="nav-row">
-      <a class="cta" href="${googleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig)}" target="_blank" rel="noopener">${ICON_GO}${t("openG")}</a>
-      <a class="btn-outline" href="${appleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig)}" target="_blank" rel="noopener">${t("openA")}</a>
-    </div>` : "";
+  // Always-visible bar (outside the scrolling list) so users see they can open the route in a nav app.
+  $("routeNav").innerHTML = lastDest ? `
+      <a class="cta" href="${googleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig)}" target="_blank" rel="noopener">${ICON_GO}Google Maps</a>
+      <a class="btn-outline" href="${appleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig)}" target="_blank" rel="noopener">Apple Maps</a>` : "";
+  syncRouteNav();
 
   sum.innerHTML = `<div class="p-head"><div><h2>${t("chooseRoute")}</h2><div class="p-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>${recLegendHtml()}
       <button class="ibtn" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div>
@@ -1501,8 +1521,7 @@ function renderRouteSummary() {
     ${filterBar}
     ${opts}
     <div class="ro-listhead">${t("onRoute", selRoute + 1)}</div>
-    ${list}
-    ${navBtns}`;
+    ${list}`;
   if (panelView === "route") updateCollapsed();
 }
 

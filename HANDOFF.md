@@ -218,6 +218,10 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
 - **Light / dark mode:** toggle in the logo pill; dark default; saved in localStorage `gd-theme`
   (shared with /stats). Colours are tokens on `:root` with a `[data-theme="light"]` override; map uses
   `PALETTE_LIGHT`. Logo pill and map pins stay dark in both themes.
+- **Google Maps basemap:** set env `GOOGLE_MAPS_KEY` (Maps JavaScript API browser key, restrict by
+  HTTP referrer) → real Google Maps tiles via the official API + Leaflet.GridLayer.GoogleMutant
+  (night style in dark mode; label language follows the app language at page load). Without a key,
+  OpenFreeMap is coloured like Google (`PALETTE_LIGHT` + added park layer). Light is now the default theme.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

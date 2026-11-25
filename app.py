@@ -12,6 +12,9 @@ from flask import Flask, g, jsonify, render_template, request
 import db as dbmod
 
 APP_DIR = Path(__file__).parent
+# Google Maps basemap (official Maps JavaScript API). Browser key — restrict it by HTTP referrer in
+# Google Cloud. Without it the app uses OpenFreeMap styled to look like Google Maps.
+GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_KEY", "").strip()
 # Feature toggle: require a live photo (on-device check) when reporting. Off unless REPORT_PHOTO=1.
 PHOTO_REQUIRED = os.environ.get("REPORT_PHOTO", "0") == "1"
 # Demo reports are only seeded into an empty local (SQLite) DB unless SEED_DEMO=1 is set.
@@ -197,7 +200,7 @@ def row_to_dict(row, now):
 
 @app.route("/")
 def index():
-    return render_template("index.html", photo_on=PHOTO_REQUIRED)
+    return render_template("index.html", photo_on=PHOTO_REQUIRED, gmaps_key=GOOGLE_MAPS_KEY)
 
 
 # ---------- analytics (first-party, anonymous) ----------

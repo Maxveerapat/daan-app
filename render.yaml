@@ -14,6 +14,8 @@ services:
         value: "0"
       - key: STATS_TOKEN    # secret for /stats?token=... (analytics dashboard)
         sync: false
+      - key: GOOGLE_MAPS_KEY   # Maps JavaScript API browser key (restrict by HTTP referrer); empty = Google-styled OpenFreeMap
+        sync: false
       - key: TOMTOM_KEY     # TomTom key: live-traffic routes + place search
         sync: false
       - key: ORS_KEY        # free OpenRouteService key; enter it in Render → Environment

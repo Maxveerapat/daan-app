@@ -118,7 +118,7 @@
     -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%);
     border: 1px solid rgba(160,180,255,.22); box-shadow: 0 6px 20px rgba(0,0,0,.35);
   }
-  #panel.full .mapctl { display: none; }
+  #panel.full .mapctl, #panel.fitdetail .mapctl { display: none; }
   .mapctl button { width: 52px; height: 52px; border: none; background: none; display: flex; align-items: center; justify-content: center; color: #fff; }
   .mapctl button + button { border-top: 1px solid rgba(255,255,255,.14); }
   .mapctl svg { width: 22px; height: 22px; }
@@ -289,9 +289,12 @@
   .ro-hit .row-t { font-size: 14.5px; } .ro-hit .row-s { font-size: 12.5px; }
   .ro-hit .row-v { font-size: 13.5px; }
   .ro-hit .chev { color: var(--muted); font-size: 20px; margin-left: -2px; }
-  #routeNav { display: none; flex-shrink: 0; gap: 8px; padding: 6px 14px 2px; border-top: 1px solid var(--line); }
-  #routeNav.on { display: grid; grid-template-columns: 1fr 1fr; }
-  #routeNav .cta, #routeNav .btn-outline { margin: 0; height: 42px; font-size: 15px; }
+  /* Google / Apple Maps pair — identical in the route bar and the report detail */
+  .nav-pair, #routeNav.on { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .nav-pair { margin-top: 14px; }
+  .nav-pair .cta, .nav-pair .btn-outline, #routeNav .cta, #routeNav .btn-outline { margin: 0; height: 44px; font-size: 15px; font-weight: 600; gap: 7px; }
+  .nav-pair svg, #routeNav svg { width: 17px; height: 17px; }
+  #routeNav { display: none; flex-shrink: 0; padding: 10px 14px 10px; border-top: 1px solid var(--line); }
   .tl-ic { display: inline-flex; width: 17px; height: 17px; vertical-align: -3px; margin-left: 8px; }
   .tl-ic svg { width: 100%; height: 100%; }
   .tl-ic.yes { color: var(--yellow); } .tl-ic.no { color: var(--muted); }
@@ -437,8 +440,16 @@
   #sheetBody.tall .step.open .step-b { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   #sheetBody.tall #pickWrap, #sheetBody.tall #camWrap { flex: 1; height: auto; min-height: 220px; }
   /* heading beam centred on the pin tip, under the red pin */
+  .me-wrap { background: none; border: none; pointer-events: none; }
+  .me { position: relative; width: 120px; height: 120px; }
+  .me-beam { position: absolute; inset: 0; display: none; transition: none;
+    background: radial-gradient(circle at 50% 50%, rgba(66,133,244,.55) 0, rgba(66,133,244,.25) 30%, rgba(66,133,244,0) 62%);
+    clip-path: polygon(50% 50%, 26% 0, 74% 0); }
+  body.has-compass .me-beam { display: block; }
+  .me-dot { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%;
+    background: #4285F4; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
   #pickArrow { position: absolute; left: 50%; top: 50%; z-index: 999; width: 120px; height: 120px;
-    transform: translate(-50%, -50%); cursor: pointer; transition: transform .25s ease; }
+    transform: translate(-50%, -50%); pointer-events: none; }
   #pickArrow svg { width: 100%; height: 100%; }
   .side-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
   .side-q { font-size: 14px; font-weight: 600; white-space: nowrap; }
@@ -485,6 +496,48 @@
   .sheet-actions .submit:disabled { opacity: .4; }
 
   /* "Add to home screen" snackbar: browser visits only, a few seconds, never blocks the map */
+  /* saved places */
+  #placeChips { display: flex; gap: 8px; overflow-x: auto; padding: 8px 2px 4px; scrollbar-width: none; }
+  #placeChips::-webkit-scrollbar { display: none; }
+  body.routing-on #placeChips { display: none; }
+  .pchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 10px; border-radius: 999px;
+    border: none; background: var(--sheet); color: var(--text); font-size: 14px; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,.18); white-space: nowrap; }
+  .pchip i { display: inline-flex; width: 18px; height: 18px; color: #1A73E8; } .pchip i svg { width: 100%; height: 100%; }
+  .pchip.add { color: #1A73E8; font-weight: 600; }
+  .pchip.sug { background: #E1F5FE; color: #0B4F6C; box-shadow: none; } .pchip.sug i { color: #0B4F6C; }
+  :root:not([data-theme="light"]) .pchip.sug { background: #183447; color: #A8DBF5; } :root:not([data-theme="light"]) .pchip.sug i { color: #A8DBF5; }
+  .sg-pin.saved { background: #E8F0FE; color: #1A73E8; } .sg-pin.saved svg { width: 17px; height: 17px; }
+  .pl-wrap { background: none; border: none; }
+  .pl-mk { position: absolute; transform: translate(-15px, -15px); display: flex; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer; }
+  .pl-mk i { width: 30px; height: 30px; border-radius: 50%; background: #1A73E8; color: #fff; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+  .pl-mk i svg { width: 16px; height: 16px; }
+  .pl-mk span { font-size: 13px; font-weight: 700; color: #1A73E8; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
+  :root:not([data-theme="light"]) .pl-mk span { color: #8AB4F8; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  #placeSheet { position: absolute; inset: 0; z-index: 1350; background: rgba(0,0,0,.45); display: none; align-items: flex-end; padding: 0 var(--panel-gap) calc(env(safe-area-inset-bottom) + var(--panel-gap)); }
+  #placeSheet.open { display: flex; animation: fadeIn .18s ease; }
+  .ps-body { width: 100%; height: calc(100% - env(safe-area-inset-top) - 8px); background: var(--sheet); border-radius: 34px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); }
+  #placeSheet.open .ps-body { animation: sheetUp .34s cubic-bezier(.32,.72,0,1); }
+  .ps-head { display: grid; grid-template-columns: 38px 1fr 38px; align-items: center; padding: 12px 12px 8px; }
+  .ps-head h2 { text-align: center; font-size: 19px; font-weight: 700; }
+  #placeWrap { position: relative; height: 38%; min-height: 180px; margin: 0 12px; border-radius: 18px; overflow: hidden; flex-shrink: 0; }
+  #placeMap { position: absolute; inset: 0; }
+  .ps-pin { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -100%); z-index: 1000; line-height: 0; pointer-events: none; filter: drop-shadow(0 3px 4px rgba(0,0,0,.5)); }
+  .ps-hint { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 1000; font-size: 12.5px; white-space: nowrap; color: #fff; background: rgba(20,22,30,.75); padding: 6px 12px; border-radius: 999px; pointer-events: none; }
+  .ps-field { position: relative; display: block; margin: 18px 14px 0; border: 2px solid #3C7A89; border-radius: 14px; padding: 0 14px; }
+  .ps-field span { position: absolute; top: -10px; left: 12px; padding: 0 6px; background: var(--sheet); color: #3C7A89; font-size: 13px; }
+  :root:not([data-theme="light"]) .ps-field { border-color: #6FB3C4; } :root:not([data-theme="light"]) .ps-field span { color: #6FB3C4; }
+  .ps-field input { width: 100%; height: 50px; border: none; outline: none; background: none; font-size: 17px; }
+  .ps-note { font-size: 12.5px; color: var(--muted); margin: 8px 16px 4px; }
+  #plList { flex: 1; overflow-y: auto; padding: 4px 14px 16px; }
+  .pl-h { font-size: 15px; font-weight: 600; margin: 14px 2px 10px; }
+  .pl-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pl-row { display: flex; align-items: center; gap: 14px; padding: 10px 2px; cursor: pointer; }
+  .pl-row i { width: 44px; height: 44px; border-radius: 50%; background: var(--s1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .pl-row i svg { width: 20px; height: 20px; }
+  .pl-row div { flex: 1; min-width: 0; } .pl-row b { display: block; font-size: 16px; font-weight: 500; }
+  .pl-row span { font-size: 13.5px; color: #3C7A89; } :root:not([data-theme="light"]) .pl-row span { color: #6FB3C4; }
+  .pl-row.saved { cursor: default; } .pl-row.saved span { color: var(--muted); }
+  .pl-row button { border: none; background: var(--s1); width: 32px; height: 32px; border-radius: 50%; color: var(--muted); }
   #installBar { position: absolute; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 64px); z-index: 1250; display: none;
     align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 18px; background: rgba(30,32,40,.95);
     border: 1px solid var(--line-2); box-shadow: 0 8px 26px rgba(0,0,0,.45); max-width: 460px; }
@@ -547,6 +600,7 @@
           <button id="swapBtn" aria-label="Swap" onclick="swapTrip()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg></button>
         </div>
       </div>
+      <div id="placeChips"></div>
       <div id="suggest"></div>
       <div id="routeHint" data-i18n="routeHint"></div>
     </div>
@@ -600,14 +654,14 @@
               <div id="pickMap"></div>
               <div id="crosshair"><svg viewBox="0 0 24 34" width="27" height="38"><path d="M12 1C5.9 1 1 5.8 1 11.8c0 7.9 9.6 19.6 10 20.1.5.6 1.5.6 2 0 .4-.5 10-12.2 10-20.1C23 5.8 18.1 1 12 1z" fill="#EA4335" stroke="#B31412" stroke-width="1.2"/><circle cx="12" cy="11.8" r="4" fill="#B31412"/></svg></div>
               <div id="pickHint" data-i18n="pickHint"></div>
-              <div id="pickArrow" onclick="rotateDir()"><svg viewBox="0 0 120 120"><defs><radialGradient id="gdBeam" cx="60" cy="60" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4285F4" stop-opacity=".75"/><stop offset="1" stop-color="#4285F4" stop-opacity="0"/></radialGradient></defs><path d="M60 60 L31 9.8 A58 58 0 0 1 89 9.8 Z" fill="url(#gdBeam)"/><circle cx="60" cy="60" r="8" fill="#4285F4" stroke="#fff" stroke-width="3"/></svg></div>
+              <div id="pickArrow"><svg viewBox="0 0 120 120"><defs><radialGradient id="gdBeam" cx="60" cy="60" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4285F4" stop-opacity=".75"/><stop offset="1" stop-color="#4285F4" stop-opacity="0"/></radialGradient></defs><path d="M60 60 L31 9.8 A58 58 0 0 1 89 9.8 Z" fill="url(#gdBeam)"/><circle cx="60" cy="60" r="8" fill="#4285F4" stroke="#fff" stroke-width="3"/></svg></div>
               <button id="pickLocate" onclick="pickRecenter()" aria-label="My location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg></button>
             </div>
             <div class="pad">
               <div class="side-row" id="sideRow"><span class="side-q" data-i18n="sideQ"></span>
                 <div class="seg side-seg"><button id="sideSame" onclick="setSide('same')" data-i18n="sideSame"></button><button id="sideOpp" onclick="setSide('opp')" data-i18n="sideOpp"></button></div></div>
               <div class="side-row" id="dirRow"><span class="side-q" id="dirTxt"></span>
-                <button class="btn-dark dir-btn" onclick="rotateDir()" data-i18n="setDir"></button></div>
+                <button class="btn-dark dir-btn" onclick="startCompass()" data-i18n="setDir"></button></div>
               <input id="labelInput" data-i18n-ph="placePh"></div>
           </div>
         </section>
@@ -634,6 +688,15 @@
   </div>
 
   <div id="toast"></div>
+  <div id="placeSheet" onclick="if (event.target === this) closePlaceSheet()">
+    <div class="ps-body">
+      <div class="ps-head"><button class="ibtn" onclick="closePlaceSheet()" aria-label="Back">←</button><h2 data-i18n="savePlace"></h2><span></span></div>
+      <div id="placeWrap"><div id="placeMap"></div><div class="ps-pin"><svg viewBox="0 0 24 34" width="27" height="38"><path d="M12 1C5.9 1 1 5.8 1 11.8c0 7.9 9.6 19.6 10 20.1.5.6 1.5.6 2 0 .4-.5 10-12.2 10-20.1C23 5.8 18.1 1 12 1z" fill="#EA4335" stroke="#B31412" stroke-width="1.2"/><circle cx="12" cy="11.8" r="4" fill="#B31412"/></svg></div><div class="ps-hint" data-i18n="pickHint"></div></div>
+      <label class="ps-field"><span data-i18n="placeNameL"></span><input id="plName" autocomplete="off" enterkeyhint="done" oninput="renderPlaceSuggest()" onkeydown="if (event.key === 'Enter') savePlace()"></label>
+      <div class="ps-note" data-i18n="placeLocal"></div>
+      <div id="plList"></div>
+    </div>
+  </div>
   <div id="installBar" role="status"><img src="/static/icon-180.png?v=2" alt=""><div class="ib-txt"><b data-i18n="installT"></b><span id="ibHow"></span></div>
     <button id="ibGo" data-i18n="installGo"></button><button id="ibX" aria-label="Close">✕</button></div>
 </main>
@@ -661,11 +724,14 @@ const I18N = {
     tabMap: "แผนที่", tabFeed: "รายการ", tabRoute: "เส้นทาง", fab: "รายงาน",
     legIncident: "เหตุ", c_all: "ทั้งหมด", c_checkpoint: "ด่านตรวจ", c_incident: "เหตุบนถนน",
     incN: n => `เหตุ ${n} จุด`, tagCheckpoint: "ด่าน", tagIncident: "เหตุบนถนน",
-    sideQ: "ด่านอยู่ฝั่งไหน?", sideSame: "ฝั่งเดียวกับฉัน", sideOpp: "ฝั่งตรงข้าม", setDir: "ตั้งทิศ",
-    dirUnknown: "ทิศทาง: ไม่ระบุ — แตะเพื่อตั้ง", heading: x => `มุ่งหน้าทิศ${x}`, dirL: "ทิศทาง",
+    sideQ: "ด่านอยู่ฝั่งไหน?", sideSame: "ฝั่งเดียวกับฉัน", sideOpp: "ฝั่งตรงข้าม", setDir: "เปิดเข็มทิศ",
+    dirUnknown: "เปิดเข็มทิศเพื่อระบุฝั่งถนน", heading: x => `มุ่งหน้าทิศ${x}`, dirL: "ทิศทาง",
     wrongSide: "อยู่อีกฝั่งถนน", flipped: "เปลี่ยนฝั่งแล้ว",
     installT: "เพิ่ม glubDD ไว้ที่หน้าจอโฮม", installGo: "ติดตั้ง", installGot: "เข้าใจแล้ว",
     installIOS: "แชร์ ⬆︎ → “เพิ่มไปยังหน้าจอโฮม”", installOther: "เมนู ⋮ → “เพิ่มลงในหน้าจอหลัก”", installAndroid: "เปิดเร็วเหมือนแอป ไม่ต้องดาวน์โหลด",
+    savePlace: "บันทึกสถานที่", savedPlace: "สถานที่ที่บันทึกไว้", suggestions: "คำแนะนำ", save: "บันทึก", replace: "แทนที่ของเดิม",
+    yourPlaces: "สถานที่ของคุณ", placeNameL: "ตั้งชื่อสถานที่", placeLocal: "บันทึกไว้ในเครื่องนี้เท่านั้น เลื่อนแผนที่ให้หมุดตรงสถานที่",
+    placeSaved: n => `บันทึก “${n}” แล้ว`,
     tabNear: "แถวนี้", tabReport: "รายงาน", nearTitle: n => `${n} รายงานแถวนี้`, live: "สด",
     secStatus: "สถานะ", secStill: "ยังอยู่ไหม?", confirmedL: "ยืนยันแล้ว", peopleN: n => `${n} คน`,
     lastL: "ยืนยันล่าสุด", reportsL: "รายงานรวม", timesN: n => `${n} ครั้ง`, distL: "ห่างจากคุณ",
@@ -714,11 +780,14 @@ const I18N = {
     tabMap: "Map", tabFeed: "List", tabRoute: "Route", fab: "Report",
     legIncident: "Incident", c_all: "All", c_checkpoint: "Checkpoints", c_incident: "Incidents",
     incN: n => `${n} incident${n === 1 ? "" : "s"}`, tagCheckpoint: "Checkpoint", tagIncident: "Incident",
-    sideQ: "Which side?", sideSame: "My side", sideOpp: "Opposite side", setDir: "Set direction",
-    dirUnknown: "Direction: not set — tap to set", heading: x => `Heading ${x}`, dirL: "Direction",
+    sideQ: "Which side?", sideSame: "My side", sideOpp: "Opposite side", setDir: "Use compass",
+    dirUnknown: "Turn on the compass to set the road side", heading: x => `Heading ${x}`, dirL: "Direction",
     wrongSide: "It's on the other side of the road", flipped: "Side changed",
     installT: "Add glubDD to your home screen", installGo: "Install", installGot: "Got it",
     installIOS: "Tap Share ⬆︎ then “Add to Home Screen”", installOther: "Open the ⋮ menu → “Add to Home screen”", installAndroid: "Opens like an app — no download",
+    savePlace: "Save place", savedPlace: "Saved place", suggestions: "Suggestions", save: "Save", replace: "Replace existing",
+    yourPlaces: "Your places", placeNameL: "Enter a custom name", placeLocal: "Saved on this device only. Move the map to put the pin on the place.",
+    placeSaved: n => `Saved “${n}”`,
     tabNear: "Nearby", tabReport: "Report", nearTitle: n => `${n} report${n === 1 ? "" : "s"} nearby`, live: "Live",
     secStatus: "Status", secStill: "Still there?", confirmedL: "Confirmed by", peopleN: n => `${n} ${n === 1 ? "person" : "people"}`,
     lastL: "Last confirmed", reportsL: "Reports merged", timesN: n => `${n}`, distL: "From you",
@@ -830,6 +899,7 @@ function applyLang() {
   $("locBadge").textContent = userLoc ? t(locReal ? "locReal" : "locDemo") : t("locating");
   renderChips();
   renderCatBars();
+  renderPlaces();
   if ($("sheet").classList.contains("open")) { renderSteps(); renderDir(); }
   baseMaps.forEach(setMapLabels);
 }
@@ -1009,6 +1079,7 @@ function initMaps() {
 
   routeMap = L.map("routeMap", { zoomControl: false }).setView(DEFAULT_LOC, 12);
   map.on("zoomend", () => renderMap());
+  placesLayer.addTo(map); routePlacesLayer.addTo(routeMap);
   routeMap.on("movestart", () => hideRoutePrompt());
   routeMap.on("zoomend", () => renderRouteCps());
   addBasemap(routeMap);
@@ -1036,9 +1107,7 @@ function onLocated(real) {
   locReal = real;
   $("locBadge").textContent = t(real ? "locReal" : "locDemo");
   userMarkers.forEach(m => m.remove());
-  userMarkers = [map, routeMap].map(m =>
-    L.circleMarker(userLoc, { radius: 7, color: "#fff", weight: 2.5, fillColor: "#0A84FF", fillOpacity: 1 }).addTo(m)
-  );
+  userMarkers = [map, routeMap].map(m => meMarker(userLoc).addTo(m));
   if (!focusedShared) map.setView(userLoc, 13);
   routeMap.setView(userLoc, 12);
   renderFeed();
@@ -1165,6 +1234,96 @@ const ICON_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 // Destination / report pin: red, Google-Maps style.
 const RED_PIN = '<svg viewBox="0 0 24 34" width="27" height="38"><path d="M12 1C5.9 1 1 5.8 1 11.8c0 7.9 9.6 19.6 10 20.1.5.6 1.5.6 2 0 .4-.5 10-12.2 10-20.1C23 5.8 18.1 1 12 1z" fill="#EA4335" stroke="#B31412" stroke-width="1.2"/><circle cx="12" cy="11.8" r="4" fill="#B31412"/></svg>';
 const redPinIcon = () => L.divIcon({ className: "red-pin", html: RED_PIN, iconSize: [27, 38], iconAnchor: [13.5, 37] });
+const ICON_APPLE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.2-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.6-1-2.6-3.9zM14 5.5c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1.1.1 2.1-.6 2.8-1.4z"/></svg>';
+// One component for "open in Google Maps / Apple Maps" everywhere (report detail + route bar).
+function navPair(gUrl, aUrl, from) {
+  return `<a class="cta" onclick="track('nav_google',{from:'${from}'})" href="${gUrl}" target="_blank" rel="noopener">${ICON_GO}Google Maps</a>
+    <a class="btn-outline" onclick="track('nav_apple',{from:'${from}'})" href="${aUrl}" target="_blank" rel="noopener">${ICON_APPLE}Apple Maps</a>`;
+}
+const PLACE_ICON = {
+  home: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>',
+  work: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 7h-4V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zm-6 0h-4V5h4v2z"/></svg>',
+  school: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 13.2v4L12 21l7-3.8v-4L12 17l-7-3.8zM12 3 1 9l11 6 9-4.9V17h2V9L12 3z"/></svg>',
+  gym: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.6 14.9 22 13.5 20.6 12.1 17 15.7 8.3 7 11.9 3.4 10.5 2 9.1 3.4 7.7 2 5.5 4.2 4.1 2.8 2.7 4.2l1.4 1.4L2 7.7l1.4 1.4L2 10.5 3.4 11.9 7 8.3l8.7 8.7-3.6 3.6 1.4 1.4 1.4-1.4 1.4 1.4 2.2-2.2 1.4 1.4 1.4-1.4-1.4-1.4 2.2-2.2z"/></svg>',
+  family: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.4 10.6 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.6 11.5z"/></svg>',
+  food: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.1 1.7 3.8 3.8 4V22h2.5v-9c2.1-.2 3.7-1.9 3.7-4V2h-2v7zm5-3v8h2.5v8H21V2c-2.8 0-5 2.2-5 4z"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>',
+};
+// Saved places (Google-Maps style "Home", "Work", custom labels). Stored on this device only.
+const PLACE_PRESETS = [
+  { k: "home", th: "บ้าน", en: "Home" }, { k: "work", th: "ที่ทำงาน", en: "Work" },
+  { k: "school", th: "โรงเรียน/มหาวิทยาลัย", en: "School/University" }, { k: "gym", th: "ยิม", en: "Gym" },
+  { k: "family", th: "บ้านพ่อแม่", en: "Family" }, { k: "food", th: "ร้านโปรด", en: "Favourite food" },
+];
+let places = [];
+try { places = JSON.parse(localStorage.getItem("gd-places") || "[]"); } catch (e) { places = []; }
+const savePlacesLS = () => { try { localStorage.setItem("gd-places", JSON.stringify(places)); } catch (e) {} };
+const presetFor = name => { const n = (name || "").trim().toLowerCase(); return PLACE_PRESETS.find(p => p.th.toLowerCase() === n || p.en.toLowerCase() === n); };
+const placeIcon = pl => PLACE_ICON[pl.icon] || PLACE_ICON.flag;
+const placesLayer = L.layerGroup(), routePlacesLayer = L.layerGroup();
+function placeMarker(pl) {
+  return L.marker([pl.lat, pl.lng], { zIndexOffset: 1500, icon: L.divIcon({ className: "pl-wrap", iconSize: [0, 0],
+    html: `<div class="pl-mk"><i>${placeIcon(pl)}</i><span>${esc(pl.name)}</span></div>` }) })
+    .on("click", () => goToPlace(pl.id));
+}
+function renderPlaces() {
+  placesLayer.clearLayers(); routePlacesLayer.clearLayers();
+  places.forEach(pl => { placeMarker(pl).addTo(placesLayer); placeMarker(pl).addTo(routePlacesLayer); });
+  $("placeChips").innerHTML = places.map(pl => `<button class="pchip" onclick="goToPlace('${pl.id}')"><i>${placeIcon(pl)}</i>${esc(pl.name)}</button>`).join("")
+    + `<button class="pchip add" onclick="openPlaceSheet()">＋ ${t("savePlace")}</button>`;
+}
+function goToPlace(id) {
+  const pl = places.find(x => x.id === id); if (!pl) return;
+  if (!$("tab-route").classList.contains("active")) switchTab("route");
+  activeField = "dest";
+  setTripEnd("dest", { lat: pl.lat, lng: pl.lng, name: pl.name });
+}
+function savedRowsHtml(q) {
+  const n = (q || "").toLowerCase();
+  return places.filter(pl => !n || pl.name.toLowerCase().includes(n)).map(pl =>
+    `<div class="sg" onmousedown="event.preventDefault()" onclick="pickSaved('${pl.id}')">
+      <div class="sg-pin saved">${placeIcon(pl)}</div><div class="sg-txt"><div class="sg-name">${esc(pl.name)}</div><div class="sg-addr">${t("savedPlace")}</div></div></div>`).join("");
+}
+function pickSaved(id) { const pl = places.find(x => x.id === id); if (pl) setTripEnd(activeField, { lat: pl.lat, lng: pl.lng, name: pl.name }); }
+
+/* Save-place sheet: map with a centre pin + name with suggestions (like Google Maps "Save"). */
+let placeMap = null;
+function openPlaceSheet() {
+  $("placeSheet").classList.add("open");
+  $("plName").value = ""; renderPlaceSuggest();
+  const start = tripDest ? [tripDest.lat, tripDest.lng] : (userLoc || DEFAULT_LOC);
+  if (!placeMap) { placeMap = L.map("placeMap", { zoomControl: false }).setView(start, 17); addBasemap(placeMap); }
+  else placeMap.setView(start, 17);
+  setTimeout(() => placeMap.invalidateSize(), 120);
+}
+function closePlaceSheet() { $("placeSheet").classList.remove("open"); }
+function renderPlaceSuggest() {
+  const q = $("plName").value.trim(), n = q.toLowerCase(), nm = p => p[lang];
+  let html;
+  if (!q) {
+    html = `<div class="pl-h">${t("suggestions")}</div><div class="pl-chips">` + PLACE_PRESETS.map(p =>
+      `<button class="pchip sug" onclick="savePlace('${nm(p)}','${p.k}')"><i>${PLACE_ICON[p.k]}</i>${nm(p)}</button>`).join("") + `</div>`;
+  } else {
+    const matches = PLACE_PRESETS.filter(p => p.th.toLowerCase().includes(n) || p.en.toLowerCase().includes(n));
+    html = (presetFor(q) ? "" : `<div class="pl-row" onclick="savePlace(null,'flag')"><i>${PLACE_ICON.flag}</i><div><b>${esc(q)}</b><span>${t("save")}</span></div></div>`)
+      + matches.map(p => `<div class="pl-row" onclick="savePlace('${nm(p)}','${p.k}')"><i>${PLACE_ICON[p.k]}</i><div><b>${nm(p)}</b><span>${places.some(x => x.icon === p.k) ? t("replace") : t("save")}</span></div></div>`).join("");
+  }
+  if (places.length) html += `<div class="pl-h">${t("yourPlaces")}</div>` + places.map(pl =>
+    `<div class="pl-row saved"><i>${placeIcon(pl)}</i><div><b>${esc(pl.name)}</b><span>${pl.lat.toFixed(4)}, ${pl.lng.toFixed(4)}</span></div><button onclick="deletePlace('${pl.id}')" aria-label="Delete">✕</button></div>`).join("");
+  $("plList").innerHTML = html;
+}
+function savePlace(name, iconKey) {
+  name = (name || $("plName").value).trim(); if (!name) return;
+  const preset = iconKey && iconKey !== "flag" ? PLACE_PRESETS.find(p => p.k === iconKey) : presetFor(name);
+  const icon = preset ? preset.k : "flag";
+  const c = placeMap.getCenter();
+  if (preset && preset.k !== "food") places = places.filter(x => x.icon !== preset.k);  // one Home, one Work…
+  places.push({ id: Date.now().toString(36), name, icon, lat: +c.lat.toFixed(6), lng: +c.lng.toFixed(6) });
+  savePlacesLS(); renderPlaces(); closePlaceSheet(); toast(t("placeSaved", name));
+  track("place_save", { icon });
+}
+function deletePlace(id) { places = places.filter(x => x.id !== id); savePlacesLS(); renderPlaces(); renderPlaceSuggest(); }
+
 function tileHtml(cp, big = false) {
   const inc = catOf(cp) === "incident";
   return `<div class="tile ${inc ? "inc" : "cp"} ${big ? "big" : ""}">${typeIcon(cp.type)}</div>`;
@@ -1239,7 +1398,7 @@ function setPanel(st) {
   updateCollapsed();
   document.body.classList.toggle("panel-full", st === "full");
 }
-function syncRouteNav() { $("routeNav").classList.toggle("on", panelView === "route" && routeData.length > 0 && !!$("routeNav").innerHTML.trim()); }
+function syncRouteNav() { $("routeNav").classList.toggle("on", panelView === "route" && routeData.length > 0 && !!$("routeNav").innerHTML.trim()); document.body.classList.toggle("routing-on", routeData.length > 0); }
 function showView(v) {
   panelView = v;
   ["near", "detail", "route"].forEach(x => $("pv-" + x).classList.toggle("on", x === v));
@@ -1252,7 +1411,56 @@ const WIDE_MQ = window.matchMedia("(min-width: 700px)");
 function isWide() { return WIDE_MQ.matches; }
 WIDE_MQ.addEventListener("change", () => setTimeout(() => { map.invalidateSize(); routeMap.invalidateSize(); }, 50));
 function activeMap() { return $("tab-route").classList.contains("active") ? routeMap : map; }
-function recenter() { activeMap().setView(userLoc || DEFAULT_LOC, 15); }
+/* ---------- Compass: blue dot + beam that follows where the top of the phone points (like Google Maps).
+   Same marker on every map. Android: deviceorientationabsolute; iOS: webkitCompassHeading (needs a
+   permission tap, requested from the locate button / report screen). Smoothed every animation frame. */
+let compassDeg = null, compassShown = null, gotAbsolute = false, lastDrawn = null;
+function meMarker(ll) {
+  return L.marker(ll, { interactive: false, keyboard: false, zIndexOffset: 3000,
+    icon: L.divIcon({ className: "me-wrap", iconSize: [120, 120], iconAnchor: [60, 60], html: '<div class="me"><div class="me-beam"></div><i class="me-dot"></i></div>' }) });
+}
+function onOrient(e) {
+  let h = null;
+  if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)) h = e.webkitCompassHeading;
+  else if (e.alpha != null) {
+    if (e.type === "deviceorientationabsolute") gotAbsolute = true;
+    else if (gotAbsolute || !e.absolute) return;      // non-absolute alpha isn't north-referenced
+    h = 360 - e.alpha;
+  }
+  if (h == null) return;
+  const so = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+  compassDeg = (h + so + 360) % 360;
+}
+function compassTick() {
+  if (compassDeg != null) {
+    if (compassShown == null) compassShown = compassDeg;
+    else { const d = ((compassDeg - compassShown + 540) % 360) - 180; compassShown = (compassShown + d * 0.2 + 360) % 360; }
+    if (lastDrawn == null || Math.abs(((compassShown - lastDrawn + 540) % 360) - 180) > 0.4) {
+      lastDrawn = compassShown;
+      document.body.classList.add("has-compass");
+      document.querySelectorAll(".me-beam").forEach(b => b.style.transform = `rotate(${compassShown}deg)`);
+      if ($("sheet").classList.contains("open")) renderDir();
+    }
+  }
+  requestAnimationFrame(compassTick);
+}
+// Listen from the start (Android/Chrome deliver events right away). iOS (and some Chrome builds)
+// also need requestPermission() from a tap: done on the first tap, the locate button and the
+// report screen while no heading has arrived yet.
+window.addEventListener("deviceorientationabsolute", onOrient, true);
+window.addEventListener("deviceorientation", onOrient, true);
+requestAnimationFrame(compassTick);
+let askingCompass = false;
+function startCompass() {
+  if (compassDeg != null || askingCompass) return;
+  if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+    askingCompass = true;
+    DeviceOrientationEvent.requestPermission().catch(() => {}).finally(() => { askingCompass = false; });
+  }
+}
+document.addEventListener("click", () => startCompass(), { capture: true });
+function recenter() {
+  startCompass(); activeMap().setView(userLoc || DEFAULT_LOC, 15); }
 
 function openDetail(id) {
   const cp = checkpoints.find(c => c.id === id); if (!cp) return;
@@ -1277,8 +1485,7 @@ function openDetail(id) {
     ${cp.heading != null ? `<button class="link-btn" onclick="flipSide(${cp.id})">⇅ ${t("wrongSide")}</button>` : ""}
     <h3 class="sec" style="margin-top:14px">${t("secStill")}</h3>
     <div class="vote2"><button class="btn-dark" onclick="vote(${cp.id},true)">${t("stillThere")}</button><button class="btn-dark" onclick="vote(${cp.id},false)">${t("gone")}</button></div>
-    <a class="cta" onclick="track('nav_google',{from:'detail'})" href="${gmapsUrl(cp)}" target="_blank" rel="noopener">${ICON_GO}${t("openG")}</a>
-    <a class="btn-outline" onclick="track('nav_apple',{from:'detail'})" href="${amapsUrl(cp)}" target="_blank" rel="noopener">${t("openA")}</a>
+    <div class="nav-pair">${navPair(gmapsUrl(cp), amapsUrl(cp), "detail")}</div>
     <div class="foot"><button onclick="shareReport(${cp.id})">${ICON_SHARE}${t("share")}</button></div>`;
   showView("detail");
   $("panel").classList.remove("tint-cp", "tint-inc"); $("panel").classList.add(inc ? "tint-inc" : "tint-cp");
@@ -1502,10 +1709,11 @@ function renderSuggest(q, submitted = false) {
   const meRow = activeField === "orig" ? `<div class="sg" onmousedown="event.preventDefault()" onclick="pickMyLoc()">
       <div class="sg-pin me">${ME_SVG}</div><div class="sg-txt"><div class="sg-name">${t("myLoc")}</div></div></div>` : "";
   if (!q || q.length < 2) {
-    if (meRow) { el.innerHTML = meRow; el.classList.add("open"); } else el.classList.remove("open");
+    const rows = meRow + savedRowsHtml("");
+    if (rows) { el.innerHTML = rows; el.classList.add("open"); } else el.classList.remove("open");
     return;
   }
-  el.innerHTML = meRow + (suggestions.length
+  el.innerHTML = meRow + savedRowsHtml(q) + (suggestions.length
     ? suggestions.map((r, i) => `<div class="sg" onmousedown="event.preventDefault()" onclick="pickPlace(${i})">
         <div class="sg-pin">${PIN_SVG}</div>
         <div class="sg-txt"><div class="sg-name">${esc(r.name)}</div>${r.address ? `<div class="sg-addr">${esc(r.address)}</div>` : ""}</div>
@@ -1724,9 +1932,8 @@ function renderRouteSummary() {
   const wps = sel.wp || (sel.wp = shapeWaypoints(selRoute));
   const navOrig = lastOrig ? [lastOrig.lat, lastOrig.lng] : null;
   // Always-visible bar (outside the scrolling list) so users see they can open the route in a nav app.
-  $("routeNav").innerHTML = lastDest ? `
-      <a class="cta" onclick="track('nav_google',{from:'route'})" href="${googleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig)}" target="_blank" rel="noopener">${ICON_GO}Google Maps</a>
-      <a class="btn-outline" onclick="track('nav_apple',{from:'route'})" href="${appleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig)}" target="_blank" rel="noopener">Apple Maps</a>` : "";
+  $("routeNav").innerHTML = lastDest ? navPair(googleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig),
+    appleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig), "route") : "";
   syncRouteNav();
 
   sum.innerHTML = `<div class="p-head"><div><h2>${t("chooseRoute")}</h2><div class="p-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>${recLegendHtml()}
@@ -1896,34 +2103,31 @@ let pickMe = null;
 function showPickMe() {
   const here = reportPos || userLoc; if (!here || !pickMap) return;
   if (pickMe) pickMe.setLatLng(here);
-  else pickMe = L.circleMarker(here, { radius: 7, color: "#fff", weight: 2.5, fillColor: "#0A84FF", fillOpacity: 1, interactive: false }).addTo(pickMap);
+  else pickMe = meMarker(here).addTo(pickMap);
 }
 // Direction: from the phone's direction of travel when moving (flipped if the checkpoint is on the
 // opposite side), otherwise set by tapping the arrow (45° per tap). null = unknown.
-let travelHeading = null, reportSide = "same", manualDir = null, headWatch = null;
+let travelHeading = null, reportSide = "same", headWatch = null;
 function reportHeading() {
-  if (travelHeading != null) return reportSide === "opp" ? (travelHeading + 180) % 360 : travelHeading;
-  return manualDir;
+  const base = travelHeading != null ? travelHeading : compassShown;   // moving: GPS course; else: phone compass
+  if (base == null) return null;
+  return reportSide === "opp" ? (base + 180) % 360 : base;
 }
 function setSide(sd) { reportSide = sd; renderDir(); }
-function rotateDir() {
-  if (travelHeading != null) { setSide(reportSide === "same" ? "opp" : "same"); return; }
-  manualDir = manualDir == null ? 0 : (manualDir + 45) % 360; renderDir();
-}
 const COMPASS = { th: ["เหนือ","ตะวันออกเฉียงเหนือ","ตะวันออก","ตะวันออกเฉียงใต้","ใต้","ตะวันตกเฉียงใต้","ตะวันตก","ตะวันตกเฉียงเหนือ"],
                   en: ["north","northeast","east","southeast","south","southwest","west","northwest"] };
 function compassName(h) { return COMPASS[lang][Math.round(h / 45) % 8]; }
 function renderDir() {
-  const h = reportHeading(), moving = travelHeading != null;
-  $("sideRow").style.display = moving ? "" : "none";
-  $("dirRow").style.display = moving ? "none" : "";
+  const h = reportHeading(), known = h != null;
+  $("sideRow").style.display = known ? "" : "none";
+  $("dirRow").style.display = known ? "none" : "";
   $("sideSame").classList.toggle("on", reportSide === "same");
   $("sideOpp").classList.toggle("on", reportSide === "opp");
   $("dirTxt").textContent = h == null ? t("dirUnknown") : t("heading", compassName(h));
   const a = $("pickArrow"); a.style.display = h == null ? "none" : ""; if (h != null) a.style.transform = `translate(-50%, -50%) rotate(${h}deg)`;
 }
 function startHeadingWatch() {
-  stopHeadingWatch(); travelHeading = null; reportSide = "same"; manualDir = null;
+  stopHeadingWatch(); travelHeading = null; reportSide = "same";
   if (!navigator.geolocation) return;
   headWatch = navigator.geolocation.watchPosition(p => {
     const c = p.coords;
@@ -1941,6 +2145,7 @@ function stepBack() { step === 0 ? closeSheet() : goStep(step - 1); }
 function openSheet() {
   $("sheet").classList.add("open");
   track("report_open");
+  startCompass();
   step = 0; maxStep = 0;
   if (!pickMap) {
     pickMap = L.map("pickMap", { zoomControl: false }).setView(userLoc || DEFAULT_LOC, 16);

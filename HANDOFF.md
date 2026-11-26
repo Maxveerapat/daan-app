@@ -222,6 +222,13 @@ were `cp`'d over. **When you run it yourself from a normal terminal, this doesn'
   HTTP referrer) → real Google Maps tiles via the official API + Leaflet.GridLayer.GoogleMutant
   (night style in dark mode; label language follows the app language at page load). Without a key,
   OpenFreeMap is coloured like Google (`PALETTE_LIGHT` + added park layer). Light is now the default theme.
+- **Compass (Google-Maps-style):** every map shows the user as a blue dot with a light-blue beam that
+  follows the phone's compass (deviceorientationabsolute / iOS webkitCompassHeading, smoothed per frame;
+  iOS permission asked on tap). Report direction = GPS course when moving, else compass; no manual rotate.
+- **Saved places** (localStorage `gd-places` only): chips under the route search (+ Save place), save
+  sheet with map pin + name suggestions (Home/Work/School/Gym/Family/Favourite food → icon; custom name →
+  flag), one Home/Work each, delete in the sheet; blue labelled markers on maps; listed in search.
+- Google/Apple Maps buttons are one component (`navPair`) in report detail and route bar.
 - Note: all reports share the 3 h active / 12 h hide expiry — long roadworks need re-confirming.
 
 ---

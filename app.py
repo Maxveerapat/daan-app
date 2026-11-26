@@ -208,7 +208,7 @@ STATS_TOKEN = os.environ.get("STATS_TOKEN", "").strip()
 TZ_OFFSET = 7 * 3600   # report days in Bangkok time
 
 
-EVENT_KINDS = {"report_open", "route_search", "nav_google", "nav_apple", "detail_open", "share",
+EVENT_KINDS = {"place_save", "report_open", "route_search", "nav_google", "nav_apple", "detail_open", "share",
                "install_shown", "install_click", "installed", "filter", "lang", "theme"}
 
 

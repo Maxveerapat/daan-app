@@ -131,6 +131,12 @@
   .seg-ic { display: inline-flex; width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
   .seg-ic svg { width: 100%; height: 100%; }
   .seg-ic.cp { color: var(--cp-ic); } .seg-ic.inc { color: var(--inc-ic); }
+  /* two-option segmented toggles: active option filled, the other outlined */
+  .tog { display: inline-flex; margin-left: 6px; border: 1.5px solid rgba(255,255,255,.55); border-radius: 999px; padding: 0; overflow: hidden; }
+  .tog button { height: 28px; min-width: 34px; padding: 0 9px; border: none; background: transparent; color: #fff; font-size: 12.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; border-radius: 999px; }
+  .tog button svg { width: 15px; height: 15px; }
+  .tog button.on { background: #fff; color: #111214; }
   .brand #themeBtn { margin-left: 6px; width: 30px; height: 30px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; }
   .brand #themeBtn svg { width: 16px; height: 16px; }
   .brand #refreshBtn { color: #fff; }
@@ -443,11 +449,11 @@
   .me-wrap { background: none; border: none; pointer-events: none; }
   .me { position: relative; width: 120px; height: 120px; }
   .me-beam { position: absolute; inset: 0; display: none; transition: none;
-    background: radial-gradient(circle at 50% 50%, rgba(66,133,244,.55) 0, rgba(66,133,244,.25) 30%, rgba(66,133,244,0) 62%);
-    clip-path: polygon(50% 50%, 26% 0, 74% 0); }
+    background: radial-gradient(circle at 50% 50%, rgba(26,103,255,.85) 0, rgba(26,103,255,.45) 28%, rgba(26,103,255,0) 60%);
+    clip-path: polygon(50% 50%, 22% 0, 78% 0); }
   body.has-compass .me-beam { display: block; }
-  .me-dot { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%;
-    background: #4285F4; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+  .me-dot { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
+    background: #1A67FF; border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.35); }
   #pickArrow { position: absolute; left: 50%; top: 50%; z-index: 999; width: 120px; height: 120px;
     transform: translate(-50%, -50%); pointer-events: none; }
   #pickArrow svg { width: 100%; height: 100%; }
@@ -583,7 +589,7 @@
 <main>
   <div class="tab active" id="tab-map">
     <div id="map"></div>
-    <div class="brand"><img class="logo-img" src="/static/logo.png?v=2" alt="glubDD" width="76" height="34"><button id="langBtn" onclick="toggleLang()" aria-label="Switch language">EN</button><button id="themeBtn" onclick="toggleTheme()" aria-label="Dark / light mode"></button><button id="refreshBtn" onclick="hardRefresh()" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></div>
+    <div class="brand"><img class="logo-img" src="/static/logo.png?v=2" alt="glubDD" width="76" height="34"><div class="tog" role="group" aria-label="Language"><button data-lang="th" onclick="setLangTo('th')">TH</button><button data-lang="en" onclick="setLangTo('en')">EN</button></div><div class="tog" role="group" aria-label="Theme"><button data-theme-opt="light" onclick="setThemeTo('light')" aria-label="Light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></button><button data-theme-opt="dark" onclick="setThemeTo('dark')" aria-label="Dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button></div><button id="refreshBtn" onclick="hardRefresh()" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></div>
   </div>
 
   <div class="tab" id="tab-route">
@@ -895,7 +901,7 @@ function applyLang() {
   document.title = t("title");
   document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
   document.querySelectorAll("[data-i18n-ph]").forEach(el => el.placeholder = t(el.dataset.i18nPh));
-  $("langBtn").textContent = lang === "th" ? "EN" : "ไทย";
+  document.querySelectorAll("[data-lang]").forEach(b => { b.classList.toggle("on", b.dataset.lang === lang); b.setAttribute("aria-pressed", b.dataset.lang === lang); });
   $("locBadge").textContent = userLoc ? t(locReal ? "locReal" : "locDemo") : t("locating");
   renderChips();
   renderCatBars();
@@ -914,11 +920,13 @@ function hardRefresh() {
 const SUN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>', MOON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>';
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
-  const b = $("themeBtn"); if (b) b.innerHTML = t === "light" ? MOON_SVG : SUN_SVG;
+  document.querySelectorAll("[data-theme-opt]").forEach(b => { b.classList.toggle("on", b.dataset.themeOpt === t); b.setAttribute("aria-pressed", b.dataset.themeOpt === t); });
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "light" ? "#EEF0F3" : "#111214");
   baseMaps.forEach(gl => { if (gl.isStyleLoaded()) { setMapLabels(gl); tuneStyle(gl); } });
   gLayers.forEach(g => { g.lmap.removeLayer(g.layer); g.layer = googleLayer().addTo(g.lmap); g.layer.bringToBack(); });
 }
+function setThemeTo(t) { if ((isLight() ? "light" : "dark") !== t) toggleTheme(); }
+function setLangTo(l) { if (lang !== l) toggleLang(); }
 function toggleTheme() {
   const t = isLight() ? "dark" : "light";
   try { localStorage.setItem("gd-theme", t); } catch (e) {}
@@ -978,20 +986,20 @@ function apiHeaders() { return { "Content-Type": "application/json", "X-Device-I
    Its "dark" style is recoloured below into a cleaner, Apple-Maps-like dark palette. */
 const STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 const MAP_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-const PALETTE_LIGHT = {  // OpenFreeMap fallback, coloured like Google Maps
-  background: "#F1F3F4", landuse_residential: "#EEF0F1", landcover_wood: "#CEEAD6", landuse_park: "#CEEAD6",
-  water: "#AAD3FF", waterway: "#AAD3FF", building: "#E8EAED",
-  highway_path: "#FFFFFF", highway_minor: "#FFFFFF", highway_major_casing: "#DADCE0", highway_major_inner: "#FFFFFF",
-  highway_major_subtle: "#FFFFFF", highway_motorway_casing: "#F2C15C", highway_motorway_inner: "#FDE293",
-  highway_motorway_subtle: "#FDE293", railway_transit: "#C6CACF", railway_minor: "#C6CACF", railway: "#C6CACF",
+const PALETTE_LIGHT = {  // OpenFreeMap fallback, coloured like Google Maps (light)
+  background: "#F3F3F0", landuse_residential: "#F1F0EC", landcover_wood: "#BFE8C8", landuse_park: "#BFE8C8",
+  water: "#90C2FF", waterway: "#90C2FF", building: "#ECE7DD",
+  highway_path: "#FFFFFF", highway_minor: "#FFFFFF", highway_major_casing: "#C7CFDA", highway_major_inner: "#DCE3EC",
+  highway_major_subtle: "#DCE3EC", highway_motorway_casing: "#F0B43C", highway_motorway_inner: "#FFD56B",
+  highway_motorway_subtle: "#FFD56B", railway_transit: "#B9BFC8", railway_minor: "#B9BFC8", railway: "#B9BFC8",
 };
 const isLight = () => document.documentElement.dataset.theme === "light";
-const PALETTE = {  // navy map, after JodNai
-  background: "#2B3150", landuse_residential: "#2D3353", landcover_wood: "#23403A", landuse_park: "#23403A",
-  water: "#1C2C8F", waterway: "#1C2C8F", building: "#353C5E",
-  highway_path: "#394062", highway_minor: "#4A5277", highway_major_casing: "#3A4163", highway_major_inner: "#7C88B0",
-  highway_major_subtle: "#7C88B0", highway_motorway_casing: "#3A4163", highway_motorway_inner: "#A6B1D3",
-  highway_motorway_subtle: "#A6B1D3", railway_transit: "#454C6E", railway_minor: "#454C6E", railway: "#454C6E",
+const PALETTE = {  // dark, after Google Maps night mode (navy, clear roads)
+  background: "#1B2439", landuse_residential: "#1D273D", landcover_wood: "#173A33", landuse_park: "#173A33",
+  water: "#0B1730", waterway: "#0B1730", building: "#243049",
+  highway_path: "#2C3852", highway_minor: "#38466A", highway_major_casing: "#2A3654", highway_major_inner: "#4C5D84",
+  highway_major_subtle: "#4C5D84", highway_motorway_casing: "#2A3654", highway_motorway_inner: "#6B7BA3",
+  highway_motorway_subtle: "#6B7BA3", railway_transit: "#3A4566", railway_minor: "#3A4566", railway: "#3A4566",
 };
 const baseMaps = [];
 const GMAP_NIGHT = [
@@ -1028,6 +1036,7 @@ function tuneStyle(gl) {
     if (l.type === "fill") gl.setPaintProperty(id, "fill-opacity", 1);
   }
   ["highway_minor", "highway_major_inner", "highway_motorway_inner"].forEach(id => gl.getLayer(id) && gl.setPaintProperty(id, "line-opacity", 1));
+  setTimeout(() => { gl._gdScaled = true; }, 0);
   const P = isLight() ? PALETTE_LIGHT : PALETTE;
   // Parks (leisure=park) aren't drawn by the base style; add them like Google Maps does.
   if (!gl.getLayer("gd-park")) {
@@ -1041,11 +1050,22 @@ function tuneStyle(gl) {
     if (!gl.getLayoutProperty(l.id, "text-field")) return;
     const major = l.id.startsWith("place_city") || l.id === "place_town";
     const L = isLight();
-    gl.setPaintProperty(l.id, "text-color", L ? (major ? "#1F232B" : l.id.startsWith("highway") ? "#5A606C" : "#3D424C")
-                                             : (major ? "#EEF0F8" : l.id.startsWith("highway") ? "#B7BFD9" : "#CDD2E4"));
-    gl.setPaintProperty(l.id, "text-halo-color", L ? "rgba(255,255,255,.95)" : "rgba(32,37,64,.92)");
+    gl.setPaintProperty(l.id, "text-color", L ? (major ? "#202124" : l.id.startsWith("highway") ? "#3C4043" : "#3C4043")
+                                             : (major ? "#FFFFFF" : l.id.startsWith("highway") ? "#E8EAED" : "#DADCE0"));
+    gl.setPaintProperty(l.id, "text-halo-color", L ? "#FFFFFF" : "#1B2439");
+    gl.setPaintProperty(l.id, "text-halo-blur", 0);
+    if (!gl._gdScaled) scaleTextSize(gl, l.id, 1.15);
     gl.setPaintProperty(l.id, "text-halo-width", 1.2);
   });
+}
+// Labels ~15% larger (OpenFreeMap defaults are small/thin next to Google Maps).
+function scaleTextSize(gl, id, k) {
+  const v = gl.getLayoutProperty(id, "text-size");
+  let out = null;
+  if (typeof v === "number") out = v * k;
+  else if (v && Array.isArray(v.stops)) out = { ...v, stops: v.stops.map(([z, n]) => [z, n * k]) };
+  else if (Array.isArray(v) && v[0] === "interpolate") out = v.map((x, i) => (i > 3 && i % 2 === 0 && typeof x === "number") ? x * k : x);
+  if (out != null) { try { gl.setLayoutProperty(id, "text-size", out); } catch (e) {} }
 }
 function setMapLabels(gl) {
   if (!gl || !gl.isStyleLoaded()) return;
@@ -1108,8 +1128,8 @@ function onLocated(real) {
   $("locBadge").textContent = t(real ? "locReal" : "locDemo");
   userMarkers.forEach(m => m.remove());
   userMarkers = [map, routeMap].map(m => meMarker(userLoc).addTo(m));
-  if (!focusedShared) map.setView(userLoc, 13);
-  routeMap.setView(userLoc, 12);
+  if (!focusedShared) map.setView(userLoc, 15);
+  routeMap.setView(userLoc, 14);
   renderFeed();
 }
 

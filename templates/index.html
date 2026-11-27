@@ -390,6 +390,31 @@
   @media (prefers-reduced-motion: reduce) { #routePrompt .tap i, .trip.pulse { animation: none; } }
 
   .toll-filter { margin: 0 0 10px; }
+  /* Route results: compact peek (selected route only) + details when expanded */
+  .rt-peek .p-head { margin-bottom: 6px; }
+  .rt-time { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .rt-time small { font-size: 17px; font-weight: 500; color: var(--muted); }
+  .rt-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; cursor: pointer; }
+  .rt-fact { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; border-radius: 15px; background: var(--s1); font-size: 13.5px; font-weight: 600; }
+  .rt-fact svg { width: 15px; height: 15px; }
+  .rt-fact.cp { color: var(--cp-ic); } .rt-fact.inc { color: var(--inc-ic); }
+  .rt-fact.zero { color: var(--muted); font-weight: 500; }
+  .rt-fact.tl { color: var(--text); font-weight: 500; }
+  .rt-more-h { font-size: 13px; font-weight: 600; color: var(--muted); margin: 4px 0 8px; display: flex; justify-content: space-between; align-items: center; }
+  .ibtn.tune svg { width: 19px; height: 19px; }
+  .p-head .ibtns { display: flex; gap: 8px; flex-shrink: 0; }
+  /* Labels on the route lines (Google Maps style): time + tolls + reports. Tap to pick. */
+  .rlab-wrap { background: none; border: 0; }
+  .rlab { position: absolute; left: 0; bottom: 0; transform: translate(-6px, -6px); padding: 5px 9px 6px; border-radius: 10px 10px 10px 2px;
+    background: var(--sheet); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.35); white-space: nowrap; cursor: pointer; line-height: 1.15; font-family: inherit; }
+  .rlab b { display: block; font-size: 15px; font-weight: 700; }
+  .rlab .rl-ic { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; margin-top: 2px; }
+  .rlab .rl-ic:empty { display: none; }
+  .rlab .rl-ic span { display: inline-flex; align-items: center; gap: 2px; }
+  .rlab svg { width: 13px; height: 13px; }
+  .rlab .c-cp { color: var(--cp-ic); } .rlab .c-inc { color: var(--inc-ic); }
+  .rlab.sel { background: #1A56DB; color: #fff; z-index: 2; }
+  .rlab.sel .c-cp, .rlab.sel .c-inc { color: #fff; }
   .route-opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 14px; margin-bottom: 6px; border-radius: 16px; background: var(--s1); border: 1px solid transparent; cursor: pointer; }
   .route-opt.sel { border-color: var(--blue); background: #1E2540; }
   .ro-main { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 2px; min-width: 0; }
@@ -789,7 +814,7 @@ const I18N = {
     pinned: "หมุดที่ปักไว้", needDest: "พิมพ์ปลายทาง หรือแตะบนแผนที่", searching: "กำลังค้นหา…",
     notFound: "หาปลายทางไม่เจอ ลองแตะบนแผนที่แทน", calcRoute: "กำลังคำนวณเส้นทาง…",
     routeErr: "เชื่อมต่อบริการเส้นทางไม่ได้", noRoute: "หาเส้นทางไม่ได้",
-    cpN: n => `ด่าน ${n} จุด`, cpNone: "ไม่มีด่าน", routeN: i => `เส้นทางที่ ${i}`,
+    cpN: n => `ด่าน ${n} จุด`, cpNone: "ไม่มีด่าน", incNone: "ไม่มีเหตุ", mins: m => `${m} นาที`, kmOnly: k => `${k} กม.`, routeOf: (i, n) => `เส้นทาง ${i} จาก ${n}`, routeOpts: "ตัวเลือกเส้นทาง", routeOptsH: "เส้นทางทั้งหมด", routeN: i => `เส้นทางที่ ${i}`,
     minKm: (mi, km) => `~${mi} นาที · ${km} กม.`, kmAt: k => `${k} กม.`,
     noCpOnRoute: "ไม่มีรายงานบนเส้นทางนี้", navWith: "เปิดนำทางด้วย",
     chooseRoute: "เลือกเส้นทาง", byTime: "เรียงตามเวลา", onRoute: i => `รายงานบนเส้นทางที่ ${i}`,
@@ -845,7 +870,7 @@ const I18N = {
     pinned: "Dropped pin", needDest: "Type a destination or tap the map", searching: "Searching…",
     notFound: "Destination not found — try tapping the map", calcRoute: "Calculating routes…",
     routeErr: "Couldn't reach the routing service", noRoute: "No route found",
-    cpN: n => `${n} checkpoint${n === 1 ? "" : "s"}`, cpNone: "No checkpoints", routeN: i => `Route ${i}`,
+    cpN: n => `${n} checkpoint${n === 1 ? "" : "s"}`, cpNone: "No checkpoints", incNone: "No incidents", mins: m => `${m} min`, kmOnly: k => `${k} km`, routeOf: (i, n) => `Route ${i} of ${n}`, routeOpts: "Route options", routeOptsH: "All routes", routeN: i => `Route ${i}`,
     minKm: (mi, km) => `~${mi} min · ${km} km`, kmAt: k => `${k} km`,
     noCpOnRoute: "No reports on this route", navWith: "Navigate with",
     chooseRoute: "Choose a route", byTime: "By travel time", onRoute: i => `Reports on route ${i}`,
@@ -1423,9 +1448,7 @@ function updateCollapsed() {
   let full = null, half = null;
   if (panelView === "near") { full = $("catbar"); half = document.querySelector("#feedScroll .row"); }
   else {
-    const opts = document.querySelectorAll("#routeSummary .route-opt");
-    if (opts.length) { full = opts[0]; half = opts[1] || null; }
-    else full = $("routeSummary").lastElementChild;
+    full = document.querySelector("#routeSummary .rt-peek") || $("routeSummary").lastElementChild;
   }
   if (!full) return;
   const top = el => el.getBoundingClientRect().top - pv.getBoundingClientRect().top + pv.scrollTop;
@@ -1932,8 +1955,33 @@ function drawRoutes() {
   });
   const sel = routeData[selRoute];
   L.polyline(sel.coords, { color: "#0A84FF", weight: 6, opacity: .95 }).addTo(routeLines);
-
+  drawRouteLabels();
   renderRouteCps();
+}
+
+// Label each route where it is furthest from the others, so the callouts don't stack.
+function routeLabelPoint(i) {
+  const c = routeData[i].coords, others = routeData.filter((r, j) => j !== i && routeMatches(r)).flatMap(r => r.coords.filter((_, k) => k % 4 === 0));
+  const a = Math.floor(c.length * .25), b = Math.max(a + 1, Math.floor(c.length * .75)), step = Math.max(1, Math.floor((b - a) / 40));
+  let best = c[Math.floor(c.length / 2)], bestD = -1;
+  if (!others.length) return best;
+  for (let k = a; k < b; k += step) {
+    let d = Infinity;
+    for (const o of others) { const dd = (o[0] - c[k][0]) ** 2 + (o[1] - c[k][1]) ** 2; if (dd < d) d = dd; }
+    if (d > bestD) { bestD = d; best = c[k]; }
+  }
+  return best;
+}
+function drawRouteLabels() {
+  routeData.forEach((r, i) => {
+    if (!routeMatches(r)) return;
+    const ncp = r.hits.filter(h => catOf(h.cp) === "checkpoint").length, ninc = r.hits.length - ncp;
+    const ic = `${r.toll ? `<span>${ICON_TOLL}</span>` : ""}${ncp ? `<span class="c-cp">${PIN_SHIELD}${ncp}</span>` : ""}${ninc ? `<span class="c-inc">${PIN_WARN}${ninc}</span>` : ""}`;
+    const html = `<div class="rlab ${i === selRoute ? "sel" : ""}"><b>${t("mins", r.mins)}</b><div class="rl-ic">${ic}</div></div>`;
+    L.marker(routeLabelPoint(i), { icon: L.divIcon({ className: "rlab-wrap", html, iconSize: [0, 0] }), zIndexOffset: i === selRoute ? 900 : 800 })
+      .on("click", () => { selRoute = i; drawRoutes(); renderRouteSummary(); })
+      .addTo(routeLines);
+  });
 }
 
 // Every report is shown on the route map (per the category filter); ones on the selected route are drawn larger.
@@ -1947,6 +1995,7 @@ function renderRouteCps() {
 
 // Toll icons: Material 'toll' symbol (the one Google Maps uses) / crossed out used on route cards and the toll filter.
 const ICON_TOLL = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zM3 12c0-2.61 1.67-4.83 4-5.65V4.26C3.55 5.15 1 8.27 1 12s2.55 6.85 6 7.74v-2.09c-2.33-.82-4-3.04-4-5.65z"/></svg>';
+const ICON_TUNE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>';
 const ICON_NOTOLL = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zM3 12c0-2.61 1.67-4.83 4-5.65V4.26C3.55 5.15 1 8.27 1 12s2.55 6.85 6 7.74v-2.09c-2.33-.82-4-3.04-4-5.65z"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 // Reports on the selected route, shown right under its card (driving order). Tap → full details.
 function routeHitsHtml(r) {
@@ -1992,8 +2041,20 @@ function renderRouteSummary() {
     appleNavUrl([lastDest.lat, lastDest.lng], wps, sel, navOrig), "route") : "";
   syncRouteNav();
 
-  sum.innerHTML = `<div class="p-head"><div><h2>${t("chooseRoute")}</h2><div class="p-sub">${t("byTime")} · ${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>${recLegendHtml()}
-      <button class="ibtn" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div>
+  const ncp = sel.hits.filter(h => catOf(h.cp) === "checkpoint").length, ninc = sel.hits.length - ncp;
+  const fact = (cls, ic, txt) => `<span class="rt-fact ${cls}">${ic}${txt}</span>`;
+  sum.innerHTML = `<div class="rt-peek">
+      <div class="p-head"><div><h2 class="rt-time">${t("mins", sel.mins)}<small>(${t("kmOnly", sel.km.toFixed(1))})</small></h2>
+        <div class="p-sub">${visible.length > 1 ? t("routeOf", visible.indexOf(selRoute) + 1, visible.length) + " · " : ""}${t(routeTraffic ? "liveTraffic" : "noTraffic")}</div></div>
+        <div class="ibtns"><button class="ibtn tune" onclick="setPanel(panelState()==='full'?'collapsed':'full')" aria-label="${t("routeOpts")}" title="${t("routeOpts")}">${ICON_TUNE}</button>
+        <button class="ibtn" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div></div>
+      <div class="rt-facts" onclick="setPanel('full')">
+        ${fact(ncp ? "cp" : "zero", PIN_SHIELD, ncp ? t("cpN", ncp) : t("cpNone"))}
+        ${fact(ninc ? "inc" : "zero", PIN_WARN, ninc ? t("incN", ninc) : t("incNone"))}
+        ${sel.toll == null ? "" : fact("tl", sel.toll ? ICON_TOLL : ICON_NOTOLL, t(sel.toll ? "toll" : "noToll"))}
+      </div>
+    </div>
+    <div class="rt-more-h"><span>${t("routeOptsH")}</span>${recLegendHtml()}</div>
     ${catSegHtml()}
     ${filterBar}
     ${opts}

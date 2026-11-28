@@ -259,12 +259,12 @@
     background: var(--s1); border: none; font-size: 15px; color: var(--text); text-decoration: none; white-space: nowrap; overflow: hidden;
   }
   .chip-link::after { content: "›"; color: var(--muted); font-size: 20px; line-height: 1; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
-  .st { display: grid; grid-template-columns: 22px 1fr; column-gap: 8px; align-items: center; background: var(--s1); border-radius: 14px; padding: 9px 11px; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .st { display: grid; grid-template-columns: 18px 1fr; column-gap: 7px; align-items: center; background: var(--s1); border-radius: 14px; padding: 9px 11px; }
   .st i { grid-row: span 2; display: flex; color: var(--muted); } .st i svg { width: 20px; height: 20px; }
   .st i .hd-inline { width: 20px; height: 20px; }
-  .st b { font-size: 14.5px; font-weight: 600; line-height: 1.2; }
-  .st span { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st b { font-size: 14.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
+  .st span { white-space: nowrap; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .vote { display: flex; align-items: center; justify-content: center; gap: 7px; height: 42px; border-radius: 999px; border: none; font-size: 14.5px; font-weight: 600; }
   .vote svg { width: 18px; height: 18px; }
   .vote.yes { background: rgba(30,142,62,.14); color: #1E8E3E; } .vote.no { background: rgba(217,48,37,.12); color: #D93025; }
@@ -803,7 +803,7 @@ const I18N = {
     typeLabel: "ประเภทการตรวจ", placeLabel: "สถานที่ (ไม่บังคับ)", placePh: "ชื่อสถานที่ (ไม่บังคับ) เช่น หน้าโลตัส พระราม 2",
     cancel: "ยกเลิก", submit: "ส่งรายงาน",
     justNow: "เมื่อสักครู่", minAgo: m => `${m} นาทีที่แล้ว`,
-    hMinAgo: (h, m) => `${h} ชม. ${m} นาทีที่แล้ว`, hAgo: h => `${h} ชม. ที่แล้ว`,
+    hMinAgo: (h, m) => `${h} ชม. ${m} นาทีที่แล้ว`, hAgo: h => `${h} ชม.ที่แล้ว`, dAgo: d => `${d} วันที่แล้ว`,
     m: "ม.", km: "กม.",
     lastConfirmed: a => `ยืนยันล่าสุด ${a}`, people: n => `✓ ${n} คน`, reportsN: n => `รายงาน ${n} ครั้ง`,
     confirmedBy: n => `✓ ยืนยัน ${n} คน`, mergedN: n => `รายงาน ${n} ครั้งรวมกัน`,
@@ -832,14 +832,14 @@ const I18N = {
     sideQ: "Which side?", sideSame: "My side", sideOpp: "Opposite side", setDir: "Use compass",
     dirUnknown: "Turn on the compass to set the road side", heading: x => `Heading ${x}`, dirL: "Direction",
     wrongSide: "It's on the other side of the road", flipped: "Side changed",
-    installT: "Add glubDD to your home screen", installGo: "Install", installGot: "Got it",
-    installIOS: "Tap Share ⬆︎ then “Add to Home Screen”", installOther: "Open the ⋮ menu → “Add to Home screen”", installAndroid: "Opens like an app — no download",
+    installT: "Add glubDD to home screen", installGo: "Install", installGot: "Got it",
+    installIOS: "Tap Share ⬆︎ then “Add to Home Screen”", installOther: "⋮ menu → “Add to Home screen”", installAndroid: "Opens like an app — no download",
     plSearchPh: "Search for a place", savePlace: "Save place", savedPlace: "Saved place", suggestions: "Suggestions", save: "Save", replace: "Replace existing",
     yourPlaces: "Your places", placeNameL: "Enter a custom name", placeLocal: "Saved on this device only. Move the map to put the pin on the place.",
     placeSaved: n => `Saved “${n}”`,
     tabNear: "Nearby", tabReport: "Report", nearTitle: n => `${n} report${n === 1 ? "" : "s"} nearby`, live: "Live",
-    secStatus: "Status", secStill: "Still there?", confirmedL: "Confirmed by", peopleN: n => `${n} ${n === 1 ? "person" : "people"}`,
-    lastL: "Last confirmed", reportsL: "Reports merged", timesN: n => `${n}`, distL: "From you",
+    secStatus: "Status", secStill: "Still there?", confirmedL: "Confirmed", peopleN: n => `${n} ${n === 1 ? "person" : "people"}`,
+    lastL: "Last seen", reportsL: "Reports merged", timesN: n => `${n}`, distL: "Away",
     openG: "Open Google Maps", openA: "Open Apple Maps", routeTitle: "Route",
     share: "Share", shareTitle: "glubDD — road report", copied: "Link copied", shareErr: "Couldn't share",
     sharedGone: "This report has expired or was removed", detected: x => `Detected: ${x} ✓`,
@@ -859,7 +859,7 @@ const I18N = {
     typeLabel: "Type", placeLabel: "Place (optional)", placePh: "Place name (optional), e.g. in front of Lotus, Rama 2",
     cancel: "Cancel", submit: "Send report",
     justNow: "just now", minAgo: m => `${m} min ago`,
-    hMinAgo: (h, m) => `${h} hr ${m} min ago`, hAgo: h => `${h} hr ago`,
+    hMinAgo: (h, m) => `${h} hr ${m} min ago`, hAgo: h => `${h} hr ago`, dAgo: d => `${d} day${d === 1 ? "" : "s"} ago`,
     m: "m", km: "km",
     lastConfirmed: a => `Last confirmed ${a}`, people: n => `✓ ${n} ${n === 1 ? "person" : "people"}`, reportsN: n => `${n} reports`,
     confirmedBy: n => `✓ ${n} confirmed`, mergedN: n => `${n} reports merged`,
@@ -1190,8 +1190,8 @@ function haversineM(a, b) {
 function agoText(min) {
   if (min < 1) return t("justNow");
   if (min < 60) return t("minAgo", min);
-  const h = Math.floor(min/60), m = min%60;
-  return m ? t("hMinAgo", h, m) : t("hAgo", h);
+  const h = Math.floor(min / 60);
+  return h < 24 ? t("hAgo", h) : t("dAgo", Math.floor(h / 24));
 }
 function distText(m) { return m < 1000 ? `${Math.round(m)} ${t("m")}` : `${(m/1000).toFixed(1)} ${t("km")}`; }
 
@@ -1562,7 +1562,6 @@ function openDetail(id) {
       <div class="st"><i style="color:${pinColor(cp)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></i><b>${agoText(cp.age_minutes)}</b><span>${t("lastL")}</span></div>
       <div class="st"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6 6 0 0 1 3.5 6"/></svg></i><b>${t("peopleN", cp.confirms)}</b><span>${t("confirmedL")}</span></div>
       ${dist == null ? "" : `<div class="st"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.4-7-11.5a7 7 0 0 1 14 0C19 14.6 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></i><b>${distText(dist)}</b><span>${t("distL")}</span></div>`}
-      ${cp.reports > 1 ? `<div class="st"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5z"/><path d="M2 13l10 5 10-5"/></svg></i><b>${t("timesN", cp.reports)}</b><span>${t("reportsL")}</span></div>` : ""}
     </div>
     ${cp.heading != null ? `<button class="link-btn" onclick="flipSide(${cp.id})">⇅ ${t("wrongSide")}</button>` : ""}
     <h3 class="sec" style="margin-top:12px">${t("secStill")}</h3>
@@ -1953,12 +1952,12 @@ function drawRoutes() {
   routeData.forEach((r, i) => {
     if (i === selRoute || !routeMatches(r)) return;
     const pick = () => { selRoute = i; drawRoutes(); renderRouteSummary(); };
-    L.polyline(r.coords, { color: isLight() ? "#5D7DB8" : "#25406F", weight: 9, opacity: 1 }).on("click", pick).addTo(routeLines);
-    L.polyline(r.coords, { color: isLight() ? "#A9C1EC" : "#7E9FD8", weight: 5.5, opacity: 1 }).on("click", pick).addTo(routeLines);
+    L.polyline(r.coords, { color: isLight() ? "#5D7DB8" : "#25406F", weight: 9, opacity: 1, bubblingMouseEvents: false }).on("click", pick).addTo(routeLines);
+    L.polyline(r.coords, { color: isLight() ? "#A9C1EC" : "#7E9FD8", weight: 5.5, opacity: 1, bubblingMouseEvents: false }).on("click", pick).addTo(routeLines);
   });
   const sel = routeData[selRoute];
-  L.polyline(sel.coords, { color: isLight() ? "#0B57D0" : "#0A3D91", weight: 10, opacity: 1 }).addTo(routeLines);
-  L.polyline(sel.coords, { color: isLight() ? "#4285F4" : "#4A9BFF", weight: 6.5, opacity: 1 }).addTo(routeLines);
+  L.polyline(sel.coords, { color: isLight() ? "#0B57D0" : "#0A3D91", weight: 10, opacity: 1, bubblingMouseEvents: false }).addTo(routeLines);
+  L.polyline(sel.coords, { color: isLight() ? "#4285F4" : "#4A9BFF", weight: 6.5, opacity: 1, bubblingMouseEvents: false }).addTo(routeLines);
   drawRouteLabels();
   renderRouteCps();
 }
@@ -1982,7 +1981,7 @@ function drawRouteLabels() {
     const ncp = r.hits.filter(h => catOf(h.cp) === "checkpoint").length, ninc = r.hits.length - ncp;
     const ic = `${r.toll ? `<span>${ICON_TOLL}</span>` : ""}${ncp ? `<span class="c-cp">${PIN_SHIELD}${ncp}</span>` : ""}${ninc ? `<span class="c-inc">${PIN_WARN}${ninc}</span>` : ""}`;
     const html = `<div class="rlab ${i === selRoute ? "sel" : ""}"><b>${t("mins", r.mins)}</b><div class="rl-ic">${ic}</div></div>`;
-    L.marker(routeLabelPoint(i), { icon: L.divIcon({ className: "rlab-wrap", html, iconSize: [0, 0] }), zIndexOffset: i === selRoute ? 900 : 800 })
+    L.marker(routeLabelPoint(i), { icon: L.divIcon({ className: "rlab-wrap", html, iconSize: [0, 0] }), zIndexOffset: i === selRoute ? 900 : 800, bubblingMouseEvents: false })
       .on("click", () => { selRoute = i; drawRoutes(); renderRouteSummary(); })
       .addTo(routeLines);
   });

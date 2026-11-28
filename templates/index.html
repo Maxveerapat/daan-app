@@ -1155,7 +1155,9 @@ function initMaps() {
   new ResizeObserver(() => routeMap.invalidateSize()).observe($("routeMap"));
   new ResizeObserver(() => map.invalidateSize()).observe($("map"));
   // Tap the map to drop a pin for whichever field is being edited (start if its box is focused).
+  // Once routes are showing, tapping empty map does nothing (like Google Maps); change the destination in the search box.
   routeMap.on("click", e => {
+    if (routeData.length || panelView === "detail") return;
     const f = activeField === "orig" ? "orig" : "dest";
     setTripEnd(f, { lat: e.latlng.lat, lng: e.latlng.lng, name: t("pinned") });
   });

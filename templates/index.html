@@ -394,12 +394,16 @@
   .rt-peek .p-head { margin-bottom: 6px; }
   .rt-time { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
   .rt-time small { font-size: 17px; font-weight: 500; color: var(--muted); }
-  .rt-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; cursor: pointer; }
-  .rt-fact { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; border-radius: 15px; background: var(--s1); font-size: 13.5px; font-weight: 600; }
-  .rt-fact svg { width: 15px; height: 15px; }
+  .rt-facts { display: flex; flex-wrap: nowrap; gap: 5px; margin: 0 0 12px; cursor: pointer; }
+  @media (max-width: 400px) { .rt-fact { font-size: 12px; padding: 0 7px; gap: 3px; } .rt-fact svg { width: 12px; height: 12px; } .rt-facts { gap: 4px; } }
+  .rt-fact { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 9px; border-radius: 15px; background: var(--s1); font-size: 13px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+  .rt-fact svg { width: 14px; height: 14px; }
   .rt-fact.cp { color: var(--cp-ic); } .rt-fact.inc { color: var(--inc-ic); }
   .rt-fact.zero { color: var(--muted); font-weight: 500; }
   .rt-fact.tl { color: var(--text); font-weight: 500; }
+  .rt-facts.tight .rt-fact.tl .tx { display: none; }
+  .ro-sec { font-size: 13px; font-weight: 700; color: var(--muted); margin: 12px 0 8px; display: flex; justify-content: space-between; align-items: center; }
+  .ro-hits.flat { margin: 0 0 4px; padding-left: 0; border-left: 0; }
   .rt-more-h { font-size: 13px; font-weight: 600; color: var(--muted); margin: 4px 0 8px; display: flex; justify-content: space-between; align-items: center; }
   .ibtn.tune svg { width: 19px; height: 19px; }
   .p-head .ibtns { display: flex; gap: 8px; flex-shrink: 0; }
@@ -814,7 +818,7 @@ const I18N = {
     pinned: "หมุดที่ปักไว้", needDest: "พิมพ์ปลายทาง หรือแตะบนแผนที่", searching: "กำลังค้นหา…",
     notFound: "หาปลายทางไม่เจอ ลองแตะบนแผนที่แทน", calcRoute: "กำลังคำนวณเส้นทาง…",
     routeErr: "เชื่อมต่อบริการเส้นทางไม่ได้", noRoute: "หาเส้นทางไม่ได้",
-    cpN: n => `ด่าน ${n} จุด`, cpNone: "ไม่มีด่าน", incNone: "ไม่มีเหตุ", mins: m => `${m} นาที`, kmOnly: k => `${k} กม.`, routeOf: (i, n) => `เส้นทาง ${i} จาก ${n}`, routeOpts: "ตัวเลือกเส้นทาง", routeOptsH: "เส้นทางทั้งหมด", routeN: i => `เส้นทางที่ ${i}`,
+    cpN: n => `ด่าน ${n} จุด`, cpNone: "ไม่มีด่าน", incNone: "ไม่มีเหตุ", mins: m => `${m} นาที`, kmOnly: k => `${k} กม.`, routeOf: (i, n) => `เส้นทาง ${i} จาก ${n}`, routeOpts: "ตัวเลือกเส้นทาง", routeOptsH: "เส้นทางทั้งหมด", onThisRoute: "บนเส้นทางนี้", otherRoutes: "เส้นทางอื่น", routeN: i => `เส้นทางที่ ${i}`,
     minKm: (mi, km) => `~${mi} นาที · ${km} กม.`, kmAt: k => `${k} กม.`,
     noCpOnRoute: "ไม่มีรายงานบนเส้นทางนี้", navWith: "เปิดนำทางด้วย",
     chooseRoute: "เลือกเส้นทาง", byTime: "เรียงตามเวลา", onRoute: i => `รายงานบนเส้นทางที่ ${i}`,
@@ -870,7 +874,7 @@ const I18N = {
     pinned: "Dropped pin", needDest: "Type a destination or tap the map", searching: "Searching…",
     notFound: "Destination not found — try tapping the map", calcRoute: "Calculating routes…",
     routeErr: "Couldn't reach the routing service", noRoute: "No route found",
-    cpN: n => `${n} checkpoint${n === 1 ? "" : "s"}`, cpNone: "No checkpoints", incNone: "No incidents", mins: m => `${m} min`, kmOnly: k => `${k} km`, routeOf: (i, n) => `Route ${i} of ${n}`, routeOpts: "Route options", routeOptsH: "All routes", routeN: i => `Route ${i}`,
+    cpN: n => `${n} checkpoint${n === 1 ? "" : "s"}`, cpNone: "No checkpoints", incNone: "No incidents", mins: m => `${m} min`, kmOnly: k => `${k} km`, routeOf: (i, n) => `Route ${i} of ${n}`, routeOpts: "Route options", routeOptsH: "All routes", onThisRoute: "On this route", otherRoutes: "Other routes", routeN: i => `Route ${i}`,
     minKm: (mi, km) => `~${mi} min · ${km} km`, kmAt: k => `${k} km`,
     noCpOnRoute: "No reports on this route", navWith: "Navigate with",
     chooseRoute: "Choose a route", byTime: "By travel time", onRoute: i => `Reports on route ${i}`,
@@ -1573,9 +1577,15 @@ function openDetail(id) {
   showView("detail");
   $("panel").classList.remove("tint-cp", "tint-inc"); $("panel").classList.add(inc ? "tint-inc" : "tint-cp");
   setPanel("detail");
+  // Centre the report in the visible part of the map (between the top bar and the sheet); keep the zoom.
   const m = activeMap();
-  m.setView([cp.lat, cp.lng], Math.max(m.getZoom(), 15), { animate: false });
+  m.setView([cp.lat, cp.lng], m.getZoom(), { animate: false });
   if (isWide()) m.panBy([-($("panel").offsetWidth + 12) / 2, 0], { animate: false });
+  else {
+    const mh = m.getSize().y, top = m === routeMap ? 130 : 70;
+    const ph = parseFloat($("panel").style.getPropertyValue("--detail-h")) || $("panel").offsetHeight;
+    m.panBy([0, mh / 2 - (top + (mh - ph - 12 - top) / 2)], { animate: true, duration: .3 });
+  }
   renderMap(); renderRouteCps();
   $("pv-detail").scrollTop = 0;
 }
@@ -1583,6 +1593,15 @@ function closeDetail() {
   selectedId = null;
   showView(prevView); setPanel(prevPanelState);
   renderMap(); renderRouteCps();
+  if (prevView === "route" && routeData.length) setTimeout(() => fitRouteView(true), 340);  // back to the whole trip, A to B
+}
+// Fit start→destination on screen: the selected route (or all routes when they first load), clear of the top bar and sheet.
+function fitRouteView(selOnly) {
+  routeMap.invalidateSize();
+  const b = L.latLngBounds(selOnly ? routeData[selRoute].coords : routeData.flatMap(r => r.coords));
+  routeMap.fitBounds(b, isWide()
+    ? { paddingTopLeft: [$("panel").offsetWidth + 40, 130], paddingBottomRight: [40, 40] }
+    : { paddingTopLeft: [30, 140], paddingBottomRight: [30, $("panel").offsetHeight + 40] });
 }
 function renderRouteEmpty() {
   $("routeSummary").innerHTML = `<div class="p-head"><div><h2>${t("routeTitle")}</h2><div class="p-sub">${t("routeHint")}</div></div>${recLegendHtml()}</div>${catSegHtml()}`;
@@ -1920,13 +1939,7 @@ async function buildRoute() {
   drawRoutes();
   renderRouteSummary();
   showView("route"); setPanel("collapsed");
-  setTimeout(() => {
-    routeMap.invalidateSize();
-    const b = L.latLngBounds(routeData.flatMap(r => r.coords));
-    routeMap.fitBounds(b, isWide()
-      ? { paddingTopLeft: [$("panel").offsetWidth + 40, 130], paddingBottomRight: [40, 40] }
-      : { paddingTopLeft: [30, 130], paddingBottomRight: [30, $("panel").offsetHeight + 30] });
-  }, 380);
+  setTimeout(() => fitRouteView(false), 380);
 }
 
 let routePromptT = null;
@@ -2005,8 +2018,8 @@ const ICON_NOTOLL = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 4
 // Reports on the selected route, shown right under its card (driving order). Tap → full details.
 function routeHitsHtml(r) {
   const hits = r.hits.filter(h => catShown(h.cp));
-  if (!hits.length) return `<div class="ro-hits empty">${t("noCpOnRoute")}</div>`;
-  return `<div class="ro-hits">${hits.map(h => `<div class="ro-hit" onclick="event.stopPropagation();openDetail(${h.cp.id})">
+  if (!hits.length) return `<div class="ro-hits flat empty">${t("noCpOnRoute")}</div>`;
+  return `<div class="ro-hits flat">${hits.map(h => `<div class="ro-hit" onclick="event.stopPropagation();openDetail(${h.cp.id})">
       ${tileHtml(h.cp)}
       <div class="row-main"><div class="row-t">${esc(labelName(h.cp.label))}</div>
         <div class="row-s">${catTag(h.cp)}${esc(typeName(h.cp.type))}</div></div>
@@ -2021,18 +2034,23 @@ function renderRouteSummary() {
   const hasTollInfo = routeData.some(r => r.toll != null);
   const filterBar = hasTollInfo ? `<div class="seg toll-filter">${["all", "toll", "noToll"].map(k =>
       `<button class="${tollFilter === k ? "on" : ""}" onclick="setTollFilter('${k}')" aria-label="${t("f_" + k)}" title="${t("f_" + k)}">${k === "all" ? "" : `<span class="seg-ic tl-ic ${k === "toll" ? "yes" : "no"}">${k === "toll" ? ICON_TOLL : ICON_NOTOLL}</span>`}${t("f_" + k)}</button>`).join("")}</div>` : "";
-  const opts = visible.length ? visible.map(i => {
+  const card = i => {
     const r = routeData[i];
     const n = r.hits.filter(h => catOf(h.cp) === "checkpoint").length;
     const ni = r.hits.length - n;
-    return `<div class="route-opt ${i === selRoute ? "sel" : ""}" onclick="selRoute=${i};drawRoutes();renderRouteSummary()">
+    return `<div class="route-opt ${i === selRoute ? "sel" : ""}" onclick="selRoute=${i};drawRoutes();renderRouteSummary();$('pv-route').scrollTo({top:0,behavior:'smooth'})">
         <div class="ro-main">
           <b>${t("routeN", i + 1)}</b>
           <span class="ro-sub">${t("minKm", r.mins, r.km.toFixed(1))}${r.toll == null ? "" : `<span class="tl-ic ${r.toll ? "yes" : "no"}" title="${t(r.toll ? "toll" : "noToll")}">${r.toll ? ICON_TOLL : ICON_NOTOLL}</span>`}</span>
         </div>
         <div class="ro-badges">${catFilter !== "incident" ? `<span class="cnt ${n ? "cp" : "zero"}" title="${n ? t("cpN", n) : t("cpNone")}"><span class="seg-ic cp">${PIN_SHIELD}</span>${n}</span>` : ""}${catFilter !== "checkpoint" ? `<span class="cnt ${ni ? "inc" : "zero"}" title="${t("incN", ni)}"><span class="seg-ic inc">${PIN_WARN}</span>${ni}</span>` : ""}</div>
-      </div>${i === selRoute ? routeHitsHtml(r) : ""}`;
-  }).join("") : `<div class="route-hit" style="color:var(--muted)">${t("noRouteFilter")}</div>`;
+      </div>`;
+  };
+  const others = visible.filter(i => i !== selRoute);
+  const opts = visible.length
+    ? `<div class="ro-sec">${t("onThisRoute")}</div>${routeHitsHtml(routeData[selRoute])}`
+      + (others.length ? `<div class="ro-sec">${t("otherRoutes")}</div>${others.map(card).join("")}` : "")
+    : `<div class="route-hit" style="color:var(--muted)">${t("noRouteFilter")}</div>`;
 
   const sel = routeData[selRoute];
 
@@ -2054,16 +2072,18 @@ function renderRouteSummary() {
         <div class="ibtns"><button class="ibtn tune" onclick="setPanel(panelState()==='full'?'collapsed':'full')" aria-label="${t("routeOpts")}" title="${t("routeOpts")}">${ICON_TUNE}</button>
         <button class="ibtn" onclick="closeRoute()" aria-label="${t("closeRoute")}">✕</button></div></div>
       <div class="rt-facts" onclick="setPanel('full')">
-        ${fact(ncp ? "cp" : "zero", PIN_SHIELD, ncp ? t("cpN", ncp) : t("cpNone"))}
-        ${fact(ninc ? "inc" : "zero", PIN_WARN, ninc ? t("incN", ninc) : t("incNone"))}
-        ${sel.toll == null ? "" : fact("tl", sel.toll ? ICON_TOLL : ICON_NOTOLL, t(sel.toll ? "toll" : "noToll"))}
+        ${fact(ncp ? "cp" : "zero", PIN_SHIELD, ncp ? t("cpN", ncp) : "0")}
+        ${fact(ninc ? "inc" : "zero", PIN_WARN, ninc ? t("incN", ninc) : "0")}
+        ${sel.toll == null ? "" : fact("tl", sel.toll ? ICON_TOLL : ICON_NOTOLL, `<span class="tx">${t(sel.toll ? "toll" : "noToll")}</span>`)}
       </div>
     </div>
-    <div class="rt-more-h"><span>${t("routeOptsH")}</span>${recLegendHtml()}</div>
     ${catSegHtml()}
     ${filterBar}
     ${opts}
 `;
+  // Never wrap the facts row: on narrow screens the toll chip drops its text (icon stays).
+  const fr = sum.querySelector(".rt-facts");
+  if (fr && fr.scrollWidth > fr.clientWidth + 1) fr.classList.add("tight");
   if (panelView === "route") updateCollapsed();
 }
 
